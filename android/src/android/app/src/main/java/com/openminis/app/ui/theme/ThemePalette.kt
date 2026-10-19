@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 enum class ThemePalette(val id: String, val label: String, val description: String) {
     MORANDI("morandi", "莫兰迪", "低饱和温润暖灰与鼠尾草色，极简护眼"),
@@ -36,7 +37,7 @@ object ThemePalettes {
     private val MorandiOutlineLight = Color(0xFFD5D2CA)
 
     private val MorandiPrimaryDark = Color(0xFF9EABA7)
-    private val MorandiOnPrimaryDark = Color(0xFF1A2624)
+    private val MorandiOnPrimaryDark = Color(0xFFE4E4E6)
     private val MorandiPrimaryContainerDark = Color(0xFF33403D)
     private val MorandiOnPrimaryContainerDark = Color(0xFFDFE6E3)
     private val MorandiSecondaryDark = Color(0xFFAAB2B8)
@@ -204,7 +205,7 @@ object ThemePalettes {
     // ── OLED 纯黑 (OLED Pure Black) ─────────────────────────────────────────────
     val OledDarkColorScheme: ColorScheme = darkColorScheme(
         primary = Color(0xFFFFFFFF),
-        onPrimary = Color(0xFF000000),
+        onPrimary = Color(0xFFFFFFFF),
         primaryContainer = Color(0xFF262626),
         onPrimaryContainer = Color(0xFFFFFFFF),
         secondary = Color(0xFFB3B3B3),
@@ -268,9 +269,10 @@ object ThemePalettes {
             ThemePalette.MATERIAL_YOU -> {
                 val cs = resolveColorScheme(palette, darkTheme, context)
                 if (darkTheme) {
+                    val onUser = if (cs.onPrimaryContainer.luminance() > 0.45f) cs.onPrimaryContainer else Color(0xFFFFFFFF)
                     DarkChatPalette.copy(
                         userBubble = cs.primaryContainer,
-                        onUserBubble = cs.onPrimaryContainer,
+                        onUserBubble = onUser,
                         link = cs.primary,
                         thinking = cs.primary,
                         fabAccent = cs.primary,

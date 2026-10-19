@@ -181,7 +181,11 @@ fun CloudAccountScreen(
             if (!signedIn) {
                 MuseCard {
                     Column(Modifier.padding(16.dp)) {
-                        Text(stringResource(R.string.nm_cloud_not_signed_in), style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            stringResource(R.string.nm_cloud_not_signed_in),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
                         Text(
                             stringResource(R.string.nm_cloud_not_signed_in_sub),
                             style = MaterialTheme.typography.bodySmall,
@@ -226,7 +230,11 @@ fun CloudAccountScreen(
                         }
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(text = a?.hint ?: stringResource(R.string.nm_cloud_title), style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = a?.hint ?: stringResource(R.string.nm_cloud_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                             val channel = when (a?.channel) {
                                 "phone" -> stringResource(R.string.nm_cloud_channel_phone)
                                 "email" -> stringResource(R.string.nm_cloud_channel_email)
@@ -988,7 +996,12 @@ fun CommunityNoticeCard(inset: Dp = 16.dp) {
             ) {
                 Icon(Icons.Outlined.Code, contentDescription = null, tint = MuseTones.action, modifier = Modifier.padding(top = 2.dp).size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.nm_cloud_notice_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text(
+                    stringResource(R.string.nm_cloud_notice_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
                 Spacer(Modifier.width(6.dp))
                 Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 3.dp).size(14.dp))
             }

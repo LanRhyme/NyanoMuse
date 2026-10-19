@@ -92,15 +92,15 @@ fun NmAssistantBubble(
         return
     }
     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), contentAlignment = Alignment.TopStart) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = 340.dp)
-                .clip(RoundedCornerShape(20.dp))
-                // The assistant's pill: a touch off the canvas, both themes.
-                .background(ChatColors.assistantBubble)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+        androidx.compose.material3.Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = ChatColors.assistantBubble,
+            contentColor = ChatColors.primaryText,
+            modifier = Modifier.widthIn(max = 340.dp),
         ) {
-            content()
+            Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                content()
+            }
         }
     }
 }

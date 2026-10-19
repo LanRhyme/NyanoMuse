@@ -139,6 +139,7 @@ fun MuseDisc(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
 fun MuseCard(modifier: Modifier = Modifier, inset: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         color = MuseTones.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
             .fillMaxWidth()

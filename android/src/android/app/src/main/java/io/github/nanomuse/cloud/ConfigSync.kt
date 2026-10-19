@@ -380,11 +380,17 @@ object ConfigSync {
             val soul = remote.optJSONObject("soul")
             if (soul != null) {
                 val body = soul.optString("body")
+                val remoteUpdatedAt = soul.optLong("updated_at", 0L)
                 if (body.isNotBlank()) {
                     val soulFile = SoulStore.fileLocation(context)
-                    soulFile.parentFile?.let { if (!it.exists()) it.mkdirs() }
-                    soulFile.writeText(body, Charsets.UTF_8)
-                    SoulStore.refreshCache(context)
+                    val localModified = if (soulFile.exists()) soulFile.lastModified() else 0L
+                    val isLocalCustom = soulFile.exists() && soulFile.readText(Charsets.UTF_8).trim() != com.openminis.app.agent.SoulStore.DEFAULT_CONTENT.trim()
+                    val isRemoteDefault = body.trim() == com.openminis.app.agent.SoulStore.DEFAULT_CONTENT.trim()
+                    if (!soulFile.exists() || (!isRemoteDefault && remoteUpdatedAt > localModified) || (!isLocalCustom && !isRemoteDefault)) {
+                        soulFile.parentFile?.let { if (!it.exists()) it.mkdirs() }
+                        soulFile.writeText(body, Charsets.UTF_8)
+                        SoulStore.refreshCache(context)
+                    }
                 }
             }
         } catch (e: Exception) {
