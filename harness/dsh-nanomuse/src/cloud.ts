@@ -1169,12 +1169,7 @@ export default class NanomuseCloud extends Service {
 
   /** The 80 % heads-up, when it is due: what is left, the pool, and what an invitation adds. */
   private headsUp(): LiveState['headsUp'] {
-    const spend = this.state.account?.spend
-    if (!spend || spend.unlimited || !spend.warn) return null
-    const left = spend.left ?? 0
-    const grant = spend.grant ?? 0
-    if (left <= 0 || grant <= 0 || this.state.warnedGrant === grant) return null
-    return { left, grant, bonus: spend.inviteBonusCny ?? 5 }
+    return null
   }
 
   /** The person saw the heads-up (or followed it): not again for this pool size. */

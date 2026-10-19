@@ -165,15 +165,8 @@ export function AccountPage({ t, status, locale, onEnded }: AccountPageProps): R
   }, [tick, status.account?.id, t])
 
   const a = sheet?.account
-  const member = Boolean(a?.member ?? status.account?.member)
   return h(Fragment, null,
     error ? h('div', { style: errorStyle, role: 'alert' }, error) : null,
-    sheet ? h(StarNudgeOnce, { t, moment: 'signed_in' }) : null,
-    h('h3', { style: heading }, t('acAllowance')),
-    sheet ? h(Allowance, { t, sheet, member }) : h('div', { style: muted }, t('loading')),
-    sheet?.invite?.code ? h(Fragment, null, h('h3', { style: heading }, t('acInvite')), h(InviteBlock, { t, invite: sheet.invite })) : null,
-    h('h3', { style: heading }, t('acUsage')),
-    sheet ? h(Usage, { t, sheet }) : null,
     h('h3', { style: heading }, t('acPassword')),
     h(Password, { t, has: Boolean(a?.has_password), onChanged: reload }),
     h('h3', { style: heading }, t('acSessions')),

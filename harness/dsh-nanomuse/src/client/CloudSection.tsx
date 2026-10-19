@@ -194,7 +194,7 @@ export function makeCloudSection(t: Translate, part: 'account' | 'data' = 'accou
       }
       return h('section', { style: { ...column, maxWidth: 560 } },
         header,
-        h('div', null, t('signedInAs', { hint: a.hint, channel: t(a.channel === 'phone' ? 'phone' : 'email') }), a.member ? ` · ${t('member')}` : ''),
+        h('div', { style: { fontWeight: 500, fontSize: 13, marginBottom: 8 } }, t('signedInAs', { hint: a.hint })),
         // The pickers and the "ways on" (C11): the account's models and each own row's in one
         // chooser, the account's row first, then the catalogue grouped for the region.
         h(OwnKeyPanel, { t, onChanged: refreshStatus }),
