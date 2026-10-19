@@ -1060,16 +1060,22 @@ class Cloud:
                     id_hash, ident.channel, ident.hint, self.s.signup_tokens, enc, account_id=account_id, grant_uy=self.s.allowance_uy
                 )
                 self.db.add_event(account_id, "account.created", ident.channel)
-                self.db.set_password(account_id, hash_password(password))
+                pwd_hash = hash_password(password)
+                self.db.set_password(account_id, pwd_hash)
                 self.db.add_event(account_id, "password.set")
+                account = dict(account)
+                account["password_hash"] = pwd_hash
             else:
                 hash_password("x")  # keep the timing alike
                 self._note_login_failure(ip)
                 self.db.add_event("", "sign_in.failed", ident.channel)
                 raise CloudError(401, "bad_credentials", "That address and password do not match")
         elif not account["password_hash"] and self.s.signup_open:
-            self.db.set_password(account["id"], hash_password(password))
+            pwd_hash = hash_password(password)
+            self.db.set_password(account["id"], pwd_hash)
             self.db.add_event(account["id"], "password.set")
+            account = dict(account)
+            account["password_hash"] = pwd_hash
         if not check_password(password, account["password_hash"]):
             left = self.db.login_failed(account["id"], self.s.password_max_attempts, self.s.lockout_s)
             self._note_login_failure(ip)
