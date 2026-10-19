@@ -26,11 +26,11 @@ import httpx
 from nanomuse import __version__
 from nanomuse.logger import logger
 
-INDEX_URL = "https://nanomuse.cn/dl/index.json"
-DOWNLOAD_PAGE = "https://nanomuse.cn/dl/"
-RELEASES_API = "https://api.github.com/repos/nano-muse/nanoMuse/releases/latest"
-RELEASES_PAGE = "https://github.com/nano-muse/nanoMuse/releases/latest"
-RELEASE_TAG_PAGE = "https://github.com/nano-muse/nanoMuse/releases/tag/{tag}"
+INDEX_URL = ""
+DOWNLOAD_PAGE = "https://github.com/LanRhyme/NyanoMuse/releases"
+RELEASES_API = "https://api.github.com/repos/LanRhyme/NyanoMuse/releases/latest"
+RELEASES_PAGE = "https://github.com/LanRhyme/NyanoMuse/releases/latest"
+RELEASE_TAG_PAGE = "https://github.com/LanRhyme/NyanoMuse/releases/tag/{tag}"
 CACHE_S = 24 * 3600
 # a check that failed (the runtime came up before the network did) is tried again sooner
 RETRY_S = 3600
@@ -131,17 +131,18 @@ class UpdateCheck:
         errors: list[str] = []
         async with httpx.AsyncClient(follow_redirects=True) as client:
             # 1. the download mirror's index (short timeout: it is the quick way, not the only one)
-            try:
-                r = await client.get(INDEX_URL, headers=headers, timeout=INDEX_TIMEOUT_S)
-                r.raise_for_status()
-                tag = latest_from_index(r.json())
-                if not tag:
-                    raise ValueError("no release in the index")
-                self._found(tag, RELEASE_TAG_PAGE.format(tag=tag), "nanomuse.cn")
-                return
-            except Exception as exc:  # noqa: BLE001 — the mirror is one of two ways
-                errors.append(exc.__class__.__name__)
-                logger.debug("update check (index) failed: {}", exc)
+            if INDEX_URL:
+                try:
+                    r = await client.get(INDEX_URL, headers=headers, timeout=INDEX_TIMEOUT_S)
+                    r.raise_for_status()
+                    tag = latest_from_index(r.json())
+                    if not tag:
+                        raise ValueError("no release in the index")
+                    self._found(tag, RELEASE_TAG_PAGE.format(tag=tag), "releases")
+                    return
+                except Exception as exc:  # noqa: BLE001 — the mirror is one of two ways
+                    errors.append(exc.__class__.__name__)
+                    logger.debug("update check (index) failed: {}", exc)
             # 2. GitHub Releases
             try:
                 r = await client.get(

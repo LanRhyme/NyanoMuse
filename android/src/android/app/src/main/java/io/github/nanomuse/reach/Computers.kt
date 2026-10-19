@@ -159,7 +159,7 @@ object Computers {
         return buildString {
             append("## Your devices (nanoMuse)\n")
             if (all.isEmpty()) {
-                append("No other device is connected right now. The way to add a computer: install nanoMuse Desktop there (https://nanomuse.cn/#download) and sign in with the same nanoMuse Cloud account as this phone — it appears under [Devices](${Hub.DEEP_LINK}) within seconds, on any network. ")
+                append("No other device is connected right now. The way to add a computer: install nanoMuse Desktop there (https://github.com/LanRhyme/NyanoMuse/releases) and sign in with the same nanoMuse Cloud account as this phone — it appears under [Devices](${Hub.DEEP_LINK}) within seconds, on any network. ")
                 append("When the user wants something done on their PC or Mac, say so in one line and point to the desktop app. ")
                 if (!onHub) append("This phone is not on the hub itself; signing in to nanoMuse Cloud puts it there. ")
             } else {

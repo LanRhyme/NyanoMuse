@@ -63,7 +63,7 @@ import io.github.nanomuse.cloud.Ways
 import io.github.nanomuse.ui.home.MuseTones
 
 /** The public guide for bringing one's own key, when the relay did not name one. */
-const val OWN_KEY_DOCS = "https://nanomuse.cn/own-key"
+const val OWN_KEY_DOCS = "https://github.com/LanRhyme/NyanoMuse"
 
 /** The in-app link that opens "add a provider" pre-filled for Alibaba Cloud Bailian. */
 val OWN_KEY_DEEP_LINK: String = OwnKeyPresets.deepLink(OwnKeyPresets.BAILIAN)
@@ -113,7 +113,7 @@ fun AllowanceWaysCard(
     }
     var starred by remember { mutableStateOf(io.github.nanomuse.community.StarPrompt.starred(context)) }
     val link = info.inviteUrl.ifBlank { account?.inviteUrl.orEmpty() }.ifBlank {
-        "https://nanomuse.cn/web/?invite=" + account?.inviteCode.orEmpty()
+        "https://nyanomuse.lanrhyme.top/web/?invite=" + account?.inviteCode.orEmpty()
     }
     // the ways as the relay lists them (`guidance`, contract C11) first — the one sent with the
     // refusal, else the one kept from /v1/me — and the bundled catalogue only when it sent none

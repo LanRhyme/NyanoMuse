@@ -31,9 +31,9 @@ object UpdateCheck {
     private const val KEY_FAILED = "failed"
 
     /** Where "Update" goes on Android: the download page, with the APK and the store links. */
-    const val DOWNLOAD_URL = "https://nanomuse.cn/dl/"
-    const val INDEX_URL = "https://nanomuse.cn/dl/index.json"
-    const val GITHUB_LATEST_URL = "https://api.github.com/repos/nano-muse/nanoMuse/releases/latest"
+    const val DOWNLOAD_URL = "https://github.com/LanRhyme/NyanoMuse/releases"
+    const val INDEX_URL = ""
+    const val GITHUB_LATEST_URL = "https://api.github.com/repos/LanRhyme/NyanoMuse/releases/latest"
 
     /** A check is repeated at most this often on its own. */
     const val FRESH_MS = 24L * 60 * 60 * 1000
@@ -111,7 +111,9 @@ object UpdateCheck {
 
     /** The index on nanomuse.cn, then GitHub; null when neither answered with a version. */
     internal fun fetchLatest(): String? {
-        get(INDEX_URL)?.let { parseIndex(it) }?.let { return it }
+        if (INDEX_URL.isNotEmpty()) {
+            get(INDEX_URL)?.let { parseIndex(it) }?.let { return it }
+        }
         return get(GITHUB_LATEST_URL)?.let { parseGitHubLatest(it) }
     }
 

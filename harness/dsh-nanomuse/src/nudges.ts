@@ -83,7 +83,7 @@ export function starText(policy: Pick<NudgesPolicy, 'star'>, zh: boolean, fallba
 /** The policy is fetched at most this often. */
 export const NUDGES_EVERY_MS = 24 * 3600_000
 /** Where own-key installs (no relay account) read the policy from. */
-export const NUDGES_ORIGIN = 'https://cloud.nanomuse.cn'
+export const NUDGES_ORIGIN = 'https://nyanomuse.lanrhyme.top'
 export const NUDGES_TIMEOUT_MS = 5000
 
 function numbers(value: unknown, fallback: number[]): number[] {

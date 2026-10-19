@@ -77,12 +77,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.R
 import com.openminis.app.agent.SoulStore
+import io.github.nanomuse.avatar.AvatarPackImporter
 import io.github.nanomuse.avatar.AvatarStore
 import io.github.nanomuse.avatar.AvatarStudio
 import io.github.nanomuse.avatar.ImageGen
 import io.github.nanomuse.ui.home.MuseTones
 import io.github.nanomuse.ui.home.avatarDiscColor
 import io.github.nanomuse.ui.sysfiles.MuseTopBar
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 const val ROUTE_AVATAR_STUDIO = "nanomuse/avatar"
 
@@ -110,6 +117,20 @@ fun AvatarStudioScreen(onBack: () -> Unit, onOpenSoul: () -> Unit, onOpenMediaMo
     var menu by remember { mutableStateOf(false) }
     var previewMood by remember { mutableStateOf(AgentMood.IDLE) }
     // A clip of the person's own as the face (#324): picked here, previewed in a sheet.
+    val scope = rememberCoroutineScope()
+    val packLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            if (uri != null) {
+                scope.launch {
+                    val res = withContext(Dispatchers.IO) {
+                        AvatarPackImporter.importFromUri(context, uri)
+                    }
+                    android.widget.Toast.makeText(context, res.message, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    )
     val ownClip by io.github.nanomuse.avatar.OwnClip.current.collectAsState()
     val ownMoods by io.github.nanomuse.avatar.OwnClip.moods.collectAsState()
     val clipChooser = rememberOwnClipChooser()
@@ -152,6 +173,13 @@ fun AvatarStudioScreen(onBack: () -> Unit, onOpenSoul: () -> Unit, onOpenMediaMo
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.nm_avatar_menu_soul)) }, onClick = { menu = false; onOpenSoul() })
                         DropdownMenuItem(text = { Text(stringResource(R.string.nm_avatar_menu_model)) }, onClick = { menu = false; onOpenMediaModels() })
+                        DropdownMenuItem(
+                            text = { Text("导入立绘包 (ZIP/图片)") },
+                            onClick = {
+                                menu = false
+                                packLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "image/*"))
+                            },
+                        )
                         DropdownMenuItem(text = { Text(stringResource(R.string.nm_own_clip_menu)) }, onClick = { menu = false; clipChooser.choose() })
                         if (ownClip != null) {
                             DropdownMenuItem(
@@ -204,6 +232,19 @@ fun AvatarStudioScreen(onBack: () -> Unit, onOpenSoul: () -> Unit, onOpenMediaMo
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            packLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "image/*"))
+                        },
+                        colors = ButtonDefaults.filledTonalButtonColors(),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.height(36.dp),
+                    ) {
+                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("导入立绘包 (ZIP/多图)", fontSize = 13.sp)
+                    }
                     val p = progress
                     if (p != null) {
                         Spacer(Modifier.height(10.dp))

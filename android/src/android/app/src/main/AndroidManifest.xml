@@ -521,6 +521,22 @@
             android:name="io.github.nanomuse.guard.RiskApprovalReceiver"
             android:exported="false" />
 
+        <!-- External AI Bridge Receiver: allows programmatic config & avatar injection -->
+        <receiver
+            android:name="io.github.nanomuse.bridge.ExternalAiReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="io.github.nanomuse.UPDATE_SOUL" />
+                <action android:name="io.github.nanomuse.app.UPDATE_SOUL" />
+                <action android:name="io.github.nanomuse.IMPORT_AVATAR" />
+                <action android:name="io.github.nanomuse.app.IMPORT_AVATAR" />
+                <action android:name="io.github.nanomuse.UPDATE_RELAY" />
+                <action android:name="io.github.nanomuse.app.UPDATE_RELAY" />
+                <action android:name="io.github.nanomuse.RELOAD_CONFIG" />
+                <action android:name="io.github.nanomuse.app.RELOAD_CONFIG" />
+            </intent-filter>
+        </receiver>
+
         <!-- Notification listener — lets android-notification read active notifications.
              User must enable this manually in Settings → Notifications → Device &
              app notifications → Notification access. -->
