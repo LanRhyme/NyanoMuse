@@ -604,7 +604,8 @@ class Cloud:
         once and no app carries a number of its own. Nothing here is a secret."""
         return {
             "version": __version__,
-            "signup_open": self.s.signup_open and self.controls.on("signups"),
+            "signup_open": (self.s.signup_open and self.controls.on("signups")) and (not self.s.single_user or self.db.account_counts()["total"] == 0),
+            "single_user": self.s.single_user,
             # 0.22: which of the operator's switches are off, so a sign-in page can say so
             "paused": [k for k, v in self.controls.paused().items() if v],
             "allowance_cny": self.s.allowance_cny,
@@ -688,13 +689,20 @@ class Cloud:
         """0.22: the *Sign-ups* switch is off; an identifier without an account is turned
         away (`signup_closed`); everyone who already has one carries on, and so does the
         reviewer's address (a review must not fail on a paused switch)."""
-        if self.controls.on("signups") or self.is_review(ident) or self._account_for(ident) is not None:
+        if self._account_for(ident) is not None:
             return
-        raise CloudError(
-            403,
-            "signup_closed",
-            "New sign-ups are paused on this relay for now; existing accounts keep working. Try again later.",
-        )
+        if self.s.single_user and self.db.account_counts()["total"] >= 1:
+            raise CloudError(
+                403,
+                "registration_closed",
+                "该自建中继为单用户独占服务器，已绑定所有者，禁止新用户注册",
+            )
+        if not self.controls.on("signups") or not self.s.signup_open:
+            raise CloudError(
+                403,
+                "signup_closed",
+                "New sign-ups are paused on this relay for now; existing accounts keep working. Try again later.",
+            )
 
     def _is_blocked_domain(self, domain: str) -> bool:
         """Whether ``domain`` or one of its parent domains is on the disposable-mail blocklist
@@ -1053,6 +1061,8 @@ class Cloud:
         account = self._account_for(ident)
         if account is None:
             if self.s.signup_open:
+                if self.s.single_user and self.db.account_counts()["total"] >= 1:
+                    raise CloudError(403, "registration_closed", "该自建中继为单用户独占服务器，已绑定所有者，禁止新用户注册")
                 id_hash = ident.hash(self.s.hmac_key)
                 account_id = self.db.new_account_id()
                 enc = self.crypto.encrypt(account_id, ident.value)

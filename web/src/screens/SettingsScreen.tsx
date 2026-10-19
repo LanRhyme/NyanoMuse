@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   BatteryFull,
   Bell,
   Box,
@@ -649,7 +648,7 @@ function SettingsHome({ release, onOpen }: { release: UpdateView | null; onOpen:
   const hub = state.hub;
   // what the configured providers cover (contract C11), from the runtime; null on an older one
   const providers = useProviders();
-  const name = state.profile?.name ?? "nanoMuse";
+  const name = state.profile?.name ?? "NyanoMuse";
   const themeSetting = useThemeSetting();
   const others = hub?.devices.filter((d) => !d.this && d.kind !== "web") ?? [];
   const computers = others.filter((d) => d.kind === "computer");
@@ -670,13 +669,13 @@ function SettingsHome({ release, onOpen }: { release: UpdateView | null; onOpen:
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[16px] font-medium leading-[21px]">{s?.llm.model || t("No model yet")}</span>
               <span className="mt-0.5 block truncate text-[12.5px] leading-4 text-muted">
-                {s ? (s.llm.cloud ? "nanoMuse Cloud" : s.llm.provider) : t("Add a provider and pick its models")}
+                {s ? (s.llm.cloud ? t("自建同步服务") : s.llm.provider) : t("Add a provider and pick its models")}
               </span>
             </span>
             <span className="text-[14px] font-medium text-accent">{t("Change")}</span>
           </button>
           <MuseDivider />
-          <MuseRow icon={<Cloud size={22} />} label="nanoMuse Cloud" value={hub?.account.signed_in ? hub.account.hint : t("Sign in")} onClick={() => setTab("account")} />
+          <MuseRow icon={<Cloud size={22} />} label={t("自建同步服务")} value={hub?.account.signed_in ? hub.account.hint : t("Sign in")} onClick={() => setTab("account")} />
           <MuseDivider />
           <MuseRow
             icon={<Clapperboard size={22} />}
@@ -690,8 +689,6 @@ function SettingsHome({ release, onOpen }: { release: UpdateView | null; onOpen:
             }
             onClick={() => setTab("connections")}
           />
-          <MuseDivider />
-          <MuseRow icon={<BarChart3 size={22} />} label={t("Usage")} onClick={() => setTab("account")} />
         </MuseCard>
 
         {/* the agent */}
@@ -749,13 +746,13 @@ function SettingsHome({ release, onOpen }: { release: UpdateView | null; onOpen:
 
         {/* about */}
         <MuseCard className="mb-3">
-          <MuseRow icon={<Info size={22} />} label={t("About nanoMuse")} value={release?.newer && release.latest ? t("{version} is out", { version: release.latest }) : undefined} onClick={() => onOpen("about")} />
+          <MuseRow icon={<Info size={22} />} label={t("About NyanoMuse")} value={release?.newer && release.latest ? t("{version} is out", { version: release.latest }) : undefined} onClick={() => onOpen("about")} />
           <MuseDivider />
           <MuseRow icon={<Hand size={22} />} label={t("Privacy policy")} onClick={() => window.open(PRIVACY_URL, "_blank", "noopener")} external />
           <MuseDivider />
-          <MuseRow icon={<MessageSquareWarning size={22} />} label={t("Feedback")} onClick={() => window.open("https://github.com/nano-muse/nanoMuse/issues/new/choose", "_blank", "noopener")} external />
+          <MuseRow icon={<MessageSquareWarning size={22} />} label={t("Feedback")} onClick={() => window.open("https://github.com/LanRhyme/NyanoMuse/issues/new/choose", "_blank", "noopener")} external />
         </MuseCard>
-        <MuseCaption>nanoMuse {state.version}</MuseCaption>
+        <MuseCaption>NyanoMuse {state.version}</MuseCaption>
       </div>
     </div>
   );

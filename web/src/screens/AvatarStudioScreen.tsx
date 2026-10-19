@@ -18,8 +18,8 @@ const MOODS = ["idle", "working", "waiting", "happy", "error"] as const;
 type Mood = (typeof MOODS)[number];
 const MOOD_LABEL: Record<Mood, string> = { idle: "Idle", working: "Working", waiting: "Waiting for you", happy: "Done", error: "Something went wrong" };
 const CLIP_MOODS = 4;
-/** the dragon's own description, as the placeholder — the phone's too */
-const DEFAULT_DESCRIPTION = "a round, custard-yellow baby dragon with small orange horns and folded little wings";
+/** the default avatar description as placeholder */
+const DEFAULT_DESCRIPTION = "a sleek minimalist dark cyber Grok-bot with glowing cyan LED screen";
 
 /**
  * The avatar studio, the phone's screen (`AvatarStudioScreen.kt`) for the web and the desktop:

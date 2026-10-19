@@ -45,10 +45,9 @@ function clipMood(mood: string): ClipMood {
   return mood === "working" || mood === "waiting" || mood === "happy" ? mood : "idle";
 }
 
-/** The dragon's clip for a mood — a few seconds, looping, back in the starting pose at the end. */
-export function dragonClipUrl(mood: string): string | null {
-  if (mood === "error") return null;
-  return `/avatars/dragon-${clipMood(mood)}.mp4`;
+/** The default Grok-bot avatar clips (disabled in favor of crisp stills). */
+export function dragonClipUrl(_mood: string): string | null {
+  return null;
 }
 
 /**

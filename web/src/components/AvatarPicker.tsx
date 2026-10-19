@@ -52,7 +52,7 @@ export function AvatarPicker({
           aria-label={t("The dragon")}
           aria-pressed={value.avatar === DRAGON}
           onClick={() => onChange({ ...value, avatar: DRAGON })}
-          className={cx(tile, "bg-[#f1efeb]", value.avatar === DRAGON ? ring : "opacity-90 hover:opacity-100")}
+          className={cx(tile, "bg-[#12151a]", value.avatar === DRAGON ? ring : "opacity-90 hover:opacity-100")}
         >
           <img src={dragonUrl(value.avatar === DRAGON ? "happy" : "idle")} alt="" draggable={false} className="h-full w-full object-cover" />
         </button>

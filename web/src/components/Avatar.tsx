@@ -75,7 +75,7 @@ export function Avatar({
     <>
       <span
         className={cx("block h-full w-full overflow-hidden rounded-full will-change-transform", motion)}
-        style={dragon || studio ? { background: "#f1efeb" } : { background: `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 60%, #ffffff))` }}
+        style={dragon || studio ? { background: "#12151a" } : { background: `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 60%, #ffffff))` }}
       >
         {clip ? (
           <video

@@ -124,7 +124,7 @@ export function Onboarding() {
         {step === "welcome" && (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <Avatar profile={preview} size={96} />
-            <h1 className="mt-6 text-[28px] font-bold tracking-tight">{t("Meet your nanoMuse")}</h1>
+            <h1 className="mt-6 text-[28px] font-bold tracking-tight">{t("Meet your NyanoMuse")}</h1>
             <p className="mt-2 text-[15px] text-muted">{t("A personal agent of your own. Three things to know:")}</p>
             <ul className="mt-6 w-full max-w-sm space-y-2.5 text-left">
               <Point n={1} title={t("It does things for you.")} body={t("Searches, browses, writes, books, reads mail, and hands you the result, not a list of links.")} />
@@ -135,7 +135,7 @@ export function Onboarding() {
             {/* the community line the sign-in gate says, for a runtime that does not ask for an account */}
             <p className="mt-2 max-w-sm text-[13px] text-muted">
               <a href={NOTICE_URL} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-accent">
-                {t("nanoMuse is a non-profit open-source community project, free forever.")}
+                {t("NyanoMuse is a non-profit open-source community project, free forever.")}
               </a>
             </p>
           </div>
@@ -157,7 +157,7 @@ export function Onboarding() {
                 body={
                   modelReady
                     ? conn?.llm.cloud
-                      ? `nanoMuse Cloud · ${conn.llm.model}`
+                      ? `${t("自建同步服务")} · ${conn.llm.model}`
                       : `${conn?.llm.model} · ${hostOf(conn?.llm.base_url ?? "")}`
                     : state.hub?.account.signed_in
                       ? t("Your account's model, or a key of your own.")
