@@ -58,6 +58,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -2603,8 +2604,29 @@ fun ChatScreen(
         // map (which is last-writer-wins across sessions).
         LocalMarkdownSessionId provides sessionId,
     ) {
+    val wallpaperPath = remember { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperPath(context) }
+    val wallpaperBlur = remember { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperBlur(context) }
+    val wallpaperDim = remember { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperDim(context) }
+    val wallpaperFile = remember(wallpaperPath) { wallpaperPath?.let { java.io.File(it) }?.takeIf { it.exists() } }
+
+    Box(modifier = Modifier.fillMaxSize().background(ChatColors.background)) {
+        if (wallpaperFile != null) {
+            AsyncImage(
+                model = wallpaperFile,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .let { if (wallpaperBlur > 0f) it.blur(wallpaperBlur.dp) else it },
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = wallpaperDim)),
+            )
+        }
     Scaffold(
-        containerColor = ChatColors.background,
+        containerColor = if (wallpaperFile != null) Color.Transparent else ChatColors.background,
         contentWindowInsets = WindowInsets(0),
         topBar = {
             // nanoMuse: the header is an overlay. The list slides underneath and
@@ -7373,6 +7395,7 @@ fun ChatScreen(
             )
         }
     }
+    } // Box (wallpaper container)
 
     // Offload permission dialog
     OffloadPermissionDialog()

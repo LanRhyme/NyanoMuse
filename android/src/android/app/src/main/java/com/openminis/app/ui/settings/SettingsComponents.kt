@@ -437,6 +437,7 @@ fun SettingsChoiceRow(
     onSelect: () -> Unit,
     leading: (@Composable () -> Unit)? = null,
     showDivider: Boolean = true,
+    subtitle: String? = null,
 ) {
     Column {
         Row(
@@ -454,12 +455,20 @@ fun SettingsChoiceRow(
                 leading()
                 Spacer(Modifier.width(12.dp))
             }
-            Text(
-                title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             // nanoMuse: Muse's radio — a hollow ring, or an ink disc with a
             // white check when selected (was a bare blue check mark).
             Box(

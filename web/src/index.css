@@ -103,6 +103,112 @@ html[data-theme="dark"] {
   color-scheme: dark;
 }
 
+/* ── Morandi Palette ────────────────────────────── */
+html[data-palette="morandi"],
+html[data-palette="morandi"][data-theme="light"] {
+  --om-bg: #f3f1ec;
+  --om-surface: #faf9f6;
+  --om-surface-2: #e4e7e4;
+  --om-border: #d5d2ca;
+  --om-fg: #2c2b29;
+  --om-muted: #767f86;
+  --om-accent: #6a7f7a;
+  --om-accent-soft: #e0e7e4;
+  --om-accent-soft-fg: #22302d;
+  --om-bubble-user: #4e5e59;
+  --om-bubble-user-fg: #ffffff;
+  --om-bubble-agent: #faf9f6;
+}
+
+html[data-palette="morandi"][data-theme="dark"] {
+  --om-bg: #1e2124;
+  --om-surface: #292d32;
+  --om-surface-2: #34393f;
+  --om-border: #454b52;
+  --om-fg: #e4e4e6;
+  --om-muted: #aab2b8;
+  --om-accent: #9eaba7;
+  --om-accent-soft: #33403d;
+  --om-accent-soft-fg: #dfe6e3;
+  --om-bubble-user: #dfe6e3;
+  --om-bubble-user-fg: #1e2124;
+  --om-bubble-agent: #292d32;
+}
+
+/* ── Sakura Pink Palette ────────────────────────── */
+html[data-palette="sakura"],
+html[data-palette="sakura"][data-theme="light"] {
+  --om-bg: #fff7f9;
+  --om-surface: #ffffff;
+  --om-surface-2: #fff0f3;
+  --om-border: #e8d3d8;
+  --om-fg: #2d2326;
+  --om-muted: #8b6c74;
+  --om-accent: #d66885;
+  --om-accent-soft: #ffecf0;
+  --om-accent-soft-fg: #4a1020;
+  --om-bubble-user: #d66885;
+  --om-bubble-user-fg: #ffffff;
+  --om-bubble-agent: #fff0f3;
+}
+
+html[data-palette="sakura"][data-theme="dark"] {
+  --om-bg: #1f171a;
+  --om-surface: #2e2327;
+  --om-surface-2: #3b2e33;
+  --om-border: #564449;
+  --om-fg: #ede0e3;
+  --om-muted: #d4b2ba;
+  --om-accent: #f29bb1;
+  --om-accent-soft: #5a1c2c;
+  --om-accent-soft-fg: #ffd9e2;
+  --om-bubble-user: #f29bb1;
+  --om-bubble-user-fg: #200911;
+  --om-bubble-agent: #2e2327;
+}
+
+/* ── OLED Pure Black Palette ────────────────────── */
+html[data-palette="oled"][data-theme="dark"] {
+  --om-bg: #000000;
+  --om-surface: #0a0a0c;
+  --om-surface-2: #141416;
+  --om-border: #242428;
+  --om-fg: #ffffff;
+  --om-muted: #8e8e93;
+  --om-accent: #ffffff;
+  --om-accent-soft: #202024;
+  --om-accent-soft-fg: #ffffff;
+  --om-bubble-user: #ffffff;
+  --om-bubble-user-fg: #000000;
+  --om-bubble-agent: #141416;
+}
+
+/* ── Frosted Glass (毛玻璃 / Acrylic / Mica) ─────── */
+html[data-glass="true"] .bg-surface,
+html[data-glass="true"] .glass-card {
+  background-color: color-mix(in srgb, var(--om-surface) 75%, transparent) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+html[data-glass="true"] .bg-surface-2 {
+  background-color: color-mix(in srgb, var(--om-surface-2) 68%, transparent) !important;
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+
+html[data-glass="true"] .tabbar-float > ul {
+  backdrop-filter: blur(24px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+  background-color: color-mix(in srgb, var(--om-surface-2) 60%, transparent) !important;
+}
+
+html[data-has-wallpaper="true"] body,
+html[data-has-wallpaper="true"] #root,
+html[data-has-wallpaper="true"] .bg-bg {
+  background-color: transparent !important;
+}
+
 html,
 body,
 #root {

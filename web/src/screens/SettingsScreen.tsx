@@ -44,7 +44,7 @@ import { DataControls, PRIVACY_URL } from "../components/DataControls";
 import { getLocale, LOCALES, setLocaleSetting, useLocaleSetting, useT } from "../i18n";
 import { has, regionOf, unavailableLine, useProviders } from "../providers";
 import { isMainland, ownKeyWay } from "../region";
-import { setThemeSetting, useThemeSetting } from "../theme";
+import { setThemeSetting, useThemeSetting, usePalette, setPalette, useWallpaper, setWallpaper, clearWallpaper, type ThemePalette } from "../theme";
 import { disablePush, enablePush, pushState, type PushState } from "../push";
 import { useStore } from "../store";
 import type { Proactivity, PushInfo, UpdateView } from "../types";
@@ -84,12 +84,15 @@ export function SettingsScreen() {
   const t = useT();
   const localeSetting = useLocaleSetting();
   const themeSetting = useThemeSetting();
+  const palette = usePalette();
+  const wallpaper = useWallpaper();
   const [release, setRelease] = useState<UpdateView | null>(null);
   const [checking, setChecking] = useState(false);
   // the four selects and the label beside each: one id per pair, so the label names the control
   const ids = useId();
   const intervalId = `${ids}-interval`;
   const themeId = `${ids}-theme`;
+  const paletteId = `${ids}-palette`;
   const appLangId = `${ids}-app-language`;
   const replyLangId = `${ids}-reply-language`;
 
@@ -380,6 +383,100 @@ export function SettingsScreen() {
               <option value="dark">{t("Dark")}</option>
               <option value="system">{t("Follow the system")}</option>
             </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <label htmlFor={paletteId} className="text-[13.5px] flex-1">
+              主题色调预设 (Theme Palette)
+              <span className="block text-[12px] text-muted">莫兰迪、OLED纯黑、猫猫暖樱、经典蓝</span>
+            </label>
+            <select
+              id={paletteId}
+              value={palette}
+              onChange={(e) => setPalette(e.target.value as ThemePalette)}
+              className="rounded-2xl bg-surface-2 px-3 py-2 text-[13.5px] outline-none"
+            >
+              <option value="morandi">莫兰迪 (Morandi - 温润护眼)</option>
+              <option value="oled">OLED 纯黑 (OLED Pure Black)</option>
+              <option value="sakura">猫猫暖樱 (Sakura Pink - 软萌粉嫩)</option>
+              <option value="default">经典蓝 (Default Blue)</option>
+            </select>
+          </div>
+          <Toggle
+            label="毛玻璃亚克力特效 (Frosted Glass / Mica)"
+            hint="启用半透明模糊质感（Backdrop Blur），消息卡片与导航栏呈现亚克力毛玻璃视觉效果。"
+            checked={wallpaper.glass}
+            onChange={(v) => setWallpaper({ glass: v })}
+          />
+          <div className="rounded-2xl bg-surface-2/60 p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[13.5px] font-medium block">聊天背景壁纸</span>
+                <span className="text-[12px] text-muted block">
+                  {wallpaper.url ? "已设置自定义背景图" : "未设置（默认主题纯色背景）"}
+                </span>
+              </div>
+              <label className="cursor-pointer rounded-xl bg-accent px-3 py-1.5 text-[12.5px] font-medium text-accent-fg hover:opacity-90 active:scale-95 transition">
+                {wallpaper.url ? "更换壁纸" : "选择壁纸"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === "string") {
+                        setWallpaper({ url: reader.result });
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {wallpaper.url && (
+              <>
+                <div className="space-y-1.5 pt-1 border-t border-border/40">
+                  <div className="flex justify-between text-[12px]">
+                    <span className="text-muted">暗化遮罩 (Dim)</span>
+                    <span>{Math.round(wallpaper.dim * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.85"
+                    step="0.05"
+                    value={wallpaper.dim}
+                    onChange={(e) => setWallpaper({ dim: parseFloat(e.target.value) })}
+                    className="w-full accent-accent cursor-pointer"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[12px]">
+                    <span className="text-muted">高斯模糊 (Blur)</span>
+                    <span>{wallpaper.blur} px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="30"
+                    step="1"
+                    value={wallpaper.blur}
+                    onChange={(e) => setWallpaper({ blur: parseInt(e.target.value, 10) })}
+                    className="w-full accent-accent cursor-pointer"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={clearWallpaper}
+                  className="w-full text-center py-1 text-[12.5px] text-red-500 hover:text-red-600 font-medium border-t border-border/40 pt-2"
+                >
+                  清除壁纸 (恢复纯色背景)
+                </button>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <label htmlFor={appLangId} className="text-[13.5px] flex-1">

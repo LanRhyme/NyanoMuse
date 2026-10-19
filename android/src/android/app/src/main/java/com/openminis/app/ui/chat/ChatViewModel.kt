@@ -9760,12 +9760,9 @@ class ChatViewModel(
         // dead since these tools have no native ChatViewModel executor
         // — they always fall through to shell_execute or the offload
         // bridge, which is now where checkPermission runs.
-        val toolTitle = try { JSONObject(argsJson).optString("tool_title", name) } catch (_: Exception) { name }
-
-        return when (name) {
+        val baseResult = when (name) {
             FileReadTool.NAME -> {
                 val result = FileReadTool.execute(argsJson, activeSessionId, context)
-                // Record skill usage when SKILL.md under /var/minis/skills/<id>/ is read.
                 if (result.success) {
                     runCatching {
                         val readPath = JSONObject(argsJson).optString("path", "")
@@ -9784,17 +9781,22 @@ class ChatViewModel(
             FileEditTool.NAME -> FileEditTool.execute(argsJson, activeSessionId, context).also {
                 if (it.success) maybeReloadSkillsForPath(argsJson)
             }
-            // T178: pass sessionId + context so read_image routes through
-            // resolveSessionHostPath like file_read/write/edit do — without
-            // these, the tool consults the global last-writer-wins
-            // bindMounts map and would surface another session's
-            // /var/minis/{workspace,attachments,offloads,browser} files.
             ReadImageTool.NAME -> executeReadImageTool(argsJson)
             "shell_execute" -> executeShellCommand(argsJson, toolId, toolBlocks, assistantId, currentText)
             "browser_use" -> executeBrowserUseTool(argsJson)
             "memory_write" -> executeMemoryWriteTool(argsJson)
             "memory_get" -> executeMemoryGetTool(argsJson)
+            com.openminis.app.tools.NativeSystemTools.TOOL_DEVICE_INFO -> com.openminis.app.tools.NativeSystemTools.executeDeviceInfo(argsJson, context)
+            com.openminis.app.tools.NativeSystemTools.TOOL_APP_LAUNCH -> com.openminis.app.tools.NativeSystemTools.executeAppLaunch(argsJson, context)
+            com.openminis.app.tools.NativeSystemTools.TOOL_SYSTEM_NOTIFY -> com.openminis.app.tools.NativeSystemTools.executeSystemNotify(argsJson, context)
             else -> ToolExecutionResult("Unknown tool: $name", false)
+        }
+
+        return if (!baseResult.success) {
+            val healedOutput = com.openminis.app.tools.ToolSelfHealing.enrichFailure(name, baseResult.output, argsJson)
+            baseResult.copy(output = healedOutput)
+        } else {
+            baseResult
         }
     }
 

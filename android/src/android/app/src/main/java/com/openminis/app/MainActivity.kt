@@ -22,6 +22,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.app.ActivityCompat
@@ -554,7 +555,19 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
             }
 
-            MinisTheme(darkTheme = darkTheme, fontScale = fontScale) {
+            var themePalette by remember { mutableStateOf(com.openminis.app.ui.theme.ChatWallpaperManager.getPalette(this)) }
+            val appearancePrefs = remember { getAppearancePrefs(this) }
+            DisposableEffect(appearancePrefs) {
+                val pListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                    if (key == com.openminis.app.ui.theme.ChatWallpaperManager.KEY_THEME_PALETTE) {
+                        themePalette = com.openminis.app.ui.theme.ChatWallpaperManager.getPalette(this@MainActivity)
+                    }
+                }
+                appearancePrefs.registerOnSharedPreferenceChangeListener(pListener)
+                onDispose { appearancePrefs.unregisterOnSharedPreferenceChangeListener(pListener) }
+            }
+
+            MinisTheme(darkTheme = darkTheme, palette = themePalette, fontScale = fontScale) {
                 val navController = rememberNavController().also { this.navController = it }
 
                 // T166: drive `SessionActivityTracker.setPresent` /

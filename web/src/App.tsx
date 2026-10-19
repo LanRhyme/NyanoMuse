@@ -14,6 +14,7 @@ import { SignInGate } from "./screens/SignInGate";
 import { signInDoorNeeded } from "./gate";
 import { useStore, type Tab } from "./store";
 import { useT } from "./i18n";
+import { useWallpaper } from "./theme";
 import { cx } from "./util";
 
 // The chat and the feed are what opens first; every other screen arrives as its own chunk
@@ -54,6 +55,7 @@ const TABS: Array<{ id: Tab; label: string; icon: (active: boolean) => ReactNode
 export default function App() {
   const { state, setTab, openFile } = useStore();
   const firstSignIn = useFirstSignIn();
+  const wallpaper = useWallpaper();
   const t = useT();
 
   // The document title follows the agent's name.
@@ -123,12 +125,30 @@ export default function App() {
   // One column on the phone; on a wide screen (a full browser) and in the desktop app at any
   // width, a sidebar takes over from the tab bar and the chats sheet — same screens either side.
   return (
-    <div className={cx("mx-auto flex h-[100dvh] max-w-[760px] flex-col bg-bg sm:border-x sm:border-border", !state.lite && "wide:max-w-none wide:flex-row wide:border-x-0")}>
-      {!state.lite && (
-        <div className="hidden wide:block wide:h-full">
-          <Sidebar />
+    <>
+      {wallpaper.url && (
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">
+          <img
+            src={wallpaper.url}
+            alt=""
+            className="w-full h-full object-cover transition-all"
+            style={{
+              filter: wallpaper.blur > 0 ? `blur(${wallpaper.blur}px)` : "none",
+              transform: wallpaper.blur > 0 ? "scale(1.08)" : "none",
+            }}
+          />
+          <div
+            className="absolute inset-0 bg-black pointer-events-none transition-opacity"
+            style={{ opacity: wallpaper.dim }}
+          />
         </div>
       )}
+      <div className={cx("mx-auto flex h-[100dvh] max-w-[760px] flex-col sm:border-x sm:border-border relative z-[1]", !wallpaper.url && "bg-bg", !state.lite && "wide:max-w-none wide:flex-row wide:border-x-0")}>
+        {!state.lite && (
+          <div className="hidden wide:block wide:h-full">
+            <Sidebar />
+          </div>
+        )}
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {state.gone && (
           <div className="flex items-center justify-center gap-2 bg-surface-2 text-muted text-[12.5px] py-1">
@@ -209,6 +229,7 @@ export default function App() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

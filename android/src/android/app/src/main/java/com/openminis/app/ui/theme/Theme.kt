@@ -83,7 +83,7 @@ private val NeutralDarkGroupedCard = Color(0xFF1C1C1E)
 private val NeutralDarkGroupedCardElevated = Color(0xFF2C2C2E)
 private val NeutralDarkOutline = Color(0xFF38383A)
 
-private val LightColorScheme = lightColorScheme(
+internal val LightColorScheme = lightColorScheme(
     primary = TealPrimary,
     onPrimary = TealOnPrimary,
     primaryContainer = TealPrimaryContainer,
@@ -111,7 +111,7 @@ private val LightColorScheme = lightColorScheme(
     outlineVariant = NeutralOutline,
 )
 
-private val DarkColorScheme = darkColorScheme(
+internal val DarkColorScheme = darkColorScheme(
     primary = TealDarkPrimary,
     onPrimary = TealDarkOnPrimary,
     primaryContainer = TealDarkPrimaryContainer,
@@ -154,12 +154,15 @@ private val MinisShapes = Shapes(
 @Composable
 fun MinisTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    palette: ThemePalette? = null,
     fontScale: Float = 1f,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val effectivePalette = palette ?: ChatWallpaperManager.getPalette(context)
+    val colorScheme = ThemePalettes.resolveColorScheme(effectivePalette, darkTheme, context)
     val typography = scaledTypography(fontScale)
-    val chatPalette = if (darkTheme) DarkChatPalette else LightChatPalette
+    val chatPalette = ThemePalettes.resolveChatPalette(effectivePalette, darkTheme, context)
 
     MaterialTheme(
         colorScheme = colorScheme,

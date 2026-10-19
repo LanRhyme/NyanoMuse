@@ -48,6 +48,14 @@ import androidx.compose.material.icons.outlined.ScreenLockPortrait
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Face // nanoMuse
 import androidx.compose.material.icons.outlined.VisibilityOff // nanoMuse
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Palette
+import com.openminis.app.ui.theme.ThemePalette
+import com.openminis.app.ui.theme.ChatWallpaperManager
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -294,6 +302,21 @@ fun AppearanceScreen(
     var headerModel by remember { mutableStateOf(prefs.getBoolean(KEY_NM_HEADER_MODEL, false)) } // nanoMuse
     var showSteps by remember { mutableStateOf(prefs.getBoolean(KEY_NM_SHOW_STEPS, true)) } // nanoMuse: on by default
     var avatarSize by remember { mutableStateOf(io.github.nanomuse.ui.avatar.AvatarSize.current(context)) } // nanoMuse
+    var themePalette by remember { mutableStateOf(ChatWallpaperManager.getPalette(context)) }
+    var wallpaperPath by remember { mutableStateOf(ChatWallpaperManager.getWallpaperPath(context)) }
+    var wallpaperDim by remember { mutableFloatStateOf(ChatWallpaperManager.getWallpaperDim(context)) }
+    var wallpaperBlur by remember { mutableFloatStateOf(ChatWallpaperManager.getWallpaperBlur(context)) }
+
+    val wallpaperPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val saved = ChatWallpaperManager.saveWallpaperFromUri(context, uri)
+            if (saved != null) {
+                wallpaperPath = saved
+            }
+        }
+    }
 
     val fontsModified = chatInputLevel != 0 || messageLevel != 0 || appBaseLevel != 0
 
@@ -400,6 +423,137 @@ fun AppearanceScreen(
                         )
                     },
                     showDivider = idx < themeRows.size - 1,
+                )
+            }
+        }
+
+        // -- Theme Palette (预设配色系统) --
+        SettingsSection(
+            header = "主题色调预设",
+            footer = "选择全局色调风格。Morandi 莫兰迪为主体默认风格；Material You 随系统壁纸动态取色。",
+        ) {
+            val palettes = ThemePalette.values()
+            palettes.forEachIndexed { idx, p ->
+                SettingsChoiceRow(
+                    title = p.label,
+                    subtitle = p.description,
+                    selected = themePalette == p,
+                    onSelect = {
+                        themePalette = p
+                        ChatWallpaperManager.setPalette(context, p)
+                        onThemeChanged(themeMode)
+                    },
+                    leading = {
+                        val iconColor = when (p) {
+                            ThemePalette.MORANDI -> Color(0xFF6A7F7A)
+                            ThemePalette.MATERIAL_YOU -> tilePurple
+                            ThemePalette.OLED_BLACK -> Color(0xFF2C2C2C)
+                            ThemePalette.SAKURA_PINK -> Color(0xFFD66885)
+                            ThemePalette.DEFAULT_BLUE -> tileBlue
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(iconColor)
+                        )
+                    },
+                    showDivider = idx < palettes.size - 1,
+                )
+            }
+        }
+
+        // -- Chat Wallpaper (聊天背景壁纸系统) --
+        SettingsSection(
+            header = "聊天背景壁纸",
+            footer = "自定义会话背景图，支持暗化遮罩与高斯模糊调整，确保文字清晰可读。",
+        ) {
+            SettingsRow(
+                title = if (wallpaperPath != null) "更换聊天壁纸" else "选择聊天壁纸",
+                subtitle = if (wallpaperPath != null) "当前已设置自定义壁纸" else "未设置壁纸（使用主题背景）",
+                icon = Icons.Outlined.Image,
+                iconColor = tileOrange,
+                onClick = { wallpaperPicker.launch("image/*") },
+                showDivider = wallpaperPath != null,
+            )
+
+            if (wallpaperPath != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "暗化遮罩",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "${(wallpaperDim * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Slider(
+                        value = wallpaperDim,
+                        onValueChange = {
+                            wallpaperDim = it
+                            ChatWallpaperManager.setWallpaperDim(context, it)
+                        },
+                        valueRange = 0f..0.85f,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "高斯模糊",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "${wallpaperBlur.roundToInt()} dp",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Slider(
+                        value = wallpaperBlur,
+                        onValueChange = {
+                            wallpaperBlur = it
+                            ChatWallpaperManager.setWallpaperBlur(context, it)
+                        },
+                        valueRange = 0f..25f,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                SettingsRow(
+                    title = "清除壁纸",
+                    subtitle = "恢复为主题默认背景",
+                    icon = Icons.Outlined.DeleteOutline,
+                    iconColor = MaterialTheme.colorScheme.error,
+                    titleColor = MaterialTheme.colorScheme.error,
+                    onClick = {
+                        ChatWallpaperManager.clearWallpaper(context)
+                        wallpaperPath = null
+                    },
+                    showChevron = false,
+                    showDivider = false,
                 )
             }
         }

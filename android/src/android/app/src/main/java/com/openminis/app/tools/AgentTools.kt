@@ -41,6 +41,7 @@ object AgentTools {
             add(memoryWriteDefinition())
             add(memoryGetDefinition())
         }
+        addAll(NativeSystemTools.makeDefinitions())
     }
 
     // Aligned with iOS AIChatViewModel.swift:4982-4993
