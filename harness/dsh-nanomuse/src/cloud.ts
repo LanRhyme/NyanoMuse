@@ -650,7 +650,8 @@ export default class NanomuseCloud extends Service {
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'nanomuseCloud')
-    this.relay = new Relay(config.baseURL)
+    const initialUrl = process.env.NYANOMUSE_RELAY_URL || process.env.NANOMUSE_CLOUD_URL || config.baseURL
+    this.relay = new Relay(initialUrl)
     this.chatgpt = new ChatGptDesk({
       command: async () => {
         const info = await runtimeInfo()
@@ -786,7 +787,7 @@ export default class NanomuseCloud extends Service {
       const kept = new RemoteStore(join(dshHome(), 'nanomuse', 'sync-remote.json'), (error) => this.ctx.logger.warn('nanomuse cloud: remote turns not saved: %s', message(error)))
       this.kept = kept
       const sync = new SyncEngine({
-        relay: new SyncRelay(this.config.baseURL),
+        relay: new SyncRelay(this.relay.origin),
         sessions: {
           list: async () => {
             const { items } = await ctx.sessionController.list({}, new AbortController().signal)
@@ -2175,6 +2176,9 @@ export default class NanomuseCloud extends Service {
     const clean = url.trim().replace(/\/+$/, '')
     if (!clean) return
     this.relay = new Relay(clean)
+    if (this.sync) {
+      this.sync.setRelay(new SyncRelay(clean))
+    }
   }
 
   /** The other way in: the account's password instead of a code. */

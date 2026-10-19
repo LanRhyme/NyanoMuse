@@ -347,9 +347,16 @@ function startHost(): Promise<string> {
         if (shellPath) env.PATH = shellPath;
         // The proxy for the model providers (the Cloud page's Network row): on the Host's
         // environment, which Node's fetch reads with NODE_USE_ENV_PROXY and the runtime's
-        // httpx reads as it is; the relay and loopback are on NO_PROXY (src/proxy.ts).
-        const proxied = proxyEnv(prefs.proxy, prefs.relayHosts ?? []);
+        const relayUrl = process.env.NYANOMUSE_RELAY_URL || process.env.NANOMUSE_CLOUD_URL || prefs.relayUrl;
+        const proxied = proxyEnv(prefs.proxy, [
+          ...(relayUrl ? [relayUrl] : []),
+          ...(prefs.relayHosts ?? []),
+        ]);
         Object.assign(env, proxied);
+        if (relayUrl) {
+          env.NYANOMUSE_RELAY_URL = relayUrl;
+          env.NANOMUSE_CLOUD_URL = relayUrl;
+        }
         hostProxy = proxied.HTTPS_PROXY ?? "";
         if (hostProxy) log(`proxy: providers through ${maskProxyUrl(hostProxy)}; never for ${proxied.NO_PROXY}`);
         const runtime = bundledRuntime();
@@ -791,6 +798,8 @@ interface Prefs {
   proxy?: string;
   /** The relay hosts the plugin reported (its `config.baseURL`), kept on NO_PROXY with the default relay. */
   relayHosts?: string[];
+  /** Self-hosted relay base URL (e.g. https://nyanomuse.example.com). */
+  relayUrl?: string;
 }
 const PREFS_DEFAULT: Prefs = { openAtLogin: false, menuBar: true, quickChat: true };
 /** ⌥ Space on macOS as in Muse; Ctrl+Alt+Space where Alt+Space is the window menu. */

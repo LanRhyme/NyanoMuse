@@ -60,11 +60,12 @@ export function SignIn({ t, onSignedIn, footer, wide = false }: SignInProps): Re
       h(Input, {
         value: identifier,
         onChange: (e: FormEvent<HTMLInputElement>) => setIdentifier(e.currentTarget.value),
-        placeholder: '用户名 / 账号',
+        placeholder: t('obIdentifier'),
         autoComplete: 'username',
         autoFocus: true,
-        'aria-label': '用户名',
+        'aria-label': t('obIdentifier'),
       }),
+      h('div', { style: { fontSize: 12, opacity: 0.7 } }, t('identifierHint')),
       h(Input, {
         value: password,
         type: 'password',

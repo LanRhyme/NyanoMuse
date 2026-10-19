@@ -98,7 +98,7 @@ test('429 allowance_exhausted: the allowance card — lead, the three ways, Try 
   assert.match(en, /Use your own model key/)
   assert.match(en, /Sign in with a plan you already pay for/)
   assert.match(en, /Invite a friend/)
-  assert.match(en, /Open Settings → nanoMuse Cloud/)
+  assert.match(en, /Open Settings → Self-Hosted Relay/)
   assert.match(en, /Step-by-step guide/)
   assert.match(en, />Try again</)
   assert.doesNotMatch(en, /429|allowance_exhausted|nanomuse_cloud|[{}]/)
@@ -141,11 +141,11 @@ test('401: the sign-in expired — one sentence and Sign in; 5xx and a timeout: 
   assert.match(signedOut, />Sign in</)
   assert.doesNotMatch(signedOut, /401|bad_key/)
   const down = render('en', nodeFor(502, { message: 'The model provider did not answer.', code: 'upstream' }, 'SERVER'))
-  assert.match(down, /nanoMuse Cloud did not answer/)
+  assert.match(down, /The self-hosted relay did not answer/)
   assert.match(down, />Try again</)
   const timeout = relayFailure({ message: 'No chunk received for 60 s (idle timeout).', code: 'TIMEOUT' })
   const unreachable = render('zh', { kind: 'turn-error', data: { message: timeout.failure.message, code: timeout.failure.code } })
-  assert.match(unreachable, /连不上 nanoMuse Cloud/)
+  assert.match(unreachable, /连不上自建中继/)
 })
 
 test('daily_cap and an account the relay disabled keep the relay’s own sentence under ours', () => {
@@ -153,8 +153,8 @@ test('daily_cap and an account the relay disabled keep the relay’s own sentenc
   assert.match(cap, /Today’s share of the allowance is used up/)
   assert.match(cap, /The relay said: Today&#x27;s allowance is used up\. It resets at midnight UTC\./)
   const disabled = render('en', nodeFor(403, { message: 'This account has been disabled.', code: 'account_disabled' }, 'AUTH'))
-  assert.match(disabled, /This account cannot use nanoMuse Cloud right now/)
-  assert.match(disabled, />Open Settings → nanoMuse Cloud</)
+  assert.match(disabled, /This account cannot use the self-hosted relay right now/)
+  assert.match(disabled, />Open Settings → Self-Hosted Relay</)
 })
 
 test('relay 0.22: the allowance paused by the operator — the same card, saying paused rather than used up; service, sync and hub paused — one sentence and Try again', () => {
@@ -172,7 +172,7 @@ test('relay 0.22: the allowance paused by the operator — the same card, saying
 
   const service = render('en', nodeFor(503, { message: 'nanoMuse Cloud is paused by its operator for now; your sign-in and your data are kept. Try again later.', code: 'service_paused', paused: true }, 'SERVER'))
   assert.match(service, /data-kind="service_paused"/)
-  assert.match(service, /nanoMuse Cloud is paused by its operator for now; your sign-in and your data are kept\./)
+  assert.match(service, /The self-hosted relay is paused by its operator for now; your sign-in and your data are kept\./)
   assert.match(service, />Try again</)
   assert.doesNotMatch(service, /503|did not answer|The relay said/)
   const sync = render('zh', nodeFor(503, { message: 'Conversation sync is paused …', code: 'sync_paused', paused: true }, 'SERVER'))
@@ -189,14 +189,14 @@ test('another provider’s failure (an own key): a plain sentence by the harness
   assert.match(auth, /The provider did not accept the key/)
   assert.match(auth, /<details/)
   assert.match(auth, /<summary[^>]*>What came back</)
-  assert.match(auth, />Open Settings → nanoMuse Cloud</)
+  assert.match(auth, />Open Settings → Self-Hosted Relay</)
   const quiet = render('zh', { kind: 'turn-error', data: { message: 'The model returned an empty response.', code: 'EMPTY_RESPONSE' } })
   assert.match(quiet, /模型这次没有回答。/)
   assert.match(quiet, />再试一次</)
-  // *Use nanoMuse Cloud this time* (0.1.41) needs a signed-in account: the live state here says signed out, so no button; the strings exist in both dictionaries
+  // *Use relay this time* needs a signed-in account: the live state here says signed out, so no button; the strings exist in both dictionaries
   assert.doesNotMatch(auth, /nm-rf-cloud-once/)
-  assert.equal(bundle.en.rfUseCloudOnce, 'Use nanoMuse Cloud this time')
-  assert.equal(bundle.zh.rfUseCloudOnce, '这次改用 nanoMuse Cloud')
+  assert.equal(bundle.en.rfUseCloudOnce, 'Use relay this time')
+  assert.equal(bundle.zh.rfUseCloudOnce, '这次改用自建中继')
 })
 
 test('every key the card reads exists in both dictionaries', () => {

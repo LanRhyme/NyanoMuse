@@ -285,7 +285,7 @@ export function makeOnboarding(t: Translate, _actions: OnboardingActions) {
       body = h('form', { className: 'nm-ob-center nm-ob-form', onSubmit: login },
         h(BrandMark, { size: 72, className: 'nm-fr-hero-mark' }),
         h('h1', { className: 'nm-ob-title' }, t('obSignInTitle')),
-        h('input', { className: 'nm-field', value: identifier, placeholder: '用户名 / 账号', autoComplete: 'username', autoFocus: true, 'aria-label': '用户名', onChange: (e: FormEvent<HTMLInputElement>) => setIdentifier(e.currentTarget.value) }),
+        h('input', { className: 'nm-field', value: identifier, placeholder: t('obIdentifier'), autoComplete: 'username', autoFocus: true, 'aria-label': t('obIdentifier'), onChange: (e: FormEvent<HTMLInputElement>) => setIdentifier(e.currentTarget.value) }),
         h('input', { className: 'nm-field', type: 'password', value: password, placeholder: t('obPassword'), autoComplete: 'current-password', 'aria-label': t('obPassword'), onChange: (e: FormEvent<HTMLInputElement>) => setPassword(e.currentTarget.value) }),
         error ? h('div', { className: 'nm-ob-error', role: 'alert' }, error) : null,
         h(Pill, { type: 'submit', disabled: busy || !identifier.trim() || password.length === 0, className: 'nm-ob-wide' }, busy ? t('signingIn') : t('obSignIn')),

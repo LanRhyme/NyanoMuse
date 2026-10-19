@@ -588,6 +588,10 @@ export class SyncEngine {
     this.state = migrate(options.load())
   }
 
+  setRelay(relay: SyncRelay): void {
+    this.options.relay = relay
+  }
+
   get enabled(): boolean {
     return this.state.enabled
   }

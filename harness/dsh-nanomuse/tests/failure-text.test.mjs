@@ -65,8 +65,8 @@ test('the relay: too many requests, a sign-in no longer valid, a 5xx', () => {
   assert.equal(failureText(t, failed('429')), en.errBusy)
   assert.equal(failureText(t, failed('signed_out')), en.errSignedOut)
   assert.equal(failureText(t, failed('401')), en.errSignedOut)
-  assert.equal(failureText(t, failed('http_503')), 'nanoMuse Cloud ran into a problem (503). Try again in a minute.')
-  assert.equal(failureText(t, failed('502')), 'nanoMuse Cloud ran into a problem (502). Try again in a minute.')
+  assert.equal(failureText(t, failed('http_503')), 'The self-hosted relay ran into a problem (503). Try again in a minute.')
+  assert.equal(failureText(t, failed('502')), 'The self-hosted relay ran into a problem (502). Try again in a minute.')
 })
 
 test('the host itself gone: fetch to loopback failed with no status and no code', () => {
