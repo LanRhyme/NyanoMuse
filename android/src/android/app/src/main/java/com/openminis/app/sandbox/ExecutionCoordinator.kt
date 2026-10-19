@@ -85,8 +85,8 @@ object ExecutionCoordinator {
         return mutex.withLock {
             val startTime = System.currentTimeMillis()
 
-            // Auto-boot PRoot if not already booted
-            if (!PRootKernel.isBooted) {
+            // Auto-boot PRoot only if in PROOT_SANDBOX mode
+            if (ExecutionMode.getMode(appContext) == ExecutionMode.PROOT_SANDBOX && !PRootKernel.isBooted) {
                 Log.i(TAG, "[$sessionId] Auto-booting PRootKernel")
                 PRootKernel.boot(appContext)
             }

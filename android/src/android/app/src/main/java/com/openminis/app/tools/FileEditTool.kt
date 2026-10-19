@@ -3,6 +3,7 @@ package com.openminis.app.tools
 import android.content.Context
 import com.openminis.app.data.model.AgentToolDefinition
 import com.openminis.app.data.model.AgentToolParam
+import com.openminis.app.sandbox.ExecutionMode
 import com.openminis.app.sandbox.PRootKernel
 import org.json.JSONObject
 
@@ -52,11 +53,22 @@ object FileEditTool {
             val file = PRootKernel.resolveSessionHostPath(sessionId, path, context)
                 ?: return ToolExecutionResult("Error: Cannot resolve path: $path", false, toolTitle = toolTitle)
 
-            if (!file.exists()) {
+            val isRootMode = ExecutionMode.getMode(context) == ExecutionMode.ROOT
+            val exists = file.exists() || (isRootMode && checkExistsWithRoot(file.absolutePath))
+
+            if (!exists) {
                 return ToolExecutionResult("Error: File not found: $path", false, toolTitle = toolTitle)
             }
 
-            val content = file.readText()
+            val content = try {
+                file.readText()
+            } catch (e: Exception) {
+                if (isRootMode) {
+                    readTextWithRoot(file.absolutePath)
+                } else {
+                    throw e
+                }
+            }
 
             // Count occurrences
             var count = 0
@@ -86,7 +98,16 @@ object FileEditTool {
                 content.replaceFirst(oldString, newString)
             }
 
-            file.writeText(newContent)
+            try {
+                file.writeText(newContent)
+            } catch (e: Exception) {
+                if (isRootMode) {
+                    writeWithRoot(file.absolutePath, newContent)
+                } else {
+                    throw e
+                }
+            }
+
             val replacements = if (replaceAll) count else 1
             ToolExecutionResult(
                 "Edited $path ($replacements replacement(s), ${newContent.length} bytes)",
@@ -94,6 +115,36 @@ object FileEditTool {
             )
         } catch (e: Exception) {
             ToolExecutionResult("Error editing file: ${e.message}", false)
+        }
+    }
+
+    private fun checkExistsWithRoot(absolutePath: String): Boolean {
+        return try {
+            val p = ProcessBuilder("su", "-c", "test -e \"$absolutePath\"").start()
+            p.waitFor() == 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun readTextWithRoot(absolutePath: String): String {
+        val process = ProcessBuilder("su", "-c", "cat \"$absolutePath\"").start()
+        val output = process.inputStream.bufferedReader().readText()
+        process.waitFor()
+        if (process.exitValue() != 0 && output.isBlank()) {
+            val err = process.errorStream.bufferedReader().readText()
+            throw RuntimeException(err.ifBlank { "Root read failed (exit code ${process.exitValue()})" })
+        }
+        return output
+    }
+
+    private fun writeWithRoot(absolutePath: String, content: String) {
+        val process = ProcessBuilder("su", "-c", "cat > \"$absolutePath\"").start()
+        process.outputStream.bufferedWriter().use { it.write(content) }
+        process.waitFor()
+        if (process.exitValue() != 0) {
+            val err = process.errorStream.bufferedReader().readText()
+            throw RuntimeException(err.ifBlank { "Root write failed (exit code ${process.exitValue()})" })
         }
     }
 }

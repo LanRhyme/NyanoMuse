@@ -3,6 +3,7 @@ package com.openminis.app.tools
 import android.content.Context
 import com.openminis.app.data.model.AgentToolDefinition
 import com.openminis.app.data.model.AgentToolParam
+import com.openminis.app.sandbox.ExecutionMode
 import com.openminis.app.sandbox.PRootKernel
 import org.json.JSONObject
 
@@ -75,10 +76,19 @@ object FileWriteTool {
                 parent.mkdirs()
             }
 
-            if (append) {
-                file.appendText(content)
-            } else {
-                file.writeText(content)
+            val isRootMode = ExecutionMode.getMode(context) == ExecutionMode.ROOT
+            try {
+                if (append) {
+                    file.appendText(content)
+                } else {
+                    file.writeText(content)
+                }
+            } catch (e: Exception) {
+                if (isRootMode) {
+                    writeWithRoot(file.absolutePath, content, append)
+                } else {
+                    throw e
+                }
             }
 
             val bytes = file.length()
@@ -105,6 +115,17 @@ object FileWriteTool {
             ToolExecutionResult("Wrote to $path ($bytes bytes)", true, toolTitle = toolTitle)
         } catch (e: Exception) {
             ToolExecutionResult("Error writing file: ${e.message}", false)
+        }
+    }
+
+    private fun writeWithRoot(absolutePath: String, content: String, append: Boolean) {
+        val redirect = if (append) ">>" else ">"
+        val process = ProcessBuilder("su", "-c", "cat $redirect \"$absolutePath\"").start()
+        process.outputStream.bufferedWriter().use { it.write(content) }
+        process.waitFor()
+        if (process.exitValue() != 0) {
+            val err = process.errorStream.bufferedReader().readText()
+            throw RuntimeException(err.ifBlank { "Root write failed (exit code ${process.exitValue()})" })
         }
     }
 }

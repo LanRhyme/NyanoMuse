@@ -1238,6 +1238,7 @@ class ChatViewModel(
                 providerRepository, context,
             ),
             memoryEnabled = _memoryEnabled.value,
+            executionMode = com.openminis.app.sandbox.ExecutionMode.getMode(context),
         )
 
     /**
@@ -9954,7 +9955,8 @@ class ChatViewModel(
             var nmNotice: String? = null
             run {
                 val idx = toolBlocks.indexOfFirst { it.id == toolId }
-                val gate = io.github.nanomuse.guard.RiskGate.checkShell(activeSessionId, command)
+                val isRootMode = com.openminis.app.sandbox.ExecutionMode.getMode(context) == com.openminis.app.sandbox.ExecutionMode.ROOT
+                val gate = io.github.nanomuse.guard.RiskGate.checkShell(activeSessionId, command, isRootMode)
                 when (gate) {
                     is io.github.nanomuse.guard.GateOutcome.Denied -> {
                         if (idx >= 0) toolBlocks[idx] = toolBlocks[idx].copy(content = "")

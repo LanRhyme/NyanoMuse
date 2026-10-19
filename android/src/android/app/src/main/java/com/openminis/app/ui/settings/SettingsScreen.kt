@@ -54,6 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -128,6 +129,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var showFeedbackSheet by remember { mutableStateOf(false) }
+    var showExecutionModeSheet by remember { mutableStateOf(false) }
+    var currentExecMode by remember { mutableStateOf(com.openminis.app.sandbox.ExecutionMode.getMode(context)) }
     // nanoMuse: Muse's settings page — the round back glyph, the title centred,
     // white cards of outlined-glyph rows on the grey canvas, no section headers
     // or subtitles. Every OpenMinis entry is kept; they are regrouped the way
@@ -283,6 +286,17 @@ fun SettingsScreen(
 
             // -- The phone: what the agent may touch, where its files live --
             io.github.nanomuse.ui.muse.MuseCard {
+                io.github.nanomuse.ui.muse.MuseRow(
+                    title = "终端与执行模式",
+                    icon = Icons.Outlined.Terminal,
+                    value = when (currentExecMode) {
+                        com.openminis.app.sandbox.ExecutionMode.ROOT -> "Root 模式 (su)"
+                        com.openminis.app.sandbox.ExecutionMode.HOST_SHELL -> "宿主普通 Shell"
+                        com.openminis.app.sandbox.ExecutionMode.PROOT_SANDBOX -> "PRoot 沙箱"
+                    },
+                    onClick = { showExecutionModeSheet = true },
+                )
+                io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_section_permissions), icon = Icons.Outlined.Shield, onClick = onPermissionsClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.bg_section_header), icon = Icons.Outlined.BatteryFull, onClick = onBackgroundClick)
@@ -365,6 +379,76 @@ fun SettingsScreen(
                         openExternalUrl(context, buildFeedbackMailto())
                     },
                 )
+            }
+        }
+    }
+
+    if (showExecutionModeSheet) {
+        ModalBottomSheet(onDismissRequest = { showExecutionModeSheet = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+            ) {
+                Text(
+                    text = "终端执行环境与权限",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                )
+
+                val modes = listOf(
+                    Triple(
+                        com.openminis.app.sandbox.ExecutionMode.ROOT,
+                        "Root 模式 (su · 推荐)",
+                        "直接通过 su 执行宿主命令，具有最高系统权限，可直接读写 /sdcard 与系统内部文件，并使用 pm/am/dumpsys 等原生工具",
+                    ),
+                    Triple(
+                        com.openminis.app.sandbox.ExecutionMode.HOST_SHELL,
+                        "宿主普通 Shell (/system/bin/sh)",
+                        "直接在 Android 系统环境下执行命令，但受普通应用沙盒权限限制（无 Root 权限）",
+                    ),
+                    Triple(
+                        com.openminis.app.sandbox.ExecutionMode.PROOT_SANDBOX,
+                        "PRoot 沙箱 (Alpine Linux)",
+                        "在内置 PRoot + Alpine Linux 隔离环境中执行，默认无宿主修改权限",
+                    ),
+                )
+
+                modes.forEach { (mode, title, desc) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                com.openminis.app.sandbox.ExecutionMode.setMode(context, mode)
+                                currentExecMode = mode
+                                showExecutionModeSheet = false
+                            }
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = currentExecMode == mode,
+                            onClick = {
+                                com.openminis.app.sandbox.ExecutionMode.setMode(context, mode)
+                                currentExecMode = mode
+                                showExecutionModeSheet = false
+                            },
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                desc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
     }

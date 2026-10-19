@@ -172,8 +172,8 @@ object RiskGate {
     // ── the two entry points the tools call ────────────────────────────────────────────────
 
     /** Decides for a shell command: grants first, then the card. */
-    suspend fun checkShell(sessionId: String, command: String): GateOutcome {
-        val a = ShellGuard.assess(command)
+    suspend fun checkShell(sessionId: String, command: String, isRootMode: Boolean = false): GateOutcome {
+        val a = ShellGuard.assess(command, isRootMode)
         return check(sessionId, GuardKind.SHELL, a, preview = command.trim())
     }
 

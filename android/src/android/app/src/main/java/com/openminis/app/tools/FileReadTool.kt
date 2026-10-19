@@ -3,6 +3,7 @@ package com.openminis.app.tools
 import android.content.Context
 import com.openminis.app.data.model.AgentToolDefinition
 import com.openminis.app.data.model.AgentToolParam
+import com.openminis.app.sandbox.ExecutionMode
 import com.openminis.app.sandbox.PRootKernel
 import org.json.JSONObject
 import java.io.File
@@ -54,7 +55,9 @@ object FileReadTool {
             val file = PRootKernel.resolveSessionHostPath(sessionId, path, context)
                 ?: return ToolExecutionResult("Error: Cannot resolve path: $path", false, toolTitle = toolTitle)
 
-            if (!file.exists()) {
+            val isRootMode = ExecutionMode.getMode(context) == ExecutionMode.ROOT
+            val exists = file.exists() || (isRootMode && checkExistsWithRoot(file.absolutePath))
+            if (!exists) {
                 return ToolExecutionResult("Error: File not found: $path", false, toolTitle = toolTitle)
             }
 
@@ -64,11 +67,15 @@ object FileReadTool {
 
             val size = file.length()
 
-            // Binary detection: check first 8192 bytes for null bytes
-            val isBinary = file.inputStream().use { input ->
-                val buf = ByteArray(minOf(8192, size.toInt()))
-                val read = input.read(buf)
-                if (read > 0) buf.take(read).any { it == 0.toByte() } else false
+            // Binary detection: check first 8192 bytes for null bytes (best-effort)
+            val isBinary = try {
+                file.inputStream().use { input ->
+                    val buf = ByteArray(minOf(8192, size.toInt()))
+                    val read = input.read(buf)
+                    if (read > 0) buf.take(read).any { it == 0.toByte() } else false
+                }
+            } catch (e: Exception) {
+                false
             }
 
             if (isBinary) {
@@ -78,7 +85,15 @@ object FileReadTool {
                 )
             }
 
-            val allLines = file.readLines()
+            val allLines = try {
+                file.readLines()
+            } catch (e: Exception) {
+                if (isRootMode) {
+                    readLinesWithRoot(file.absolutePath)
+                } else {
+                    throw e
+                }
+            }
             val totalLines = allLines.size
 
             val requestedLines = if (args.has("lines")) args.optInt("lines") else null
@@ -159,5 +174,25 @@ object FileReadTool {
         } catch (e: Exception) {
             ToolExecutionResult("Error reading file: ${e.message}", false)
         }
+    }
+
+    private fun checkExistsWithRoot(absolutePath: String): Boolean {
+        return try {
+            val p = ProcessBuilder("su", "-c", "test -e \"$absolutePath\"").start()
+            p.waitFor() == 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun readLinesWithRoot(absolutePath: String): List<String> {
+        val process = ProcessBuilder("su", "-c", "cat \"$absolutePath\"").start()
+        val output = process.inputStream.bufferedReader().readText()
+        process.waitFor()
+        if (process.exitValue() != 0 && output.isBlank()) {
+            val err = process.errorStream.bufferedReader().readText()
+            throw RuntimeException(err.ifBlank { "Root read failed (exit code ${process.exitValue()})" })
+        }
+        return output.lines()
     }
 }

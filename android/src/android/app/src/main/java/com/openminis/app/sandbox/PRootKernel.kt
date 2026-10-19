@@ -674,11 +674,17 @@ object PRootKernel {
      * shared subdirs (memory/skills/shared) which don't depend on sessionId.
      */
     fun resolveSessionHostPath(sessionId: String, linuxPath: String, context: Context): File? {
-        if (!linuxPath.startsWith("/var/minis/")) return resolveHostPath(linuxPath)
+        if (ExecutionMode.getMode(context) != ExecutionMode.PROOT_SANDBOX) {
+            val direct = File(linuxPath)
+            if (direct.isAbsolute && (linuxPath.startsWith("/sdcard") || linuxPath.startsWith("/storage") || linuxPath.startsWith("/data") || linuxPath.startsWith("/system") || linuxPath.startsWith("/etc") || linuxPath.startsWith("/dev") || linuxPath.startsWith("/proc") || direct.exists())) {
+                return direct
+            }
+        }
+        if (!linuxPath.startsWith("/var/minis/")) return resolveHostPath(linuxPath, context)
         val rest = linuxPath.removePrefix("/var/minis/")
         val slash = rest.indexOf('/')
         val subdir = if (slash < 0) rest else rest.substring(0, slash)
-        if (subdir !in perSessionSubdirs) return resolveHostPath(linuxPath)
+        if (subdir !in perSessionSubdirs) return resolveHostPath(linuxPath, context)
         val sessionBase = File(context.filesDir, "minis-sessions/$sessionId/$subdir")
         val tail = if (slash < 0) "" else rest.substring(slash + 1)
         return if (tail.isEmpty()) sessionBase else File(sessionBase, tail)
@@ -688,7 +694,11 @@ object PRootKernel {
      * Resolve a Linux path to a host filesystem File by checking bind mounts.
      * Returns null if no matching mount is found.
      */
-    fun resolveHostPath(linuxPath: String): File? {
+    fun resolveHostPath(linuxPath: String, context: Context? = null): File? {
+        if (context != null && ExecutionMode.getMode(context) != ExecutionMode.PROOT_SANDBOX) {
+            val direct = File(linuxPath)
+            if (direct.isAbsolute) return direct
+        }
         // Check bind mounts (longest prefix match)
         val sorted = bindMounts.keys.sortedByDescending { it.length }
         for (mountPoint in sorted) {
@@ -704,7 +714,7 @@ object PRootKernel {
         }
 
         // Fallback: resolve relative to rootfs
-        if (!::rootfsManager.isInitialized) return null
+        if (!::rootfsManager.isInitialized) return if (File(linuxPath).isAbsolute) File(linuxPath) else null
         val stripped = linuxPath.removePrefix("/")
         return if (stripped.isEmpty()) rootfsManager.rootfsDir else File(rootfsManager.rootfsDir, stripped)
     }

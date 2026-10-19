@@ -27,8 +27,9 @@ object AgentTools {
         // attempt those calls. Mirrors the iOS gate at
         // AIChatViewModel.makeAgentTools(memoryEnabled:).
         memoryEnabled: Boolean = true,
+        executionMode: com.openminis.app.sandbox.ExecutionMode = com.openminis.app.sandbox.ExecutionMode.ROOT,
     ): List<AgentToolDefinition> = buildList {
-        add(shellExecuteDefinition())
+        add(shellExecuteDefinition(executionMode))
         add(FileReadTool.definition())
         add(FileWriteTool.definition())
         add(FileEditTool.definition())
@@ -43,21 +44,35 @@ object AgentTools {
     }
 
     // Aligned with iOS AIChatViewModel.swift:4982-4993
-    private fun shellExecuteDefinition(): AgentToolDefinition = AgentToolDefinition(
-        name = "shell_execute",
-        description = "Execute a command in an isolated Linux process (Alpine Linux via PRoot). " +
-            "The command runs via /bin/sh -c with stdout and stderr merged. " +
-            "Each invocation spawns a fresh process — there is no shared terminal session. " +
-            "Default timeout is 15 minutes.",
-        parameters = mapOf(
-            "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does, shown to the user (e.g. 'Install Python data analysis packages', 'List files in home directory'). Use the same language as the user."),
-            "command" to AgentToolParam("string", "The shell command to execute. Supports multi-line commands directly — no special escaping needed. Keep under 1000 chars; for longer scripts, write to a file with file_write first, then run it."),
-            "timeout" to AgentToolParam("integer", "Timeout in seconds (default: 900). Use a larger value for long-running commands like package installs."),
-            "delay" to AgentToolParam("integer", "Delay in seconds before execution begins. The tool blocks the agent flow during this wait WITHOUT occupying the shell, so other concurrent tasks can use it. Use this instead of sleep commands to avoid resource contention."),
-        ),
-        required = listOf("tool_title", "command"),
-        propertyOrdering = listOf("tool_title", "command", "timeout", "delay"),
-    )
+    private fun shellExecuteDefinition(executionMode: com.openminis.app.sandbox.ExecutionMode = com.openminis.app.sandbox.ExecutionMode.ROOT): AgentToolDefinition {
+        val desc = when (executionMode) {
+            com.openminis.app.sandbox.ExecutionMode.ROOT ->
+                "Execute a command directly in the Android host shell with full root privileges (uid=0 / su). " +
+                "You have unrestricted access to the entire Android filesystem (/sdcard, /data, /system, etc.) and native system binaries (e.g. pm, am, dumpsys, toybox, iptables, znctl, resetprop, svc). " +
+                "The command runs via su -c with stdout and stderr merged. " +
+                "Default timeout is 15 minutes."
+            com.openminis.app.sandbox.ExecutionMode.HOST_SHELL ->
+                "Execute a command directly in the Android host shell as standard app user (/system/bin/sh). " +
+                "The command runs with stdout and stderr merged. Default timeout is 15 minutes."
+            com.openminis.app.sandbox.ExecutionMode.PROOT_SANDBOX ->
+                "Execute a command in an isolated Linux process (Alpine Linux via PRoot). " +
+                "The command runs via /bin/sh -c with stdout and stderr merged. " +
+                "Each invocation spawns a fresh process — there is no shared terminal session. " +
+                "Default timeout is 15 minutes."
+        }
+        return AgentToolDefinition(
+            name = "shell_execute",
+            description = desc,
+            parameters = mapOf(
+                "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does, shown to the user (e.g. 'Install Python data analysis packages', 'List files in home directory'). Use the same language as the user."),
+                "command" to AgentToolParam("string", "The shell command to execute. Supports multi-line commands directly — no special escaping needed. Keep under 1000 chars; for longer scripts, write to a file with file_write first, then run it."),
+                "timeout" to AgentToolParam("integer", "Timeout in seconds (default: 900). Use a larger value for long-running commands like package installs."),
+                "delay" to AgentToolParam("integer", "Delay in seconds before execution begins. The tool blocks the agent flow during this wait WITHOUT occupying the shell, so other concurrent tasks can use it. Use this instead of sleep commands to avoid resource contention."),
+            ),
+            required = listOf("tool_title", "command"),
+            propertyOrdering = listOf("tool_title", "command", "timeout", "delay"),
+        )
+    }
 
     // Aligned with iOS AIChatViewModel.swift browser_use definition
     private fun browserUseDefinition(): AgentToolDefinition = AgentToolDefinition(

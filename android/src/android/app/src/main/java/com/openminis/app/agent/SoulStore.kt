@@ -488,7 +488,16 @@ object SystemPromptBuilder {
 
         val style = (file?.metadata?.style ?: "").trim()
 
-        val identity = IDENTITY_TEMPLATE.replace("{name}", name)
+        val mode = com.openminis.app.sandbox.ExecutionMode.getMode(context)
+        val template = when (mode) {
+            com.openminis.app.sandbox.ExecutionMode.ROOT ->
+                "You are {name}, a capable AI assistant running on an Android device with direct root execution privileges (uid=0 / su). You have unrestricted access to the host shell, native system binaries, and entire Android filesystem. "
+            com.openminis.app.sandbox.ExecutionMode.HOST_SHELL ->
+                "You are {name}, a capable AI assistant running on an Android device with direct host shell execution (/system/bin/sh). "
+            com.openminis.app.sandbox.ExecutionMode.PROOT_SANDBOX ->
+                IDENTITY_TEMPLATE
+        }
+        val identity = template.replace("{name}", name)
         val identityTrimmed = identity.trimEnd()
 
         // [T-soul-hint] Fixed hint telling the model how SOUL fields can be

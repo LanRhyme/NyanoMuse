@@ -97,7 +97,8 @@ class PersistentShell(
                 startProcess()
                 val aliveMs = System.currentTimeMillis() - spawnedAt
 
-                if (!useNoSeccomp && !isAlive) {
+                val mode = ExecutionMode.getMode(context)
+                if (mode == ExecutionMode.PROOT_SANDBOX && !useNoSeccomp && !isAlive) {
                     val exit = runCatching { process?.exitValue() }.getOrNull() ?: lastExitCode
                     if (SeccompFallbackPolicy.shouldRetryWithoutSeccomp(
                             exitCode = exit,
@@ -156,25 +157,9 @@ class PersistentShell(
     private var useNoSeccomp = false
 
     private fun startProcess() {
-        Log.i(TAG, "Starting persistent shell process")
+        val mode = ExecutionMode.getMode(context)
+        Log.i(TAG, "Starting persistent shell process in mode: ${mode.name}")
 
-        val rootfsManager = RootfsManager.getInstance(context)
-
-        // [T-android-shell-death-diagnosability] One-line spawn context in the
-        // FILE log. Field reports of "[Shell not running] (exit code: -1)" have
-        // had two distinct causes already (missing proot ELF loaders after
-        // bc2566b2, and at least one custom-ROM death we couldn't classify),
-        // and a user log that only says "process exited" cannot tell them
-        // apart. Loader presence is the first thing to rule out: without
-        // PROOT_LOADER, proot bare-execve's rootfs busybox and SELinux kills
-        // it on Android 10+ (see a25d93f7).
-        com.openminis.app.logging.AppLogger.info(
-            TAG,
-            "spawn ctx: proot=${rootfsManager.prootBinary.exists()} " +
-                "rootfs=${File(rootfsManager.rootfsDir, "bin/busybox").exists()} " +
-                "loader64=${PRootKernel.prootLoaderPath.isNotEmpty()} " +
-                "loader32=${PRootKernel.prootLoader32Path.isNotEmpty()}",
-        )
         // Fresh capture per process incarnation — a respawned shell must not
         // report its predecessor's dying output as its own.
         synchronized(outputTail) {
@@ -185,72 +170,103 @@ class PersistentShell(
         lastExitCode = null
 
         val cmd = mutableListOf<String>()
-        cmd.add(rootfsManager.prootBinary.absolutePath)
-        cmd.add("-0")
-        // T141: see PRootKernel.buildProotCommand for rationale — translates
-        // hardlinks to symlinks so apk install of binutils/gcc works.
-        cmd.add("--link2symlink")
-        cmd.add("-r")
-        cmd.add(rootfsManager.rootfsDir.absolutePath)
-        cmd.add("-b"); cmd.add("/dev")
-        cmd.add("-b"); cmd.add("/proc")
-        cmd.add("-b"); cmd.add("/sys")
-        cmd.add("-w"); cmd.add("/root")
-
-        // Apply this session's bind mounts (session-specific, not global)
-        for ((linuxPath, hostPath) in sessionBindMounts) {
-            cmd.add("-b")
-            cmd.add("$hostPath:$linuxPath")
-        }
-
-        val handlers = NativeOffloadServer.registeredHandlers
-        if (handlers.isNotEmpty()) {
-            cmd.add("--native-offload=${NativeOffloadServer.socketName}:${handlers.joinToString(",")}")
-        }
-
-        cmd.add("/bin/sh")
-
         val debugOffload = com.openminis.app.BuildConfig.DEBUG
+        val processBuilder: ProcessBuilder
 
-        val processBuilder = ProcessBuilder(cmd)
-        // In debug builds we want proot's native_offload stderr logs in
-        // logcat, not merged into shell stdout (which would break the
-        // __MINIS_DONE__ marker detection). Release keeps the original
-        // merged behavior so no stderr output is lost silently.
-        processBuilder.redirectErrorStream(!debugOffload)
+        if (mode == ExecutionMode.ROOT) {
+            val suBinary = listOf(
+                "/system/bin/su",
+                "/system/xbin/su",
+                "/sbin/su",
+                "/data/adb/ksu/bin/su",
+                "/data/adb/magisk/su"
+            ).firstOrNull { File(it).exists() } ?: "su"
+            cmd.add(suBinary)
+            processBuilder = ProcessBuilder(cmd)
+            processBuilder.redirectErrorStream(true)
 
-        val env = processBuilder.environment()
-        env["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
-        if (PRootKernel.nativeLibDir.isNotEmpty()) {
-            env["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
-        }
-        if (PRootKernel.prootLoaderPath.isNotEmpty()) {
-            env["PROOT_LOADER"] = PRootKernel.prootLoaderPath
-        }
-        if (PRootKernel.prootLoader32Path.isNotEmpty()) {
-            env["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
-        }
-        env["TERM"] = "dumb"
-        env["PS1"] = ""  // Suppress prompt to avoid polluting output
-        // Timezone: customEnvironment["TZ"] is seeded at PRootKernel.boot(),
-        // but refresh it here in case the system timezone changed between boot
-        // and now.
-        env["TZ"] = PRootKernel.posixTz()
-        if (debugOffload) env["MINIS_NOFF_DEBUG"] = "1"
-        // T340: forward the chat session id to native_offload handlers via
-        // proot env. NativeOffloadServer reads this off `request.env` and
-        // hands it to OffloadPermissionManager so ASK_ONCE grants/denials
-        // are scoped per chat session, not globally.
-        env["MINIS_CHAT_SESSION_ID"] = sessionId
+            val env = processBuilder.environment()
+            env["TERM"] = "dumb"
+            env["PS1"] = ""
+            env["PATH"] = "/system/bin:/system/xbin:/sbin:/data/adb/ksu/bin:/data/adb/magisk:" + (System.getenv("PATH") ?: "")
+            val storageDir = File("/storage/emulated/0")
+            if (storageDir.exists() && storageDir.canRead()) {
+                processBuilder.directory(storageDir)
+            } else {
+                processBuilder.directory(File("/"))
+            }
+        } else if (mode == ExecutionMode.HOST_SHELL) {
+            val shBinary = if (File("/system/bin/sh").exists()) "/system/bin/sh" else "/bin/sh"
+            cmd.add(shBinary)
+            processBuilder = ProcessBuilder(cmd)
+            processBuilder.redirectErrorStream(true)
 
-        for ((key, value) in PRootKernel.customEnvironment) {
-            env[key] = value
-        }
+            val env = processBuilder.environment()
+            env["TERM"] = "dumb"
+            env["PS1"] = ""
+            val storageDir = File("/storage/emulated/0")
+            if (storageDir.exists() && storageDir.canRead()) {
+                processBuilder.directory(storageDir)
+            }
+        } else {
+            // PROOT_SANDBOX (original)
+            val rootfsManager = RootfsManager.getInstance(context)
+            com.openminis.app.logging.AppLogger.info(
+                TAG,
+                "spawn ctx: proot=${rootfsManager.prootBinary.exists()} " +
+                    "rootfs=${File(rootfsManager.rootfsDir, "bin/busybox").exists()} " +
+                    "loader64=${PRootKernel.prootLoaderPath.isNotEmpty()} " +
+                    "loader32=${PRootKernel.prootLoader32Path.isNotEmpty()}",
+            )
+            cmd.add(rootfsManager.prootBinary.absolutePath)
+            cmd.add("-0")
+            cmd.add("--link2symlink")
+            cmd.add("-r")
+            cmd.add(rootfsManager.rootfsDir.absolutePath)
+            cmd.add("-b"); cmd.add("/dev")
+            cmd.add("-b"); cmd.add("/proc")
+            cmd.add("-b"); cmd.add("/sys")
+            cmd.add("-w"); cmd.add("/root")
 
-        // [T-android-seccomp-selfheal / GH#186] Applied last so nothing above
-        // can clobber it once this device is known to need it.
-        if (useNoSeccomp) {
-            env[SeccompFallbackPolicy.NO_SECCOMP_ENV] = SeccompFallbackPolicy.NO_SECCOMP_VALUE
+            // Apply this session's bind mounts (session-specific, not global)
+            for ((linuxPath, hostPath) in sessionBindMounts) {
+                cmd.add("-b")
+                cmd.add("$hostPath:$linuxPath")
+            }
+
+            val handlers = NativeOffloadServer.registeredHandlers
+            if (handlers.isNotEmpty()) {
+                cmd.add("--native-offload=${NativeOffloadServer.socketName}:${handlers.joinToString(",")}")
+            }
+
+            cmd.add("/bin/sh")
+            processBuilder = ProcessBuilder(cmd)
+            processBuilder.redirectErrorStream(!debugOffload)
+
+            val env = processBuilder.environment()
+            env["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
+            if (PRootKernel.nativeLibDir.isNotEmpty()) {
+                env["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
+            }
+            if (PRootKernel.prootLoaderPath.isNotEmpty()) {
+                env["PROOT_LOADER"] = PRootKernel.prootLoaderPath
+            }
+            if (PRootKernel.prootLoader32Path.isNotEmpty()) {
+                env["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
+            }
+            env["TERM"] = "dumb"
+            env["PS1"] = ""
+            env["TZ"] = PRootKernel.posixTz()
+            if (debugOffload) env["MINIS_NOFF_DEBUG"] = "1"
+            env["MINIS_CHAT_SESSION_ID"] = sessionId
+
+            for ((key, value) in PRootKernel.customEnvironment) {
+                env[key] = value
+            }
+
+            if (useNoSeccomp) {
+                env[SeccompFallbackPolicy.NO_SECCOMP_ENV] = SeccompFallbackPolicy.NO_SECCOMP_VALUE
+            }
         }
 
         val p = processBuilder.start()

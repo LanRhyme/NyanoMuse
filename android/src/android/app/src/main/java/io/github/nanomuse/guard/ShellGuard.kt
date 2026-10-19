@@ -65,17 +65,27 @@ object ShellGuard {
         Regex("\\bcurl\\b[^|]*\\|\\s*(python3?|perl|node)\\b|\\bwget\\b[^|]*\\|\\s*(python3?|perl|node)\\b") to "pipes a download into an interpreter",
     )
 
+    // Catastrophic patterns under Root mode: allows reboot, poweroff, chmod, package/service tools
+    private val rootWarningPatterns: List<Pair<Regex, String>> = listOf(
+        Regex("\\bmkfs\\b|\\bdd\\s+(if|of)=/dev/(block|sd|nvme|mmcblk)") to "disk-level operation",
+        Regex(">\\s*/dev/(sd|nvme|mmcblk|block)") to "writes to a block device",
+        Regex(":\\(\\)\\s*\\{\\s*:\\s*\\|\\s*:\\s*&\\s*\\}\\s*;\\s*:") to "fork bomb",
+        Regex("\\bchmod\\s+-R\\s+.*\\s/(\\s|$)") to "recursive root chmod",
+        Regex("\\bgit\\s+push\\b[^;&|]*(--force\\b|\\s-f\\b|--force-with-lease|\\s\\+\\S)") to "force push",
+    )
+
     // Inline-code reach, for `python -c`, `node -e`, heredocs.
     private val codeDeletes = Regex("\\b(shutil\\.rmtree|os\\.(remove|unlink|rmdir|removedirs)|pathlib\\.[^\\n]*\\.unlink|\\.unlink\\(|fs\\.(rm|rmSync|rmdir|rmdirSync|unlink|unlinkSync)|rimraf|File\\.delete|FileUtils\\.rm)\\b")
     private val codeSends = Regex("\\b(requests\\.(post|put|patch|delete)|urllib\\.request\\.urlopen\\([^)]*data|httpx\\.(post|put|patch|delete)|aiohttp[^\\n]*\\.(post|put)|smtplib|sendmail|axios\\.(post|put|patch|delete)|fetch\\([^)]*method\\s*:\\s*['\"](POST|PUT|PATCH|DELETE)|nodemailer|twilio|SendGrid|boto3[^\\n]*\\.(put_object|send_email|publish)|lark|feishu|dingtalk|wecom|telegram|slack_sdk)\\b", RegexOption.IGNORE_CASE)
     private val codeInstalls = Regex("\\b(pip\\.main|subprocess[^\\n]*(pip|apk|apt|npm)\\s+(install|add))\\b")
 
-    fun assess(command: String): RiskAssessment = assess(command, depth = 0)
+    fun assess(command: String, isRootMode: Boolean = false): RiskAssessment = assess(command, isRootMode, depth = 0)
 
-    private fun assess(command: String, depth: Int): RiskAssessment {
+    private fun assess(command: String, isRootMode: Boolean, depth: Int): RiskAssessment {
         if (depth > 3 || command.isBlank()) return RiskAssessment.SAFE
         var result = RiskAssessment.SAFE
-        val warnings = warningPatterns.filter { it.first.containsMatchIn(command) }.map { it.second }
+        val activeWarnings = if (isRootMode) rootWarningPatterns else warningPatterns
+        val warnings = activeWarnings.filter { it.first.containsMatchIn(command) }.map { it.second }
         if (warnings.isNotEmpty()) {
             // A pipe into a shell is an install by shape; the warning makes it ask anyway.
             val cls = if (warnings.any { it.startsWith("pipes a download") }) RiskClass.INSTALL else RiskClass.DESTRUCTIVE
@@ -83,7 +93,7 @@ object ShellGuard {
         }
         for (pipeline in splitPipelines(command)) {
             for (simple in splitPipes(pipeline)) {
-                result = RiskAssessment.merge(result, assessSimple(simple, depth))
+                result = RiskAssessment.merge(result, assessSimple(simple, isRootMode, depth))
             }
         }
         return result
@@ -91,22 +101,22 @@ object ShellGuard {
 
     // ── one simple command ─────────────────────────────────────────────────────────────────
 
-    private fun assessSimple(text: String, depth: Int): RiskAssessment {
+    private fun assessSimple(text: String, isRootMode: Boolean, depth: Int): RiskAssessment {
         val heredoc = Regex("<<-?\\s*['\"]?(\\w+)['\"]?\\s*\\n").find(text)
         val head = if (heredoc != null) text.substring(0, heredoc.range.first) else text
         val body = if (heredoc != null) text.substring(heredoc.range.last + 1).substringBefore("\n" + heredoc.groupValues[1]) else null
 
         val tokens = unwrap(tokenize(head))
-        if (tokens.isEmpty()) return if (body != null) assessInline(body, depth) else RiskAssessment.SAFE
+        if (tokens.isEmpty()) return if (body != null) assessInline(body, isRootMode, depth) else RiskAssessment.SAFE
         val program = basename(tokens[0])
         val args = tokens.drop(1)
 
-        val fromBody = if (body != null && (program in shells || program in interpreters)) assessInline(body, depth) else RiskAssessment.SAFE
+        val fromBody = if (body != null && (program in shells || program in interpreters)) assessInline(body, isRootMode, depth) else RiskAssessment.SAFE
         val own = when {
-            program in shells -> shellWrapper(args, depth)
-            program in interpreters -> interpreterInline(args, depth)
-            program == "xargs" -> assessSimple(dropOptions(args, xargsValueOptions).joinToString(" ") { quote(it) } + " ?", depth)
-            program == "rm" -> rm(args)
+            program in shells -> shellWrapper(args, isRootMode, depth)
+            program in interpreters -> interpreterInline(args, isRootMode, depth)
+            program == "xargs" -> assessSimple(dropOptions(args, xargsValueOptions).joinToString(" ") { quote(it) } + " ?", isRootMode, depth)
+            program == "rm" -> rm(args, isRootMode)
             program == "find" -> find(args)
             program in setOf("shred", "wipe", "srm") -> RiskAssessment(RiskClass.DESTRUCTIVE, "destroys files", folderOf(args.lastOrNull { !it.startsWith("-") }))
             program == "truncate" -> RiskAssessment(RiskClass.DESTRUCTIVE, "empties a file", folderOf(args.lastOrNull { !it.startsWith("-") }))
@@ -132,27 +142,27 @@ object ShellGuard {
         } else merged
     }
 
-    private fun shellWrapper(args: List<String>, depth: Int): RiskAssessment {
+    private fun shellWrapper(args: List<String>, isRootMode: Boolean, depth: Int): RiskAssessment {
         val i = args.indexOfFirst { it == "-c" || it == "-lc" || it == "-ec" || it == "-euc" }
-        if (i >= 0 && i + 1 < args.size) return assess(args[i + 1], depth + 1)
+        if (i >= 0 && i + 1 < args.size) return assess(args[i + 1], isRootMode, depth + 1)
         return RiskAssessment.SAFE // running a script file: judged by what the file does when it runs
     }
 
-    private fun interpreterInline(args: List<String>, depth: Int): RiskAssessment {
+    private fun interpreterInline(args: List<String>, isRootMode: Boolean, depth: Int): RiskAssessment {
         val i = args.indexOfFirst { it == "-c" || it == "-e" || it == "--eval" || it == "-r" }
-        if (i >= 0 && i + 1 < args.size) return assessInline(args[i + 1], depth)
+        if (i >= 0 && i + 1 < args.size) return assessInline(args[i + 1], isRootMode, depth)
         // `python -m pip install`, `python -m twine upload`
         val m = args.indexOf("-m")
-        if (m >= 0 && m + 1 < args.size) return assessSimple((listOf(args[m + 1]) + args.drop(m + 2)).joinToString(" ") { quote(it) }, depth)
+        if (m >= 0 && m + 1 < args.size) return assessSimple((listOf(args[m + 1]) + args.drop(m + 2)).joinToString(" ") { quote(it) }, isRootMode, depth)
         return RiskAssessment.SAFE
     }
 
     /** Inline code: judged by what it can reach, not by parsing it. */
-    private fun assessInline(code: String, depth: Int): RiskAssessment {
+    private fun assessInline(code: String, isRootMode: Boolean, depth: Int): RiskAssessment {
         var r = RiskAssessment.SAFE
         // A heredoc or -c string that is itself shell gets the full treatment.
         if (Regex("(^|\\n|;|&&)\\s*(rm|curl|wget|git|apk|apt|pip|npm|find|lark-cli|gh|ssh|scp|rsync)\\b").containsMatchIn(code)) {
-            r = RiskAssessment.merge(r, assess(code, depth + 1))
+            r = RiskAssessment.merge(r, assess(code, isRootMode, depth + 1))
         }
         if (codeDeletes.containsMatchIn(code)) r = RiskAssessment.merge(r, RiskAssessment(RiskClass.DESTRUCTIVE, "code deletes files", null))
         if (codeSends.containsMatchIn(code)) {
@@ -166,11 +176,11 @@ object ShellGuard {
 
     // ── programs ───────────────────────────────────────────────────────────────────────────
 
-    private fun rm(args: List<String>): RiskAssessment {
+    private fun rm(args: List<String>, isRootMode: Boolean = false): RiskAssessment {
         val targets = positional(args)
         if (targets.isEmpty()) return RiskAssessment.SAFE
         val resolved = targets.map { resolve(it) }
-        val whole = resolved.filter { isWholeTree(it) }
+        val whole = resolved.filter { isWholeTree(it, isRootMode) }
         if (whole.isNotEmpty()) {
             return RiskAssessment(RiskClass.DESTRUCTIVE, "removes ${whole.first()} entirely", folderOf(whole.first()), warnings = listOf("wipes ${whole.first()}"))
         }
@@ -327,9 +337,13 @@ object ShellGuard {
         scratchPrefixes.any { path.startsWith(it) } || path in setOf("/tmp", "/var/tmp", "/dev/shm")
 
     /** The roots nobody deletes in one go. */
-    private fun isWholeTree(path: String): Boolean = path in setOf(
-        "/", "/root", "/home", "/etc", "/usr", "/var", "/bin", "/lib", "/opt", "/var/minis", WORKSPACE, SHARED, "/var/minis/skills", "/var/minis/attachments",
-    ) || path == "/*"
+    private fun isWholeTree(path: String, isRootMode: Boolean = false): Boolean {
+        val standardRoots = setOf(
+            "/", "/root", "/home", "/etc", "/usr", "/var", "/bin", "/lib", "/opt", "/var/minis", WORKSPACE, SHARED, "/var/minis/skills", "/var/minis/attachments",
+        )
+        val androidRoots = if (isRootMode) setOf("/system", "/vendor", "/product", "/data", "/sdcard", "/storage", "/storage/emulated/0") else emptySet()
+        return path in standardRoots || path in androidRoots || path == "/*"
+    }
 
     /** The folder a standing grant is bound to. */
     private fun folderOf(pathOrNull: String?): String? {
