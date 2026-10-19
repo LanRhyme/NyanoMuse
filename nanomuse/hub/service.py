@@ -237,6 +237,7 @@ class HubService:
             on_state=self._hub_state_changed,
             on_profile=self.profile.on_frame,
             on_sync=self.svc.sync.on_frame,
+            on_config=self._on_config,
         )
         self.client.start()
         self._sync_tools(True)
@@ -657,6 +658,25 @@ class HubService:
             except Exception:  # noqa: BLE001 — a trigger must not stop the hub
                 logger.exception("device trigger")
         self.publish()
+
+    def _on_config(self, frame: dict[str, Any]) -> None:
+        device = str(frame.get("device") or "")
+        rev = int(frame.get("rev") or 0)
+        logger.info("hub: remote config updated (rev={}, device={})", rev, device)
+        from pathlib import Path
+        import subprocess
+        import sys
+        sync_key = Path.home() / ".nyanomuse" / "desktop" / ".sync_key"
+        if not sync_key.exists():
+            sync_key = Path.home() / ".nanomuse" / "desktop" / ".sync_key"
+        if sync_key.exists():
+            script = Path(__file__).resolve().parents[2] / "scripts" / "nanomuse-bridge.py"
+            if script.exists():
+                subprocess.Popen(
+                    [sys.executable, str(script), "sync-config", "pull"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
 
     def others(self) -> list[dict[str, Any]]:
         return self.client.others() if self.client else []

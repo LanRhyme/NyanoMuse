@@ -174,6 +174,7 @@ object ModelSlots {
             Slot.VIDEO -> MediaModels.clearVideo(context)
         }
         lastChanged.value = slot
+        io.github.nanomuse.cloud.ConfigSync.pushDebounced(context)
     }
 
     // ── what each slot can be ───────────────────────────────────────────
@@ -283,6 +284,7 @@ object ModelSlots {
             Slot.VIDEO -> MediaModels.saveVideo(context, option.instance.id, option.modelId)
         }
         lastChanged.value = slot
+        io.github.nanomuse.cloud.ConfigSync.pushDebounced(context)
     }
 
     /**

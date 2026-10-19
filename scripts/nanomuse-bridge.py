@@ -19,7 +19,8 @@ import tempfile
 import urllib.request
 from pathlib import Path
 from typing import Any
-
+import time
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from PIL import Image
 
 NANOMUSE_DIR = (
@@ -34,6 +35,9 @@ PROFILE_PATH = CONFIG_DIR / "profile.json"
 CLOUD_PATH = CONFIG_DIR / "cloud.json"
 DESKTOP_PATH = NANOMUSE_DIR / "desktop.json"
 FACES_DIR = CONFIG_DIR / "faces"
+SYNC_KEY_PATH = NANOMUSE_DIR / ".sync_key"
+BACKUP_DIR = Path.home() / ".nyanomuse" / "backups" / "configs"
+
 
 MOOD_ALIASES = {
     "idle": ("idle", "base", "normal", "stand", "default"),
@@ -341,6 +345,298 @@ def cmd_android(args: argparse.Namespace) -> None:
         print(f"Sent reload to {dev}")
 
 
+def derive_sync_key(password: str, account_id: str) -> bytes:
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), account_id.encode("utf-8"), 100_000, 32)
+
+
+def get_account_id() -> str:
+    token = get_token()
+    if token and RELAY_BASE:
+        try:
+            req = urllib.request.Request(
+                f"{RELAY_BASE}/v1/me",
+                headers={"Authorization": f"Bearer {token}", "User-Agent": "nanoMuse-Bridge/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                acc = data.get("account", {})
+                acc_id = acc.get("id")
+                if acc_id:
+                    c = read_json(CLOUD_PATH)
+                    c["account"] = acc
+                    write_json(CLOUD_PATH, c)
+                    return str(acc_id)
+        except Exception:
+            pass
+    c = read_json(CLOUD_PATH)
+    return str(c.get("account", {}).get("id") or c.get("sync", {}).get("accountId") or "")
+
+
+
+def get_sync_key(override_pw: str | None = None) -> bytes:
+    if override_pw:
+        acc_id = get_account_id()
+        if not acc_id:
+            raise ValueError("No account_id found in cloud.json")
+        key = derive_sync_key(override_pw, acc_id)
+        SYNC_KEY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        SYNC_KEY_PATH.write_text(base64.b64encode(key).decode("ascii"), encoding="utf-8")
+        return key
+
+    env_pw = os.getenv("NYANOMUSE_SYNC_PASSWORD")
+    if env_pw:
+        acc_id = get_account_id()
+        if acc_id:
+            return derive_sync_key(env_pw, acc_id)
+
+    env_key = os.getenv("NYANOMUSE_SYNC_KEY")
+    if env_key:
+        return base64.b64decode(env_key)
+
+    if SYNC_KEY_PATH.exists():
+        raw = SYNC_KEY_PATH.read_text(encoding="utf-8").strip()
+        if raw:
+            return base64.b64decode(raw)
+
+    raise ValueError("Sync encryption key not found. Run 'sync-config set-password <password>' first")
+
+
+def encrypt_config_payload(payload: dict, key: bytes) -> tuple[str, str, str]:
+    iv = os.urandom(12)
+    plaintext = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    aes = AESGCM(key)
+    full = aes.encrypt(iv, plaintext, None)
+    ct = base64.b64encode(full[:-16]).decode("ascii")
+    tag = base64.b64encode(full[-16:]).decode("ascii")
+    iv_b64 = base64.b64encode(iv).decode("ascii")
+    return ct, iv_b64, tag
+
+
+def decrypt_config_payload(ct_b64: str, iv_b64: str, tag_b64: str, key: bytes) -> dict:
+    ct = base64.b64decode(ct_b64)
+    tag = base64.b64decode(tag_b64)
+    iv = base64.b64decode(iv_b64)
+    aes = AESGCM(key)
+    plaintext = aes.decrypt(iv, ct + tag, None)
+    return json.loads(plaintext.decode("utf-8"))
+
+
+def gather_local_config() -> dict:
+    cloud = read_json(CLOUD_PATH)
+    creds_text = CREDENTIALS_PATH.read_text(encoding="utf-8") if CREDENTIALS_PATH.exists() else ""
+    creds_map: dict[str, str] = {}
+    for line in creds_text.splitlines():
+        line = line.strip()
+        if ":" in line and not line.startswith("#"):
+            k, v = line.split(":", 1)
+            creds_map[k.strip()] = v.strip().strip("'\"")
+
+    providers_out = []
+    for pid, pdata in cloud.get("providers", {}).items():
+        key_ref = pdata.get("keyRef", "")
+        api_key = creds_map.get(key_ref, "")
+        providers_out.append({
+            "id": pid,
+            "label": pdata.get("label", pid),
+            "providerType": pdata.get("provider", pid),
+            "protocol": pdata.get("protocol", "openai"),
+            "baseURL": pdata.get("baseURL", ""),
+            "apiKey": api_key,
+            "capabilities": pdata.get("capabilities", ["chat"]),
+            "models": pdata.get("models", []),
+            "updated_at": pdata.get("at", int(time.time() * 1000)),
+        })
+
+    soul_body = SOUL_PATH.read_text(encoding="utf-8") if SOUL_PATH.exists() else ""
+    profile = read_json(PROFILE_PATH)
+
+    slots = {
+        "hands": {
+            "providerId": cloud.get("handsProvider", ""),
+            "modelId": cloud.get("handsModel", ""),
+            "updated_at": int(time.time() * 1000),
+        }
+    }
+
+    return {
+        "version": 1,
+        "updated_at": int(time.time() * 1000),
+        "device": "desktop",
+        "providers": providers_out,
+        "slots": slots,
+        "soul": {
+            "name": profile.get("name", "nanoMuse"),
+            "style": profile.get("style", "custom"),
+            "lang": "auto",
+            "body": soul_body,
+            "updated_at": int(time.time() * 1000),
+        },
+    }
+
+
+def backup_config(cfg: dict) -> Path:
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time() * 1000)
+    out_file = BACKUP_DIR / f"config_{ts}.json"
+    write_json(out_file, cfg)
+    return out_file
+
+
+def apply_remote_config(remote_cfg: dict) -> dict:
+    local_cfg = gather_local_config()
+    backup_file = backup_config(local_cfg)
+
+    cloud = read_json(CLOUD_PATH)
+    providers = cloud.setdefault("providers", {})
+    new_creds: dict[str, str] = {}
+
+    for rp in remote_cfg.get("providers", []):
+        pid = rp.get("id") or rp.get("providerType") or "custom"
+        local_p = providers.get(pid)
+        local_at = local_p.get("at", 0) if local_p else 0
+        remote_at = rp.get("updated_at", 0)
+
+        # Attribute-level LWW
+        if local_p is None or remote_at >= local_at:
+            key_ref = f"NANOMUSE_KEY_{pid.upper()}"
+            providers[pid] = {
+                "id": pid,
+                "provider": rp.get("providerType", pid),
+                "label": rp.get("label", pid),
+                "protocol": rp.get("protocol", "openai"),
+                "baseURL": rp.get("baseURL", ""),
+                "keyRef": key_ref,
+                "capabilities": rp.get("capabilities", ["chat"]),
+                "models": rp.get("models", []),
+                "at": remote_at or int(time.time() * 1000),
+            }
+            if rp.get("apiKey"):
+                new_creds[key_ref] = rp["apiKey"]
+
+    # Update slots
+    remote_slots = remote_cfg.get("slots", {})
+    if "hands" in remote_slots:
+        cloud["handsModel"] = remote_slots["hands"].get("modelId", cloud.get("handsModel", ""))
+        cloud["handsProvider"] = remote_slots["hands"].get("providerId", cloud.get("handsProvider", ""))
+
+    write_json(CLOUD_PATH, cloud)
+
+    # Update credentials.yaml
+    if new_creds and CREDENTIALS_PATH.exists():
+        lines = CREDENTIALS_PATH.read_text(encoding="utf-8").splitlines()
+        updated_lines = []
+        has_refs = False
+        existing_keys = set()
+        for line in lines:
+            if line.strip() == "refs:":
+                has_refs = True
+            for k in new_creds:
+                if line.strip().startswith(f"{k}:"):
+                    existing_keys.add(k)
+                    line = f"  {k}: {new_creds[k]}"
+            updated_lines.append(line)
+        if not has_refs:
+            updated_lines.append("refs:")
+        for k, v in new_creds.items():
+            if k not in existing_keys:
+                updated_lines.append(f"  {k}: {v}")
+        CREDENTIALS_PATH.write_text("\n".join(updated_lines) + "\n", encoding="utf-8")
+
+    # Update SOUL.md if remote soul is newer
+    remote_soul = remote_cfg.get("soul", {})
+    if remote_soul.get("body") and remote_soul.get("updated_at", 0) >= local_cfg.get("soul", {}).get("updated_at", 0):
+        SOUL_PATH.write_text(remote_soul["body"], encoding="utf-8")
+
+    return {"backup": str(backup_file), "providers_count": len(providers)}
+
+
+def cmd_sync_config(args: argparse.Namespace) -> None:
+    action = args.action
+    token = get_token()
+    if not token and action in ("push", "pull"):
+        print("Error: No relay token configured in .credentials.yaml", file=sys.stderr)
+        sys.exit(1)
+
+    pw_arg = args.password or args.pos_password
+    if action == "set-password":
+        if not pw_arg:
+            print("Error: Password required", file=sys.stderr)
+            sys.exit(1)
+        key = get_sync_key(override_pw=pw_arg)
+        print(f"Sync encryption key derived and saved to {SYNC_KEY_PATH}")
+        return
+
+    if action == "status":
+        acc_id = get_account_id()
+        has_key = SYNC_KEY_PATH.exists()
+        print(f"Relay Base: {RELAY_BASE}")
+        print(f"Account ID: {acc_id}")
+        print(f"E2EE Key Saved: {has_key}")
+        if token:
+            try:
+                req = urllib.request.Request(
+                    f"{RELAY_BASE}/v1/sync/config",
+                    headers={"Authorization": f"Bearer {token}", "User-Agent": "nanoMuse-Bridge/1.0"},
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    print(f"Remote Revision: {data.get('rev', 0)} (updated_at: {data.get('updated_at', 0)})")
+            except Exception as e:
+                print(f"Remote Status: {e}")
+        return
+
+    key = get_sync_key(pw_arg)
+
+    if action == "push":
+        local_cfg = gather_local_config()
+        # Fetch remote rev first
+        client_rev = 0
+        try:
+            req = urllib.request.Request(
+                f"{RELAY_BASE}/v1/sync/config",
+                headers={"Authorization": f"Bearer {token}", "User-Agent": "nanoMuse-Bridge/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                client_rev = int(data.get("rev", 0))
+        except Exception:
+            pass
+
+        ct, iv, tag = encrypt_config_payload(local_cfg, key)
+        body = {
+            "device": "desktop-bridge",
+            "rev": client_rev,
+            "ciphertext": ct,
+            "iv": iv,
+            "tag": tag,
+        }
+        req = urllib.request.Request(
+            f"{RELAY_BASE}/v1/sync/config",
+            data=json.dumps(body).encode("utf-8"),
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "User-Agent": "nanoMuse-Bridge/1.0"},
+            method="PUT",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
+            print(f"Pushed E2EE config successfully (Revision {res.get('rev')}, {len(local_cfg['providers'])} providers)")
+
+    elif action == "pull":
+        req = urllib.request.Request(
+            f"{RELAY_BASE}/v1/sync/config",
+            headers={"Authorization": f"Bearer {token}", "User-Agent": "nanoMuse-Bridge/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        rev = int(data.get("rev", 0))
+        if rev == 0 or not data.get("ciphertext"):
+            print("Notice: No remote config found on relay")
+            return
+        remote_cfg = decrypt_config_payload(data["ciphertext"], data["iv"], data["tag"], key)
+        res = apply_remote_config(remote_cfg)
+        print(f"Pulled & merged Revision {rev}: {res['providers_count']} providers active (backup saved to {res['backup']})")
+
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="nanoMuse Open Bridge for External AI")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -372,6 +668,12 @@ def main() -> None:
     p_and.add_argument("arg", nargs="?", default="")
     p_and.add_argument("--device", help="Specific ADB device serial")
 
+    # sync-config
+    p_sync = sub.add_parser("sync-config", help="E2EE Providers, Models & Config Sync")
+    p_sync.add_argument("action", choices=["push", "pull", "status", "set-password"])
+    p_sync.add_argument("pos_password", nargs="?", default="", help="Account password")
+    p_sync.add_argument("--password", help="Account password for key derivation")
+
     args = parser.parse_args()
 
     if args.cmd == "info":
@@ -388,6 +690,9 @@ def main() -> None:
         elif args.action == "push-avatar":
             args.path = args.arg
         cmd_android(args)
+    elif args.cmd == "sync-config":
+        cmd_sync_config(args)
+
 
 
 if __name__ == "__main__":

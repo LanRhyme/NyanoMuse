@@ -288,6 +288,14 @@ class Hub:
         frame = {"type": "profile", "rev": rev, "device": device}
         await asyncio.gather(*(c.send(frame) for c in conns))
 
+    async def broadcast_config(self, account_id: str, rev: int, device: str) -> None:
+        """The account's E2EE providers/models/soul configuration changed: every other device hears it."""
+        conns = list(self.online.get(account_id, {}).values())
+        if not conns:
+            return
+        frame = {"type": "config", "rev": rev, "device": device}
+        await asyncio.gather(*(c.send(frame) for c in conns))
+
     async def notify_sync(self, account_id: str, cursor: int, from_device: str) -> None:
         """0.19: a device pushed conversation changes; every *other* connected device of the
         account hears the new cursor and pulls what it is missing (sync.py)."""

@@ -111,6 +111,8 @@ class HubClient(
     private val onSync: (JSONObject) -> Unit = {},
     /** a turn started or ended on another device: `{"type": "working", "cid", "from", "device_name", "working", "at"}` (contract C9) */
     private val onWorking: (JSONObject) -> Unit = {},
+    /** the account's E2EE provider/model/soul configuration changed: `{"type": "config", "rev", "device"}` */
+    private val onConfig: (JSONObject) -> Unit = {},
 ) {
     private class Pending(val onEvent: ((JSONObject) -> Unit)?) {
         val done = CountDownLatch(1)
@@ -250,6 +252,7 @@ class HubClient(
                 onDevices(devices)
             }
             "profile" -> runCatching { onProfile(frame) }
+            "config" -> runCatching { onConfig(frame) }
             "sync" -> runCatching { onSync(frame) }
             "working" -> runCatching { onWorking(frame) }
             "call" -> {

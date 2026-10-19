@@ -212,6 +212,15 @@ CREATE TABLE IF NOT EXISTS sync_cursors (
     account_id    TEXT PRIMARY KEY REFERENCES accounts(id),
     seq           INTEGER NOT NULL DEFAULT 0  -- one counter per account; cursor = its value
 );
+CREATE TABLE IF NOT EXISTS sync_configs (
+    account_id    TEXT PRIMARY KEY REFERENCES accounts(id),
+    rev           INTEGER NOT NULL DEFAULT 0,
+    updated_at    INTEGER NOT NULL,
+    device        TEXT NOT NULL DEFAULT '',
+    ciphertext    TEXT NOT NULL DEFAULT '',
+    iv            TEXT NOT NULL DEFAULT '',
+    tag           TEXT NOT NULL DEFAULT ''
+);
 -- 0.22: one number per UTC day, metric and key — the GitHub snapshots the collector takes
 -- (stars, forks, watchers, downloads per asset), the relay's own daily counters (API calls
 -- by group, accounts active by any call, errors by code, sync volume). Counters survive a
@@ -1917,6 +1926,26 @@ class Database:
     def delete_profile(self, account_id: str) -> None:
         with self.tx() as c:
             c.execute("DELETE FROM profiles WHERE account_id=?", (account_id,))
+
+    def sync_config(self, account_id: str) -> sqlite3.Row | None:
+        with self._lock:
+            return self._conn.execute(
+                "SELECT rev, updated_at, device, ciphertext, iv, tag FROM sync_configs WHERE account_id=?", (account_id,)
+            ).fetchone()
+
+    def put_sync_config(self, account_id: str, device: str, ciphertext: str, iv: str, tag: str, client_rev: int = 0) -> int:
+        with self.tx() as c:
+            row = c.execute("SELECT rev FROM sync_configs WHERE account_id=?", (account_id,)).fetchone()
+            current_rev = int(row["rev"]) if row else 0
+            new_rev = max(current_rev, client_rev) + 1
+            c.execute(
+                """INSERT INTO sync_configs(account_id, rev, updated_at, device, ciphertext, iv, tag) VALUES(?,?,?,?,?,?,?)
+                   ON CONFLICT(account_id) DO UPDATE SET
+                     rev=excluded.rev, updated_at=excluded.updated_at, device=excluded.device,
+                     ciphertext=excluded.ciphertext, iv=excluded.iv, tag=excluded.tag""",
+                (account_id, new_rev, now(), device, ciphertext, iv, tag),
+            )
+            return new_rev
 
     # -- video tasks (the provider's async API, relayed) --------------------------
 

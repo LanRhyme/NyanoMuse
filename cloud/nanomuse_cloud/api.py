@@ -715,6 +715,22 @@ def create_app(
             await hub.notify_sync(caller.account_id, int(out["cursor"]), request.headers.get("x-nanomuse-device", "")[:80])
         return out
 
+    @app.get("/v1/sync/config")
+    async def sync_get_config(caller: Caller = Depends(caller_dep)) -> dict:
+        """The account's E2EE synced configuration (providers, models, soul)."""
+        return cloud.sync_config(caller)
+
+    @app.put("/v1/sync/config")
+    async def sync_put_config(request: Request, caller: Caller = Depends(caller_dep)) -> dict:
+        """Store E2EE synced configuration and broadcast to the account's other connected devices."""
+        body = await _json(request)
+        device = str(body.pop("device", "") or request.headers.get("x-nanomuse-device", "") or "")
+        out = cloud.put_sync_config(caller, device, body)
+        hub = getattr(app.state, "hub", None)
+        if hub is not None:
+            await hub.broadcast_config(caller.account_id, int(out["rev"]), device[:80])
+        return out
+
     # -- models ------------------------------------------------------------------------
 
     catalog = Catalog(

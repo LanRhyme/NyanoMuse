@@ -1979,6 +1979,32 @@ class Cloud:
         self.db.delete_profile(caller.account_id)
         self.note(caller.account_id, "profile.clear")
 
+    def sync_config(self, caller: Caller) -> dict:
+        row = self.db.sync_config(caller.account_id)
+        if row is None:
+            return {"rev": 0, "updated_at": 0, "device": "", "ciphertext": "", "iv": "", "tag": ""}
+        return {
+            "rev": int(row["rev"]),
+            "updated_at": int(row["updated_at"]),
+            "device": str(row["device"]),
+            "ciphertext": str(row["ciphertext"]),
+            "iv": str(row["iv"]),
+            "tag": str(row["tag"]),
+        }
+
+    def put_sync_config(self, caller: Caller, device: str, payload: dict) -> dict:
+        ciphertext = str(payload.get("ciphertext") or "")
+        iv = str(payload.get("iv") or "")
+        tag = str(payload.get("tag") or "")
+        client_rev = int(payload.get("rev") or 0)
+        if not ciphertext or not iv:
+            raise CloudError(400, "bad_payload", "ciphertext and iv are required")
+        if len(ciphertext) > 500_000:
+            raise CloudError(413, "payload_too_large", "Config payload exceeds 500KB limit")
+        rev = self.db.put_sync_config(caller.account_id, device[:80], ciphertext, iv, tag, client_rev=client_rev)
+        self.note(caller.account_id, "sync.config", f"rev={rev} from {device[:20]}")
+        return {"rev": rev, "device": device[:80], "updated_at": now()}
+
     def set_contribute(self, caller: Caller, on: bool) -> dict:
         """The switch under Data controls. Turning it off keeps what was kept until the person
         deletes it (delete_samples) — the count stays visible so they know there is something

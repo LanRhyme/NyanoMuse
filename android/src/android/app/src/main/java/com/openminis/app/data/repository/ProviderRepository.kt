@@ -586,6 +586,7 @@ class ProviderRepository(private val context: Context) {
                 agentLoopGroupIds = canonical.agentLoopGroupIds.toMutableList(),
                 revision = ProviderConfig.nextRevision(),
             )
+            io.github.nanomuse.cloud.ConfigSync.pushDebounced(context)
         }
     }
 
@@ -2413,6 +2414,7 @@ class ProviderRepository(private val context: Context) {
     // API Key management
     fun saveApiKey(instanceId: String, key: String) {
         encryptedPrefs.edit().putString("apikey_$instanceId", key).apply()
+        io.github.nanomuse.cloud.ConfigSync.pushDebounced(context)
     }
 
     fun loadApiKey(instanceId: String): String? {

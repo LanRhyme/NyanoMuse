@@ -93,6 +93,8 @@ OnProfile = Callable[[dict[str, Any]], None]
 # another device pushed conversations (contract C7): the frame, with the relay's cursor;
 # or said it is working on one (C9): the `working` frame
 OnSync = Callable[[dict[str, Any]], None]
+# another device updated the account's providers/models configuration
+OnConfig = Callable[[dict[str, Any]], None]
 
 
 class HubClient:
@@ -109,6 +111,7 @@ class HubClient:
         on_state: OnState | None = None,
         on_profile: OnProfile | None = None,
         on_sync: OnSync | None = None,
+        on_config: OnConfig | None = None,
     ):
         self.url = url
         self.api_key = api_key
@@ -121,6 +124,7 @@ class HubClient:
         self.on_state = on_state
         self.on_profile = on_profile
         self.on_sync = on_sync
+        self.on_config = on_config
         self.devices: list[dict[str, Any]] = []
         self.connected = asyncio.Event()
         self.state = "stopped"
@@ -305,6 +309,12 @@ class HubClient:
                     self.on_sync(frame)
                 except Exception:  # noqa: BLE001
                     logger.exception("hub on_sync")
+        elif kind == "config":
+            if self.on_config is not None:
+                try:
+                    self.on_config(frame)
+                except Exception:  # noqa: BLE001
+                    logger.exception("hub on_config")
         elif kind == "call":
             call = IncomingCall(
                 id=str(frame.get("id") or ""),

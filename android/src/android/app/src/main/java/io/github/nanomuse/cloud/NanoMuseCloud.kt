@@ -497,13 +497,14 @@ object NanoMuseCloud {
         adopt(context, call(context, "POST", "/v1/auth/verify", body, token = null))
     }
 
-    /** The password way in — for people who set one under Account; no code to wait for. */
     suspend fun login(context: Context, identifier: String, password: String): Account = withContext(Dispatchers.IO) {
         val body = JSONObject()
             .put("identifier", identifier.trim())
             .put("password", password)
             .put("device", deviceName())
-        adopt(context, call(context, "POST", "/v1/auth/login", body, token = null))
+        val acc = adopt(context, call(context, "POST", "/v1/auth/login", body, token = null))
+        ConfigSync.setEncryptionPassword(context, password, acc.accountId)
+        acc
     }
 
     /**
@@ -1090,6 +1091,7 @@ object NanoMuseCloud {
             .remove(KEY_MENU_IDS).remove(KEY_CATALOG_IDS).remove(KEY_RECOMMENDED).remove(KEY_SIGHTED).remove(KEY_CHAT_IDS).remove(KEY_GUI_IDS).remove(KEY_MODELS_AT)
             .apply()
         ProfileSync.forget(context)
+        ConfigSync.forget(context)
         io.github.nanomuse.sync.ConversationSync.forget(context) // the next account starts with its own ids and cursor
     }
 

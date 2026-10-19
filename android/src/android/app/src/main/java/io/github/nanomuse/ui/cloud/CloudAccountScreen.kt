@@ -56,11 +56,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import io.github.nanomuse.cloud.ConfigSync
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -297,6 +299,92 @@ fun CloudAccountScreen(
                             value = stringResource(if (a.contribute) R.string.nm_data_status_on else R.string.nm_data_status_off) +
                                 if (a.samples > 0) " · " + stringResource(R.string.nm_data_turns, a.samples) else "",
                             onClick = onOpenDataControls,
+                        )
+                    }
+                }
+
+                // -- E2EE Config Sync --------------------------------------------------------
+                if (signedIn) {
+                    val hasKey = ConfigSync.hasKey(context)
+                    val syncing by ConfigSync.syncing.collectAsState()
+                    val lastSyncAt by ConfigSync.lastSyncTime.collectAsState()
+                    var showPwDialog by remember { mutableStateOf(false) }
+
+                    MuseSectionLabel("端到端加密多端同步")
+                    MuseCard {
+                        MuseRow(
+                            title = "同步状态",
+                            icon = Icons.Outlined.Tune,
+                            value = if (hasKey) "已开启端到端加密" else "未解锁密钥 (点击配置)",
+                            onClick = {
+                                if (!hasKey) showPwDialog = true
+                                else ConfigSync.pullSoon(context)
+                            },
+                        )
+                        MuseRowDivider()
+                        MuseRow(
+                            title = if (syncing) "正在同步中..." else "立即同步配置与模型",
+                            icon = Icons.Outlined.Refresh,
+                            value = if (lastSyncAt > 0) DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(lastSyncAt)) else "未同步",
+                            onClick = {
+                                if (!hasKey) showPwDialog = true
+                                else {
+                                    ConfigSync.pullSoon(context)
+                                    ConfigSync.pushDebounced(context)
+                                }
+                            },
+                        )
+                        MuseRowDivider()
+                        MuseRow(
+                            title = "设置 / 重置同步密码",
+                            icon = Icons.Outlined.Password,
+                            value = if (hasKey) "重新派生加密密钥" else "输入密码以启用",
+                            onClick = { showPwDialog = true },
+                        )
+                    }
+
+                    if (showPwDialog) {
+                        var pwText by remember { mutableStateOf("") }
+                        AlertDialog(
+                            onDismissRequest = { showPwDialog = false },
+                            title = { Text("端到端同步加密密码") },
+                            text = {
+                                Column {
+                                    Text(
+                                        text = "多端提供商、模型配置与人设采用端到端加密 (AES-256-GCM + PBKDF2)。服务器无法窥探您的 API 密钥与凭据。\n请输入自建服务的账号密码派生解密密钥：",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+                                    OutlinedTextField(
+                                        value = pwText,
+                                        onValueChange = { pwText = it },
+                                        label = { Text("密码") },
+                                        singleLine = true,
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        if (pwText.isNotBlank()) {
+                                            val accId = NanoMuseCloud.account(context)?.accountId.orEmpty()
+                                            ConfigSync.setEncryptionPassword(context, pwText, accId)
+                                            showPwDialog = false
+                                        }
+                                    },
+                                    enabled = pwText.isNotBlank(),
+                                ) {
+                                    Text("保存并同步", color = MuseTones.action)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showPwDialog = false }) {
+                                    Text("取消")
+                                }
+                            },
                         )
                     }
                 }
