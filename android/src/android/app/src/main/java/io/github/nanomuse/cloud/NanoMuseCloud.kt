@@ -46,8 +46,8 @@ import org.json.JSONObject
  * content is forwarded to the model, not stored. See `docs/cloud.md`.
  */
 object NanoMuseCloud {
-    const val DEFAULT_BASE = "https://nyanomuse.lanrhyme.top"
-    const val LABEL = "nanoMuse Cloud"
+    const val DEFAULT_BASE = ""
+    const val LABEL = "自建同步服务"
 
     private const val PREFS = "nanomuse"
     private const val KEY_BASE = "cloud.base"
@@ -112,7 +112,7 @@ object NanoMuseCloud {
     private const val MODELS_FRESH_MS = 60 * 60 * 1000L
 
     /** Where the privacy policy is when the relay did not name one. */
-    const val PRIVACY_URL = "https://nyanomuse.lanrhyme.top/privacy/"
+    const val PRIVACY_URL = "https://github.com/LanRhyme/NyanoMuse"
 
     /**
      * A refusal of the relay's: its stable [code], its own sentence, the HTTP [status]; relay

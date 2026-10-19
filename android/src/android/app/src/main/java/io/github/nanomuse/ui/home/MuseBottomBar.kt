@@ -65,6 +65,9 @@ fun MuseBottomBar(
     val nmSelectedFg = if (nmDark) Color.Black else Color.White
     val window = LocalConfiguration.current
     val surroundExtent = maxOf(window.screenWidthDp, window.screenHeightDp).dp
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val hasWallpaper = remember(context) { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperPath(context) != null }
+    val currentPalette = remember(context) { com.openminis.app.ui.theme.ChatWallpaperManager.getPalette(context) }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -84,7 +87,7 @@ fun MuseBottomBar(
                 .fillMaxWidth()
                 // Keep the chat surround outside the glass and its blur source.
                 .then(
-                    if (nmDark && selected == HomeTab.CHAT) {
+                    if (nmDark && selected == HomeTab.CHAT && !hasWallpaper && currentPalette == com.openminis.app.ui.theme.ThemePalette.OLED_BLACK) {
                         Modifier.amoledNavPillSurround(
                             extent = surroundExtent,
                             topGap = NM_CHAT_COMPOSER_BOTTOM_GAP,

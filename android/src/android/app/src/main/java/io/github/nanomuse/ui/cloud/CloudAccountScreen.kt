@@ -1053,8 +1053,10 @@ private fun InviteCard(a: NanoMuseCloud.Account) {
     val context = LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboard.current
     var copied by remember { mutableStateOf(false) }
-    LaunchedEffect(copied) { if (copied) { kotlinx.coroutines.delay(1500); copied = false } }
-    val link = a.inviteUrl.ifBlank { "https://nyanomuse.lanrhyme.top/web/?invite=" + a.inviteCode }
+    val link = a.inviteUrl.ifBlank {
+        val b = NanoMuseCloud.baseUrl(context).ifBlank { "" }
+        if (b.isNotBlank()) "$b/web/?invite=" + a.inviteCode else ""
+    }
     MuseCard {
         Column(Modifier.padding(16.dp)) {
             Text(

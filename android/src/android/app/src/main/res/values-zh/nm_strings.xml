@@ -631,8 +631,8 @@
     <string name="nm_welcome_hands_turn_on">去开启</string>
     <string name="nm_welcome_skip">暂时跳过</string>
     <string name="nm_welcome_hands_fine_print">不开也不影响其他功能。之后随时可以在「设置 → Hands」里开启。</string>
-    <string name="nm_welcome_meet_fine_print">凡是无法撤回的事（删除、发送、付款）它都会先停下来问你。</string>
-    <string name="nm_cloud_signin_title">用 nanoMuse Cloud 开始</string>
+    <string name="nm_cloud_title">自建服务与多端同步</string>
+    <string name="nm_cloud_signin_title">连接自建中继服务</string>
     <string name="nm_cloud_signin_subtitle">手机号或邮箱收一个验证码；设过密码的话也可以直接用密码。</string>
     <string name="nm_cloud_mode_code">验证码登录</string>
     <string name="nm_cloud_mode_password">密码登录</string>
@@ -656,7 +656,7 @@
     <string name="nm_cloud_server_https">本机网络之外的服务器请用 https。内网地址（10.x、192.168.x、172.16-31.x、localhost、.local 或 .ts.net 域名）可以用 http。</string>
     <string name="nm_lan_only_https">明文 http:// 只能用于你自己网络里的地址（10.x、172.16-31.x、192.168.x、.local 名字）；%1$s 请用 https://。</string>
     <string name="nm_cloud_server_unreachable">%1$s 没有中继服务响应。请检查地址，并确认服务已经在运行。</string>
-    <string name="nm_cloud_server_default">改回 nanoMuse Cloud</string>
+    <string name="nm_cloud_server_default">清除服务器地址</string>
     <string name="nm_cloud_server_row">服务器</string>
     <string name="nm_cloud_server_change">更换</string>
     <string name="nm_cloud_server_change_confirm">这台手机的密钥属于当前服务器。请先在这里退出登录，再到登录页登录另一个服务器。</string>

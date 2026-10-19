@@ -44,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -361,8 +362,9 @@ fun NanoMuseHome(
             }
         },
     ) {
+        val hasWallpaper = remember(context) { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperPath(context) != null }
         Scaffold(
-            containerColor = ChatColors.background,
+            containerColor = if (hasWallpaper) Color.Transparent else ChatColors.background,
             contentWindowInsets = WindowInsets(0),
             bottomBar = {
                 MuseBottomBar(selected = tab, hazeState = hazeState, onSelect = { picked ->

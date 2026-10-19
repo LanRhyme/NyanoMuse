@@ -113,7 +113,8 @@ fun AllowanceWaysCard(
     }
     var starred by remember { mutableStateOf(io.github.nanomuse.community.StarPrompt.starred(context)) }
     val link = info.inviteUrl.ifBlank { account?.inviteUrl.orEmpty() }.ifBlank {
-        "https://nyanomuse.lanrhyme.top/web/?invite=" + account?.inviteCode.orEmpty()
+        val base = NanoMuseCloud.baseUrl(context).ifBlank { "" }
+        if (base.isNotBlank()) "$base/web/?invite=" + account?.inviteCode.orEmpty() else ""
     }
     // the ways as the relay lists them (`guidance`, contract C11) first — the one sent with the
     // refusal, else the one kept from /v1/me — and the bundled catalogue only when it sent none

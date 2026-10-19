@@ -21,8 +21,8 @@ import java.util.concurrent.TimeUnit
  */
 object McpAuthDiscovery {
     private const val TAG = "McpAuthDiscovery"
-    private const val CLIENT_NAME = "nanoMuse"
-    private const val CLIENT_URI = "https://nyanomuse.lanrhyme.top"
+    private const val CLIENT_NAME = "NyanoMuse"
+    private const val CLIENT_URI = "https://github.com/LanRhyme/NyanoMuse"
     private const val PROTOCOL = "2025-06-18"
     private const val TIMEOUT_S = 15L
 

@@ -34,7 +34,6 @@ PROFILE_PATH = CONFIG_DIR / "profile.json"
 CLOUD_PATH = CONFIG_DIR / "cloud.json"
 DESKTOP_PATH = NANOMUSE_DIR / "desktop.json"
 FACES_DIR = CONFIG_DIR / "faces"
-RELAY_BASE = "https://nyanomuse.lanrhyme.top"
 
 MOOD_ALIASES = {
     "idle": ("idle", "base", "normal", "stand", "default"),
@@ -59,6 +58,22 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     tmp.replace(path)
+
+
+def get_relay_base() -> str:
+    env_val = os.getenv("NYANOMUSE_RELAY_URL") or os.getenv("NANOMUSE_CLOUD_URL")
+    if env_val:
+        return env_val.rstrip("/")
+    cfg = read_json(CLOUD_PATH)
+    if cfg.get("baseURL"):
+        return str(cfg["baseURL"]).rstrip("/")
+    desk_cfg = read_json(DESKTOP_PATH)
+    if desk_cfg.get("relayUrl"):
+        return str(desk_cfg["relayUrl"]).rstrip("/")
+    return ""
+
+
+RELAY_BASE = get_relay_base()
 
 
 def get_token() -> str:

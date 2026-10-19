@@ -168,7 +168,8 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // -- The model (Muse: the plan card) --
+            // -- 1. 模型与中继服务 --
+            io.github.nanomuse.ui.muse.MuseSectionLabel("模型与中继服务")
             io.github.nanomuse.ui.muse.MuseCard {
                 Row(
                     modifier = Modifier
@@ -198,19 +199,19 @@ fun SettingsScreen(
                     )
                 }
                 io.github.nanomuse.ui.muse.MuseRowDivider(inset = 16.dp)
-                // nanoMuse: the relay account — signed in shows what is left of the allowance.
+                // 自建中继与同步服务
+                val currentRelayBase = io.github.nanomuse.cloud.NanoMuseCloud.baseUrl(context)
+                val relayConnected = io.github.nanomuse.cloud.NanoMuseCloud.isSignedIn(context)
                 val cloudAccount = io.github.nanomuse.cloud.NanoMuseCloud.account(context)
                 io.github.nanomuse.ui.muse.MuseRow(
                     title = stringResource(R.string.nm_cloud_title),
                     icon = Icons.Outlined.CloudQueue,
                     value = when {
-                        cloudAccount == null || !io.github.nanomuse.cloud.NanoMuseCloud.isSignedIn(context) -> stringResource(R.string.nm_cloud_row_sign_in)
-                        // Money relays: what is left of the pool, the account page's headline figure;
-                        // a member or an open relay has no pool, so today's spend with who is signed in.
-                        cloudAccount.pricesInMoney && cloudAccount.limited -> stringResource(R.string.nm_cloud_row_remaining, "¥" + io.github.nanomuse.ui.cloud.money(cloudAccount.leftCny))
-                        cloudAccount.pricesInMoney -> cloudAccount.hint + " · ¥" + io.github.nanomuse.ui.cloud.money(cloudAccount.spentTodayCny)
-                        cloudAccount.unlimited -> cloudAccount.hint
-                        else -> stringResource(R.string.nm_cloud_row_remaining, java.text.NumberFormat.getIntegerInstance().format(cloudAccount.remaining))
+                        relayConnected && cloudAccount != null && cloudAccount.pricesInMoney && cloudAccount.limited ->
+                            "${cloudAccount.hint} (¥${io.github.nanomuse.ui.cloud.money(cloudAccount.leftCny)})"
+                        relayConnected && cloudAccount != null -> cloudAccount.hint
+                        currentRelayBase.isNotBlank() -> io.github.nanomuse.cloud.RelayAddress.display(currentRelayBase)
+                        else -> "点击配置自建服务"
                     },
                     onClick = onCloudClick,
                 )
@@ -221,7 +222,6 @@ fun SettingsScreen(
                     onClick = onProvidersClick,
                 )
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                // nanoMuse: the image and video models moved into the Models card above (0.1.41).
                 io.github.nanomuse.ui.muse.MuseRow(
                     title = stringResource(R.string.settings_token_usage),
                     icon = Icons.Outlined.BarChart,
@@ -230,7 +230,8 @@ fun SettingsScreen(
             }
             io.github.nanomuse.ui.muse.MuseGap()
 
-            // -- The agent --
+            // -- 2. 智能体人设与核心能力 --
+            io.github.nanomuse.ui.muse.MuseSectionLabel("智能体人设与能力")
             io.github.nanomuse.ui.muse.MuseCard {
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_soul), icon = Icons.Outlined.AutoAwesome, onClick = onSoulClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
@@ -242,11 +243,15 @@ fun SettingsScreen(
                 io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_skills), icon = Icons.Outlined.Extension, onClick = onSkillsClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                // nanoMuse: one entry for every service the agent can be let into — the connectors
-                // catalogue, with the person's own MCP servers behind it (the MCP page is reached from there).
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.nm_connectors_title), icon = Icons.Outlined.Link, onClick = onConnectorsClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                // nanoMuse: the phone's screen as a hand — off by default.
+                io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_env_vars), icon = Icons.Outlined.Terminal, onClick = onEnvVarsClick)
+            }
+            io.github.nanomuse.ui.muse.MuseGap()
+
+            // -- 3. 跨设备协同与控制 --
+            io.github.nanomuse.ui.muse.MuseSectionLabel("跨设备协同与控制")
+            io.github.nanomuse.ui.muse.MuseCard {
                 io.github.nanomuse.ui.muse.MuseRow(
                     title = stringResource(R.string.nm_hands_title),
                     icon = Icons.Outlined.TouchApp,
@@ -254,7 +259,6 @@ fun SettingsScreen(
                     onClick = onHandsClick,
                 )
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                // nanoMuse: the account's computers, over the hub.
                 run {
                     val hubDevices by io.github.nanomuse.hub.Hub.devices.collectAsState()
                     val me = remember { io.github.nanomuse.hub.Hub.deviceId(context) }
@@ -267,7 +271,6 @@ fun SettingsScreen(
                     )
                 }
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                // nanoMuse: the coding agents on the account's computers, over the hub.
                 run {
                     val hubDevices by io.github.nanomuse.hub.Hub.devices.collectAsState()
                     val me = remember { io.github.nanomuse.hub.Hub.deviceId(context) }
@@ -279,12 +282,11 @@ fun SettingsScreen(
                         onClick = onCodingClick,
                     )
                 }
-                io.github.nanomuse.ui.muse.MuseRowDivider()
-                io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_env_vars), icon = Icons.Outlined.Terminal, onClick = onEnvVarsClick)
             }
             io.github.nanomuse.ui.muse.MuseGap()
 
-            // -- The phone: what the agent may touch, where its files live --
+            // -- 4. 系统执行与权限 --
+            io.github.nanomuse.ui.muse.MuseSectionLabel("系统执行与权限")
             io.github.nanomuse.ui.muse.MuseCard {
                 io.github.nanomuse.ui.muse.MuseRow(
                     title = "终端与执行模式",
@@ -311,40 +313,36 @@ fun SettingsScreen(
             }
             io.github.nanomuse.ui.muse.MuseGap()
 
-            // -- The app --
+            // -- 5. 界面、网络与数据 --
+            io.github.nanomuse.ui.muse.MuseSectionLabel("界面、网络与数据")
             io.github.nanomuse.ui.muse.MuseCard {
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_section_appearance), icon = Icons.Outlined.Palette, onClick = onAppearanceClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                // nanoMuse: data controls — the one switch over what nanoMuse Cloud keeps of the chats.
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.nm_data_title), icon = Icons.Outlined.Storage, onClick = onDataControlsClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                // nanoMuse: network — the HTTP proxy for own providers and the ChatGPT plan.
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.nm_network_title), icon = Icons.Outlined.Language, onClick = onNetworkClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_section_logs), icon = Icons.Outlined.Description, onClick = onLogsClick)
             }
             io.github.nanomuse.ui.muse.MuseGap()
 
-            // -- About --
+            // -- 6. 关于与支持 --
+            io.github.nanomuse.ui.muse.MuseSectionLabel("关于与支持")
             io.github.nanomuse.ui.muse.MuseCard {
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_about_minis), icon = Icons.Outlined.Info, onClick = onAboutClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(
                     title = stringResource(R.string.settings_privacy_policy),
                     icon = Icons.Outlined.FrontHand,
-                    // nanoMuse: the policy on the site (docs/privacy.md is its source)
                     onClick = { openExternalUrl(context, io.github.nanomuse.cloud.NanoMuseCloud.PRIVACY_URL) },
                 )
                 io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(
                     title = stringResource(R.string.settings_feedback),
                     icon = Icons.Outlined.Feedback,
-                    // nanoMuse: GitHub Issues is the one feedback channel (no
-                    // Telegram group, no mailbox), so skip the chooser sheet.
                     onClick = { openExternalUrl(context, buildBugReportUrl()) },
                 )
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                // nanoMuse: the installed build and the latest release, with Update when one is out.
                 io.github.nanomuse.ui.settings.VersionRow()
             }
 

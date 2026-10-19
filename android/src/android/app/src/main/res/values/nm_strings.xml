@@ -636,8 +636,8 @@
     <string name="nm_welcome_skip">Skip for now</string>
     <string name="nm_welcome_hands_fine_print">Everything else works without these. They live under Settings → Hands whenever you want them.</string>
     <string name="nm_welcome_meet_fine_print">Before anything it cannot take back (deleting, sending, paying) it stops and asks you first.</string>
-    <string name="nm_cloud_title" translatable="false">nanoMuse Cloud</string>
-    <string name="nm_cloud_signin_title">Start with nanoMuse Cloud</string>
+    <string name="nm_cloud_title">Self-Hosted Relay</string>
+    <string name="nm_cloud_signin_title">Connect to Self-Hosted Relay</string>
     <string name="nm_cloud_signin_subtitle">A code to your phone or inbox, or your password, once you have set one.</string>
     <string name="nm_cloud_mode_code">With a code</string>
     <string name="nm_cloud_mode_password">With a password</string>
@@ -662,7 +662,7 @@
     <string name="nm_cloud_server_https">Use https for a server outside your own network. http is fine for a private address (10.x, 192.168.x, 172.16-31.x, localhost, a .local or .ts.net name).</string>
     <string name="nm_lan_only_https">Plain http:// only works for addresses on your own network (10.x, 172.16-31.x, 192.168.x, .local names); use https:// for %1$s.</string>
     <string name="nm_cloud_server_unreachable">No relay answered at %1$s. Check the address and that the relay is running.</string>
-    <string name="nm_cloud_server_default">Back to nanoMuse Cloud</string>
+    <string name="nm_cloud_server_default">Clear server address</string>
     <string name="nm_cloud_server_row">Server</string>
     <string name="nm_cloud_server_change">Change</string>
     <string name="nm_cloud_server_change_confirm">This phone\'s key belongs to the current server. Sign out here first, then sign in to the other server from the sign-in screen.</string>

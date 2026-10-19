@@ -77,8 +77,8 @@ object RelayAddress {
         return host + port
     }
 
-    /** True when [baseUrl] is nanoMuse Cloud itself rather than someone's own relay. */
-    fun isDefault(baseUrl: String): Boolean = baseUrl.trimEnd('/') == NanoMuseCloud.DEFAULT_BASE
+    /** True when [baseUrl] is empty/unset. */
+    fun isDefault(baseUrl: String): Boolean = baseUrl.isBlank() || baseUrl.trimEnd('/') == NanoMuseCloud.DEFAULT_BASE
 
     /**
      * Asks the relay at [baseUrl] whether it is one: `GET /healthz` → `{"ok": true, "version":
