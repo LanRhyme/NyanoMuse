@@ -61,13 +61,8 @@ fun MuseBottomBar(
     // inverted in light. Follows the chat background, not the system setting,
     // since the app has its own theme override.
     val nmDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val nmSelectedBg = if (nmDark) Color.White else Color.Black
-    val nmSelectedFg = if (nmDark) Color.Black else Color.White
-    val window = LocalConfiguration.current
-    val surroundExtent = maxOf(window.screenWidthDp, window.screenHeightDp).dp
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val hasWallpaper = remember(context) { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperPath(context) != null }
-    val currentPalette = remember(context) { com.openminis.app.ui.theme.ChatWallpaperManager.getPalette(context) }
+    val nmSelectedBg = if (nmDark) MaterialTheme.colorScheme.primaryContainer else Color.Black
+    val nmSelectedFg = if (nmDark) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -85,15 +80,6 @@ fun MuseBottomBar(
                 // pins the constraints and the cap has nothing to shrink.
                 .widthIn(max = PILL_MAX_WIDTH)
                 .fillMaxWidth()
-                // Keep the chat surround outside the glass and its blur source.
-                .then(
-                    if (nmDark && selected == HomeTab.CHAT && !hasWallpaper && currentPalette == com.openminis.app.ui.theme.ThemePalette.OLED_BLACK) {
-                        Modifier.amoledNavPillSurround(
-                            extent = surroundExtent,
-                            topGap = NM_CHAT_COMPOSER_BOTTOM_GAP,
-                        )
-                    } else Modifier,
-                )
                 // Clip first: it must wrap the haze drawing, otherwise the
                 // blurred rect paints unclipped and the pill's ends look square.
                 .clip(CircleShape)

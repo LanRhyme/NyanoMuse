@@ -4771,38 +4771,9 @@ fun ChatScreen(
                     if (leftover > 0.dp) leftover / 2 else 0.dp
                 }
 
-                // nanoMuse: fade into the canvas above the composer while reading
-                // older messages. Live browser controls hide it immediately, even
-                // if a scroll animation or the alpha tween is still in progress.
-                val nmEdgeFade = ChatColors.background
+                // nanoMuse: bottom vignette removed per user request (no black shadow above composer)
                 val nmScrolledUp = listState.firstVisibleItemIndex > 0 ||
                     listState.firstVisibleItemScrollOffset > 0
-                val nmBottomFadeAlpha by animateFloatAsState(
-                    targetValue = if (nmScrolledUp && !nmComposerFadeSuppressed) 1f else 0f,
-                    animationSpec = tween(250),
-                    label = "nmBottomFade",
-                )
-                if (!nmComposerFadeSuppressed) {
-                    val nmFadeHeight = 90.dp
-                    val nmFooterHeight = (bottomChromeHeight - nmBottomOverlay).coerceAtLeast(0.dp)
-                    // nanoMuse: a rounded halo fades into the composer and
-                    // away before the navigation glass, without square edges.
-                    io.github.nanomuse.ui.chat.NmComposerVignette(
-                        color = nmEdgeFade,
-                        opacity = nmBottomFadeAlpha,
-                        spread = nmFadeHeight,
-                        cornerRadius = nmComposerCorner,
-                        horizontalInset = nmComposerHorizontalInset,
-                        topPadding = nmComposerTopPadding,
-                        bottomPadding = nmComposerBottomPadding,
-                        maxContentWidth = CHAT_MAX_CONTENT_WIDTH,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(bottom = nmBottomOverlay)
-                            .height(nmFadeHeight + nmFooterHeight),
-                    )
-                }
 
                 // nanoMuse: the top vignette. When scrolled up away from the
                 // latest, the top edge gets a slow fade in the canvas colour so
@@ -4822,7 +4793,7 @@ fun ChatScreen(
                         .graphicsLayer { alpha = nmTopFadeAlpha }
                         .background(
                             Brush.verticalGradient(
-                                0f to nmEdgeFade,
+                                0f to ChatColors.background,
                                 1f to Color.Transparent,
                             )
                         ),
@@ -5564,14 +5535,6 @@ fun ChatScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        // nanoMuse: fill, clip and soft shadow follow the same outline.
-                        .shadow(
-                            elevation = 4.dp,
-                            shape = nmComposerShape,
-                            clip = false,
-                            ambientColor = Color.Black.copy(alpha = 0.06f),
-                            spotColor = Color.Black.copy(alpha = 0.12f),
-                        )
                         .clip(nmComposerShape)
                         .background(
                             color = if (nmPill) io.github.nanomuse.ui.home.MuseTones.bubble

@@ -124,11 +124,9 @@ val DarkChatPalette = ChatPalette(
     secondaryText = Color(0x99EBEBF5),
     tertiaryText = Color(0x4DEBEBF5),
     disabledText = Color(0x2EEBEBF5),
-    // nanoMuse: the user's own message is a white pill with black ink; the
-    // assistant's pill is a touch off the pure-black wash. (Replaces the earlier
-    // opaque slate-blue user bubble.) scripts/rebrand.py writes these.
-    userBubble = Color(0xFFFFFFFF),
-    onUserBubble = Color(0xFF000000),
+    // nanoMuse: in dark mode, user bubble is a comfortable dark container with crisp white ink.
+    userBubble = Color(0xFF1E3A5F),
+    onUserBubble = Color(0xFFFFFFFF),
     assistantBubble = Color(0xFF1C1C1E),
     toolBg = Color(0xFF3A3A3F),
     toolBorder = Color(0x40545458),
