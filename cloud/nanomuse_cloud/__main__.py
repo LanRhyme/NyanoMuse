@@ -17,6 +17,9 @@ import sys
 
 import httpx
 import uvicorn
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from .api import create_app
 from .config import Settings
