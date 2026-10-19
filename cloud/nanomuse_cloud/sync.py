@@ -406,6 +406,8 @@ class SyncStore:
                     rejected.append({"cid": cid, "reason": "bad_kind"})
                     continue
                 title = str(conv.get("title") or "")[:200]
+                if not deleted and (title.startswith("动态 · ") or title.startswith("Feed · ") or title in ("动态", "Feed")):
+                    continue
                 created_at = _ts(conv.get("created_at"), t)
                 # 0.25: the week's grace is measured against the relay's clock, not the
                 # conversation's birth; before, a chat older than a week could never be

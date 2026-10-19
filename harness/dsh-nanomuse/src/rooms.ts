@@ -374,6 +374,10 @@ export default class NanomuseRooms extends Service {
     super(ctx, 'nanomuseRooms')
   }
 
+  isBatchSession(sessionId: string): boolean {
+    return this.runs.has(sessionId as SessionId)
+  }
+
   async [Service.init](): Promise<void> {
     this.store = await this.read()
     this.firstRun = await this.readSmall(this.firstRunPath, readFirstRun)
@@ -1535,9 +1539,13 @@ export default class NanomuseRooms extends Service {
     if (!sc) throw new Error('chats are not available yet')
     if (!(await this.ctx.nanomuseCloud.status()).ready) throw new Error('no model is set up')
     const created = await sc.create({ agentPreset: 'nanomuse', cwd: homeDir() })
+    this.runs.set(created.sessionId, { final: '', resolve: () => {}, reject: () => {} })
     await sc.rename({ sessionId: created.sessionId, title }).catch(() => undefined)
     const resolved = await sc.resolveAgent(created.sessionId)
-    if ('error' in resolved) throw new Error(`the chat could not be opened: ${String(resolved.error)}`)
+    if ('error' in resolved) {
+      this.runs.delete(created.sessionId)
+      throw new Error(`the chat could not be opened: ${String(resolved.error)}`)
+    }
     const agent = resolved.agent
     let text = ''
     try {
@@ -1563,6 +1571,7 @@ export default class NanomuseRooms extends Service {
     } finally {
       // The batch is a means, not a chat: out of the list, kept in the archive.
       await (this.ctx.get('workspaceRegistry') as RegistryLike | undefined)?.archiveSession(created.sessionId, { stopActivity: true }).catch(() => undefined)
+      this.runs.delete(created.sessionId)
       this.broadcast()
     }
     return text

@@ -889,10 +889,11 @@ export class SyncEngine {
     return Object.values(this.state.pulled).includes(sessionId)
   }
 
-  /** Whether a session's turns go up: not another device's task, not another account's (C10), and a side chat only when the switch is on (C9). */
   private syncs(sessionId: string): boolean {
     if (this.options.isTaskSession?.(sessionId)) return false
     if (!this.owns(sessionId)) return false
+    const title = this.state.titles[sessionId] || ''
+    if (title.startsWith('动态 · ') || title.startsWith('Feed · ') || title === '动态' || title === 'Feed') return false
     return this.state.sideChats || sessionId === this.state.mainSession
   }
 
@@ -1000,6 +1001,7 @@ export class SyncEngine {
         if (!info || !this.syncs(sessionId)) continue
         const cid = this.cidFor(sessionId)
         const title = info.title || 'New chat'
+        if (title.startsWith('动态 · ') || title.startsWith('Feed · ') || title === '动态' || title === 'Feed') continue
         if (this.state.titles[sessionId] !== title) {
           conversations.push({ cid, kind: sessionId === this.state.mainSession ? 'main' : 'side', title, created_at: Math.floor(info.createdAt / 1000), updated_at: Math.floor(info.updatedAt / 1000) })
         }

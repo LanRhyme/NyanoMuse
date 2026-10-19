@@ -137,6 +137,20 @@ object ConversationSync {
                     _hidden.value = SyncEngine.hidden(store, account) + AccountData.reconcile(ctx)
                     _captions.value = SyncEngine.captions(store, Hub.deviceId(ctx), account)
                     _remoteRows.value = SyncEngine.remoteRows(store, Hub.deviceId(ctx), account)
+                    val chatRepo = (ctx.applicationContext as? MinisApp)?.chatRepository
+                    if (chatRepo != null) {
+                        val allSessions = chatRepo.dao.listSessions()
+                        for (s in allSessions) {
+                            val t = s.title.orEmpty().trim()
+                            if (t.startsWith("动态 · ") || t.startsWith("Feed · ") || (t == "动态" && s.source == "sync") || (t == "Feed" && s.source == "sync")) {
+                                chatRepo.dao.deleteMessages(s.id)
+                                chatRepo.dao.deleteSession(s.id)
+                                store.removeMessagesOf(s.id)
+                                store.removeConversation(s.id)
+                                AppLogger.info(TAG, "Purged internal batch sync session: ${s.id} ($t)")
+                            }
+                        }
+                    }
                 }
             }
         }

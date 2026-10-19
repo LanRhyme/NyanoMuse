@@ -247,6 +247,9 @@ class ConversationSync:
             return False
         if not self._mine(thread):
             return False
+        title = thread.title.strip()
+        if title.startswith("动态 · ") or title.startswith("Feed · ") or title in ("动态", "Feed"):
+            return False
         return self.side_chats or thread.id == MAIN_THREAD
 
     def _cid_for(self, thread: Thread) -> str:

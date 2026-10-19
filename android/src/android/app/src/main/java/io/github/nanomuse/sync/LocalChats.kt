@@ -61,7 +61,13 @@ class RoomChats(private val context: Context, private val repo: ChatRepository) 
     override suspend fun sessions(): List<LocalSession> {
         val account = io.github.nanomuse.account.AccountData.key(context)
         val others = SyncDatabase.get(context).dao().owners().filter { it.owner != account }.map { it.sessionId }.toSet()
-        return dao.listSessions().filter { it.source != "scheduled" && it.id !in others }.map { it.local() }
+        return dao.listSessions().filter {
+            it.source != "scheduled" &&
+            it.id !in others &&
+            !it.title.orEmpty().startsWith("动态 · ") &&
+            !it.title.orEmpty().startsWith("Feed · ") &&
+            it.title != "动态" && it.title != "Feed"
+        }.map { it.local() }
     }
 
     override suspend fun session(id: String): LocalSession? = dao.getSession(id)?.local()

@@ -294,6 +294,19 @@ class SyncEngine(
         // C9: side chats are not this phone's business while the switch is off — none should
         // arrive with scope=main; one that does makes no chat here and changes none
         if (c.kind != "main" && !sideChats()) return false
+        val titleStr = c.title.orEmpty().trim()
+        val isInternal = titleStr.startsWith("动态 · ") || titleStr.startsWith("Feed · ") || titleStr == "动态" || titleStr == "Feed"
+        if (isInternal && !c.deleted) {
+            val knownInternal = store.conversationByCid(c.cid)
+            if (knownInternal != null) {
+                chats.deleteSession(knownInternal.sessionId)
+                store.removeMessagesOf(knownInternal.sessionId)
+                store.removeConversation(knownInternal.sessionId)
+                touched += knownInternal.sessionId
+                return true
+            }
+            return false
+        }
         var known = store.conversationByCid(c.cid)
         // C10: a cid of another account's chat (it cannot happen — cids are per account — but if it did, not ours to change)
         if (known != null && !known.mine()) return false

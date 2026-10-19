@@ -798,8 +798,11 @@ export default class NanomuseCloud extends Service {
             for (const s of items) {
               if (s.parentSessionId || s.origin === 'subagent') continue
               const id = String(s.sessionId)
+              const rooms = ctx.get('nanomuseRooms')
+              if (rooms?.isBatchSession?.(id)) continue
               const hint = s.projections?.values?.title
               const title = typeof hint === 'string' && hint ? hint : await this.sessionTitle(ctx, s.sessionId, s.updatedAt)
+              if (title.startsWith('动态 · ') || title.startsWith('Feed · ') || title === '动态' || title === 'Feed') continue
               rows.push({ id, title, blank: s.blank, createdAt: s.updatedAt, updatedAt: s.updatedAt })
             }
             return rows
@@ -837,7 +840,15 @@ export default class NanomuseCloud extends Service {
         },
         token: () => this.token(),
         deviceId: () => this.state.deviceId ?? '',
-        isTaskSession: (sessionId) => Object.values(this.state.taskSessions ?? {}).includes(sessionId),
+        isTaskSession: (sessionId) => {
+          if (Object.values(this.state.taskSessions ?? {}).includes(sessionId)) return true
+          const rooms = ctx.get('nanomuseRooms')
+          if (rooms?.isBatchSession?.(sessionId)) return true
+          const cached = this.logCache.get(sessionId)
+          const title = cached?.title?.title || ''
+          if (title.startsWith('动态 · ') || title.startsWith('Feed · ') || title === '动态' || title === 'Feed') return true
+          return false
+        },
         load: () => this.state.sync,
         save: async (state) => {
           this.state.sync = state
@@ -854,6 +865,8 @@ export default class NanomuseCloud extends Service {
             const id = String(session.id)
             this.logChanged(id)
             if (event.type === 'turn/end' && this.cloudOnce.has(id)) void this.cloudOnceDone(id)
+            const rooms = ctx.get('nanomuseRooms')
+            if (rooms?.isBatchSession?.(id)) return
             if (event.type === 'turn/end') sync.turnEnded(id)
             else if (event.type === 'user/message' && (event.data as { source?: { kind?: string } }).source?.kind === 'user') sync.messageSent(id)
             else if ((event as { type: string }).type === 'session/title') sync.sessionRenamed(String(session.id))

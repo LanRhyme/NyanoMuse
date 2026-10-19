@@ -15,8 +15,19 @@ class ChatRepository(internal val dao: ChatDao) {
     // the feed's working conversation is the agent's, not a chat of the person's, and stays out too (FeedFlow.hidden)
     fun observeSessions(): Flow<List<ChatSessionEntity>> =
         kotlinx.coroutines.flow.combine(dao.observeSessions(), io.github.nanomuse.sync.ConversationSync.hidden, io.github.nanomuse.feed.FeedFlow.hidden) { list, hidden, feed ->
-            if (hidden.isEmpty() && feed.isEmpty()) list else list.filter { it.id !in hidden && it.id !in feed }
+            list.filter {
+                it.id !in hidden &&
+                it.id !in feed &&
+                it.source != "scheduled" &&
+                !isInternalBatchTitle(it.title)
+            }
         }
+
+    private fun isInternalBatchTitle(title: String?): Boolean {
+        if (title.isNullOrBlank()) return false
+        val t = title.trim()
+        return t.startsWith("动态 · ") || t.startsWith("Feed · ") || t == "动态" || t == "Feed"
+    }
 
     suspend fun createSession(
         modelId: String,
