@@ -584,7 +584,7 @@ export default class NanomuseCloud extends Service {
   static inject = ['credentials', 'settings']
   static Config = Config
 
-  readonly relay: Relay
+  relay: Relay
   readonly profile: ProfileStore
   readonly hub: HubClient
   private state: State = {}
@@ -2171,6 +2171,12 @@ export default class NanomuseCloud extends Service {
     })
   }
 
+  setBaseURL(url: string): void {
+    const clean = url.trim().replace(/\/+$/, '')
+    if (!clean) return
+    this.relay = new Relay(clean)
+  }
+
   /** The other way in: the account's password instead of a code. */
   login(identifier: string, password: string): Promise<CloudStatus> {
     return this.serialize(async () => this.adopt(await this.relay.login(identifier.trim(), password, this.deviceName())))
@@ -3413,6 +3419,9 @@ export default class NanomuseCloud extends Service {
       if (req.method === 'POST' && route === '/delete-account') return send(res, 200, await this.endAll('delete'))
       if (req.method === 'POST' && route === '/login') {
         const body = await json(req)
+        if (typeof body.baseURL === 'string' && body.baseURL.trim()) {
+          this.setBaseURL(body.baseURL.trim())
+        }
         return send(res, 200, await this.login(String(body.identifier ?? ''), String(body.password ?? '')))
       }
       if (req.method === 'GET' && route === '/invite') {

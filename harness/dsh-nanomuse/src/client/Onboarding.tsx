@@ -281,48 +281,15 @@ export function makeOnboarding(t: Translate, _actions: OnboardingActions) {
     let body: ReactNode
     if (starting) {
       body = h('div', { className: 'nm-ob-center' }, h(Spinner))
-    } else if (signIn === 'identifier') {
-      // the sign-in pages are the app's own, so the app's mark is their hero (the face comes later: the welcome and "Meet" pages)
-      body = h('form', { className: 'nm-ob-center nm-ob-form', onSubmit: sendCode },
-        h(BrandMark, { size: 72, className: 'nm-fr-hero-mark' }),
-        h('h1', { className: 'nm-ob-title' }, t('obSignInTitle')),
-        h('input', { className: 'nm-field', value: identifier, placeholder: t('obIdentifier'), autoComplete: 'username', autoFocus: true, 'aria-label': t('obIdentifier'), onChange: (e: FormEvent<HTMLInputElement>) => setIdentifier(e.currentTarget.value) }),
-        // SMS codes reach mainland-China numbers only; everyone else gets an e-mail (the Settings sign-in says the same)
-        h('p', { className: 'nm-ob-fine' }, t('identifierHint')),
-        h('p', { className: 'nm-ob-fine' }, t('obTermsLead'), link(PRIVACY_URL, t('obPrivacy')), t('obTermsEnd')),
-        error ? h('div', { className: 'nm-ob-error', role: 'alert' }, error) : null,
-        h(Pill, { type: 'submit', disabled: busy || identifier.trim().length < 3, className: 'nm-ob-wide' }, busy ? t('sending') : t('obContinue')),
-        h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setSignIn(null) } }, t('obBack')))
-    } else if (signIn === 'code') {
-      body = h('div', { className: 'nm-ob-center nm-ob-form' },
-        h(BrandMark, { size: 72, className: 'nm-fr-hero-mark' }),
-        h('h1', { className: 'nm-ob-title' }, t('obCodeTitle')),
-        h('p', { className: 'nm-ob-fine' },
-          t('obCodeSent', { identifier: identifier.trim() }), ' ',
-          h('button', { type: 'button', className: 'nm-ob-link nm-inline', disabled: busy, onClick: resend }, resent ? t('obResent') : t('obResend'))),
-        h(CodeBoxes, { value: code, disabled: busy, label: t('code'), onChange: (next) => { setCode(next); if (next.length === 6) verify(next) } }),
-        inviteOpen
-          ? h('input', { className: 'nm-field', value: invite, placeholder: t('obInviteCode'), autoComplete: 'off', autoCapitalize: 'characters', 'aria-label': t('obInviteCode'), onChange: (e: FormEvent<HTMLInputElement>) => setInvite(e.currentTarget.value.replace(/[^0-9a-zA-Z-]/g, '').slice(0, 16)) })
-          : h('button', { type: 'button', className: 'nm-ob-link nm-inline', disabled: busy, onClick: () => setInviteOpen(true) }, t('obHaveInvite')),
-        inviteOpen ? h('p', { className: 'nm-ob-fine' }, t('obInviteHint', { bonus: config.invitee_bonus_cny ?? 5 })) : null,
-        error ? h('div', { className: 'nm-ob-error', role: 'alert' }, error) : null,
-        h(Pill, { disabled: busy || code.length !== 6, onClick: () => verify(code), className: 'nm-ob-wide' }, busy ? t('signingIn') : t('obNext')),
-        h('div', { className: 'nm-ob-links' },
-          h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setSignIn('password') } }, t('obOtherWay')),
-          h('span', { className: 'nm-ob-sep', 'aria-hidden': true }, '·'),
-          h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setCode(''); setSignIn('identifier') } }, t('obChangeIdentifier'))))
-    } else if (signIn === 'password') {
+    } else if (signIn) {
       body = h('form', { className: 'nm-ob-center nm-ob-form', onSubmit: login },
         h(BrandMark, { size: 72, className: 'nm-fr-hero-mark' }),
-        h('h1', { className: 'nm-ob-title' }, t('obPasswordTitle')),
-        h('p', { className: 'nm-ob-fine' }, identifier.trim()),
-        h('input', { className: 'nm-field', type: 'password', value: password, placeholder: t('obPassword'), autoComplete: 'current-password', autoFocus: true, 'aria-label': t('obPassword'), onChange: (e: FormEvent<HTMLInputElement>) => setPassword(e.currentTarget.value) }),
+        h('h1', { className: 'nm-ob-title' }, t('obSignInTitle')),
+        h('input', { className: 'nm-field', value: identifier, placeholder: '用户名 / 账号', autoComplete: 'username', autoFocus: true, 'aria-label': '用户名', onChange: (e: FormEvent<HTMLInputElement>) => setIdentifier(e.currentTarget.value) }),
+        h('input', { className: 'nm-field', type: 'password', value: password, placeholder: t('obPassword'), autoComplete: 'current-password', 'aria-label': t('obPassword'), onChange: (e: FormEvent<HTMLInputElement>) => setPassword(e.currentTarget.value) }),
         error ? h('div', { className: 'nm-ob-error', role: 'alert' }, error) : null,
-        h(Pill, { type: 'submit', disabled: busy || password.length === 0, className: 'nm-ob-wide' }, busy ? t('signingIn') : t('obSignIn')),
-        h('div', { className: 'nm-ob-links' },
-          h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setSignIn('code') } }, t('obUseCode')),
-          h('span', { className: 'nm-ob-sep', 'aria-hidden': true }, '·'),
-          h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setPassword(''); setSignIn('identifier') } }, t('obChangeIdentifier'))))
+        h(Pill, { type: 'submit', disabled: busy || !identifier.trim() || password.length === 0, className: 'nm-ob-wide' }, busy ? t('signingIn') : t('obSignIn')),
+        h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setSignIn(null) } }, t('obBack')))
     } else if (stage === 'welcome') {
       // the app's mark, as on the phone (the face comes with the conversation, on the Meet page);
       // two doors: the account, or a key of one's own (the models page; the sign-in can come later)

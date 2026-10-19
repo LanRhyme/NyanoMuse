@@ -611,7 +611,7 @@
     <string name="nm_setup_own_key">I have my own API key</string>
     <!-- nanoMuse: the first-run pages -->
     <string name="nm_welcome_tagline">An open-source personal agent for every device you own.</string>
-    <string name="nm_welcome_email">Sign in (free)</string>
+    <string name="nm_welcome_email">Connect Self-Hosted Server</string>
     <string name="nm_welcome_fine_print">One account keeps your devices together and carries the free model use; nothing is charged. Your own API key can be added right after.</string>
     <string name="nm_setup_source_title">Which model answers?</string>
     <string name="nm_setup_source_sub">Your account already brings one. You can add your own API key as well and switch at any time.</string>
@@ -637,19 +637,19 @@
     <string name="nm_welcome_hands_fine_print">Everything else works without these. They live under Settings → Hands whenever you want them.</string>
     <string name="nm_welcome_meet_fine_print">Before anything it cannot take back (deleting, sending, paying) it stops and asks you first.</string>
     <string name="nm_cloud_title">Self-Hosted Relay</string>
-    <string name="nm_cloud_signin_title">Connect to Self-Hosted Relay</string>
-    <string name="nm_cloud_signin_subtitle">A code to your phone or inbox, or your password, once you have set one.</string>
+    <string name="nm_cloud_signin_title">Connect to Self-Hosted Server</string>
+    <string name="nm_cloud_signin_subtitle">Enter server address, username and password to connect multi-device sync</string>
     <string name="nm_cloud_mode_code">With a code</string>
     <string name="nm_cloud_mode_password">With a password</string>
-    <string name="nm_cloud_password">Password</string>
-    <string name="nm_cloud_forgot_password">Forgot the password? Sign in with a code</string>
-    <string name="nm_cloud_identifier">Mainland China phone number or e-mail</string>
-    <string name="nm_cloud_identifier_hint">you@example.com</string>
+    <string name="nm_cloud_password">Server Password</string>
+    <string name="nm_cloud_forgot_password">Sign in password</string>
+    <string name="nm_cloud_identifier">Username / Account</string>
+    <string name="nm_cloud_identifier_hint">admin / username</string>
     <string name="nm_cloud_code">Code</string>
     <string name="nm_cloud_send_code">Send code</string>
     <string name="nm_cloud_resend">Send again</string>
     <string name="nm_cloud_resend_in">Send again in %1$ds</string>
-    <string name="nm_cloud_verify">Sign in</string>
+    <string name="nm_cloud_verify">Connect &amp; Sign in</string>
     <!-- Your own relay (0.1.38): the sign-in screen's server form and the account page's row -->
     <string name="nm_cloud_other_server">Use a different server</string>
     <string name="nm_cloud_server_url">Relay address</string>

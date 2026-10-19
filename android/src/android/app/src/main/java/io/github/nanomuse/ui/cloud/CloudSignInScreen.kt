@@ -1,9 +1,6 @@
 package io.github.nanomuse.ui.cloud
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,9 +20,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,22 +32,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.autofill.ContentType
-import androidx.compose.ui.semantics.contentType
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -62,24 +53,17 @@ import androidx.compose.ui.unit.sp
 import com.openminis.app.R
 import io.github.nanomuse.cloud.NanoMuseCloud
 import io.github.nanomuse.cloud.RelayAddress
-import io.github.nanomuse.cloud.SignInIdentifier
 import io.github.nanomuse.ui.home.MuseTones
 import io.github.nanomuse.ui.muse.MuseTopAppBar
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 const val ROUTE_CLOUD_SIGN_IN = "nanomuse/cloud/sign-in"
 const val ROUTE_CLOUD_ACCOUNT = "nanomuse/cloud/account"
 
-private const val CLOUD_DOC_URL = "https://github.com/nano-muse/nanoMuse/blob/main/docs/cloud.md"
-
 /**
- * Sign in to nanoMuse Cloud: a mainland phone number (the code comes by SMS) or an e-mail
- * address, then the code it receives — or the account's password. The code box is marked as a
- * one-time code so the system's autofill or the keyboard can offer the SMS it just saw.
- * On success the relay is a provider with a default model, and the caller decides where to
- * go (the first run continues to "Meet nanoMuse"; from Settings it returns to the account page).
+ * Sign in to a self-hosted NyanoMuse Relay: enter server address, username and password.
+ * Connects and authenticates without requiring third-party SMS or phone number services.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,66 +73,55 @@ fun CloudSignInScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val initialBase = NanoMuseCloud.baseUrl(context)
+    var serverUrl by remember { mutableStateOf(if (RelayAddress.isDefault(initialBase)) "" else initialBase) }
     var identifier by remember { mutableStateOf("") }
-    var code by remember { mutableStateOf("") }
-    var codeSent by remember { mutableStateOf(false) }
-    // A friend's invite code: counts for a new account only, so it sits behind a small link.
-    var invite by remember { mutableStateOf("") }
-    var inviteOpen by remember { mutableStateOf(false) }
-    var sending by remember { mutableStateOf(false) }
-    var verifying by remember { mutableStateOf(false) }
-    var byPassword by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
-    var countdown by remember { mutableIntStateOf(0) }
+
+    var checking by remember { mutableStateOf(false) }
+    var verifying by remember { mutableStateOf(false) }
+    var serverStatus by remember { mutableStateOf<String?>(null) }
+    var serverBad by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    // Someone's own relay (0.1.38): the address lives in NanoMuseCloud once "Use this server"
-    // is tapped; the form opens by itself when the phone is already pointed away from the default.
-    var serverOpen by remember { mutableStateOf(!RelayAddress.isDefault(NanoMuseCloud.baseUrl(context))) }
+
     val onSurface = MaterialTheme.colorScheme.onSurface
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    // a number the relay cannot text: said here, before the code is asked for (item 8)
-    val phoneAbroad = SignInIdentifier.phoneOutsideMainland(identifier)
 
-    LaunchedEffect(countdown) {
-        if (countdown > 0) {
-            delay(1000)
-            countdown -= 1
-        }
+    fun problemLine(p: RelayAddress.Problem): String = when (p) {
+        RelayAddress.Problem.EMPTY, RelayAddress.Problem.NOT_A_URL -> context.getString(R.string.nm_cloud_server_bad_url)
+        RelayAddress.Problem.HTTP_PUBLIC -> context.getString(R.string.nm_cloud_server_https)
     }
 
-    fun sendCode() {
-        if (sending || identifier.isBlank() || phoneAbroad) return
-        error = null
-        sending = true
-        scope.launch {
-            try {
-                NanoMuseCloud.requestCode(context, identifier)
-                codeSent = true
-                countdown = 60
-            } catch (e: CancellationException) {
-                throw e // the page was left: the request is cancelled, not failed (#336)
-            } catch (e: Exception) {
-                error = NanoMuseCloud.describe(context, e)
-            }
-            sending = false
+    fun checkServer(then: ((String) -> Unit)? = null) {
+        if (checking) return
+        val raw = serverUrl.trim()
+        if (raw.isEmpty()) {
+            serverStatus = context.getString(R.string.nm_cloud_server_bad_url)
+            serverBad = true
+            return
         }
-    }
-
-    fun verify() {
-        if (verifying || code.length < 4) return
-        error = null
-        verifying = true
+        val problem = RelayAddress.problem(raw)
+        if (problem != null) {
+            serverStatus = problemLine(problem)
+            serverBad = true
+            return
+        }
+        val url = RelayAddress.normalize(raw) ?: return
+        checking = true
+        serverStatus = null
         scope.launch {
             try {
-                NanoMuseCloud.verify(context, identifier, code, invite)
-                onSignedIn()
-            } catch (e: CancellationException) {
-                throw e
+                val h = NanoMuseCloud.checkRelay(url)
+                serverStatus = context.getString(R.string.nm_cloud_server_ok, RelayAddress.display(url), h.version)
+                serverBad = false
+                NanoMuseCloud.setBaseUrl(context, url)
+                then?.invoke(url)
             } catch (e: Exception) {
-                error = NanoMuseCloud.describe(context, e)
-                verifying = false
+                serverStatus = context.getString(R.string.nm_cloud_server_unreachable, RelayAddress.display(url))
+                serverBad = true
             }
+            checking = false
         }
     }
 
@@ -158,7 +131,14 @@ fun CloudSignInScreen(
         verifying = true
         scope.launch {
             try {
-                NanoMuseCloud.login(context, identifier, password)
+                val raw = serverUrl.trim()
+                if (raw.isNotEmpty()) {
+                    val url = RelayAddress.normalize(raw)
+                    if (url != null) {
+                        NanoMuseCloud.setBaseUrl(context, url)
+                    }
+                }
+                NanoMuseCloud.login(context, identifier.trim(), password)
                 onSignedIn()
             } catch (e: CancellationException) {
                 throw e
@@ -169,16 +149,7 @@ fun CloudSignInScreen(
         }
     }
 
-    val canSubmit = when {
-        byPassword -> identifier.isNotBlank() && password.isNotEmpty() && !verifying
-        codeSent -> code.length >= 4 && !verifying
-        else -> identifier.isNotBlank() && !sending && !phoneAbroad
-    }
-    fun submit() = when {
-        byPassword -> login()
-        codeSent -> verify()
-        else -> sendCode()
-    }
+    val canSubmit = identifier.isNotBlank() && password.isNotEmpty() && !verifying && !checking
 
     Scaffold(
         containerColor = MuseTones.surface,
@@ -202,7 +173,6 @@ fun CloudSignInScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(12.dp))
-            // the app's icon, not the face: this screen is about the account
             io.github.nanomuse.ui.muse.NmBrandMark(size = 64.dp)
             Spacer(Modifier.height(18.dp))
             Text(
@@ -222,8 +192,6 @@ fun CloudSignInScreen(
                 textAlign = TextAlign.Center,
             )
             if (NanoMuseCloud.signInEnded(context)) {
-                // the relay refused the phone's key: the account's chats wait here for the same
-                // account to sign in again (contract C12)
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text = stringResource(R.string.nm_cloud_sign_in_ended),
@@ -239,161 +207,97 @@ fun CloudSignInScreen(
             }
             Spacer(Modifier.height(24.dp))
 
-            // Two ways in: a code to the address, or the password set under Account.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MuseTones.fill, RoundedCornerShape(12.dp))
-                    .padding(3.dp),
-            ) {
-                ModeTab(stringResource(R.string.nm_cloud_mode_code), selected = !byPassword, modifier = Modifier.weight(1f)) {
-                    byPassword = false; error = null
-                }
-                ModeTab(stringResource(R.string.nm_cloud_mode_password), selected = byPassword, modifier = Modifier.weight(1f)) {
-                    byPassword = true; error = null
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-
+            // 1. Server Address Field
             OutlinedTextField(
-                value = identifier,
-                onValueChange = { identifier = it; if (codeSent) { codeSent = false; code = "" } },
-                label = { Text(stringResource(R.string.nm_cloud_identifier)) },
-                placeholder = { Text(stringResource(R.string.nm_cloud_identifier_hint)) },
+                value = serverUrl,
+                onValueChange = { serverUrl = it; serverStatus = null },
+                label = { Text(stringResource(R.string.nm_cloud_server_url)) },
+                placeholder = { Text("https://your-server.com 或 192.168.x.x:8000") },
                 singleLine = true,
-                enabled = !verifying,
-                keyboardOptions = KeyboardOptions(
-                    // digits get the phone keypad, anything else the e-mail layout
-                    keyboardType = if (identifier.trimStart().firstOrNull()?.let { it.isDigit() || it == '+' } == true) KeyboardType.Phone else KeyboardType.Email,
-                    imeAction = if (byPassword) ImeAction.Next else ImeAction.Send,
-                ),
-                keyboardActions = KeyboardActions(onSend = { sendCode() }),
+                enabled = !verifying && !checking,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
+                trailingIcon = {
+                    TextButton(
+                        onClick = { checkServer() },
+                        enabled = !checking && !verifying && serverUrl.isNotBlank(),
+                    ) {
+                        if (checking) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MuseTones.action)
+                        } else {
+                            Text(stringResource(R.string.nm_cloud_server_check), color = MuseTones.action, fontSize = 13.sp)
+                        }
+                    }
+                },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MuseTones.action,
                     cursorColor = MuseTones.action,
                     focusedLabelColor = MuseTones.action,
                 ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentType = ContentType.Username + ContentType.PhoneNumber + ContentType.EmailAddress },
+                modifier = Modifier.fillMaxWidth(),
             )
-            if (phoneAbroad && !byPassword) {
-                // the relay would answer `phone_region`; better said now, in the same words
+            serverStatus?.let {
                 Text(
-                    text = stringResource(R.string.nm_cloud_sms_region),
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp, start = 4.dp, end = 4.dp),
+                    text = it,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = if (serverBad) MaterialTheme.colorScheme.error else MuseTones.action,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, start = 4.dp, end = 4.dp),
                 )
             }
-            Spacer(Modifier.height(12.dp))
-            if (byPassword) {
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text(stringResource(R.string.nm_cloud_password)) },
-                    singleLine = true,
-                    enabled = !verifying,
-                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { login() }),
-                    trailingIcon = {
-                        IconButton(onClick = { showPassword = !showPassword }) {
-                            Icon(
-                                if (showPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                                contentDescription = stringResource(if (showPassword) R.string.nm_a11y_hide_password else R.string.nm_a11y_show_password),
-                                tint = muted,
-                            )
-                        }
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MuseTones.action,
-                        cursorColor = MuseTones.action,
-                        focusedLabelColor = MuseTones.action,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(6.dp))
-                TextButton(onClick = { byPassword = false; error = null }, modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(R.string.nm_cloud_forgot_password), color = MuseTones.action, fontSize = 13.sp)
-                }
-            } else Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { v -> code = v.filter { it.isDigit() }.take(6) },
-                    label = { Text(stringResource(R.string.nm_cloud_code)) },
-                    singleLine = true,
-                    enabled = codeSent && !verifying,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { verify() }),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MuseTones.action,
-                        cursorColor = MuseTones.action,
-                        focusedLabelColor = MuseTones.action,
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics { contentType = ContentType.SmsOtpCode },
-                )
-                Spacer(Modifier.padding(horizontal = 6.dp))
-                TextButton(
-                    onClick = { sendCode() },
-                    enabled = identifier.isNotBlank() && countdown == 0 && !sending && !verifying && !phoneAbroad,
-                ) {
-                    if (sending) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MuseTones.action)
-                    } else {
-                        Text(
-                            text = when {
-                                countdown > 0 -> stringResource(R.string.nm_cloud_resend_in, countdown)
-                                codeSent -> stringResource(R.string.nm_cloud_resend)
-                                else -> stringResource(R.string.nm_cloud_send_code)
-                            },
-                            color = if (identifier.isNotBlank() && countdown == 0 && !phoneAbroad) MuseTones.action else muted,
-                            fontSize = 14.sp,
+
+            Spacer(Modifier.height(14.dp))
+
+            // 2. Identifier (Username / Account) Field
+            OutlinedTextField(
+                value = identifier,
+                onValueChange = { identifier = it; error = null },
+                label = { Text(stringResource(R.string.nm_cloud_identifier)) },
+                placeholder = { Text(stringResource(R.string.nm_cloud_identifier_hint)) },
+                singleLine = true,
+                enabled = !verifying,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next,
+                ),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MuseTones.action,
+                    cursorColor = MuseTones.action,
+                    focusedLabelColor = MuseTones.action,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            // 3. Password Field
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it; error = null },
+                label = { Text(stringResource(R.string.nm_cloud_password)) },
+                singleLine = true,
+                enabled = !verifying,
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { login() }),
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            if (showPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = stringResource(if (showPassword) R.string.nm_a11y_hide_password else R.string.nm_a11y_show_password),
+                            tint = muted,
                         )
                     }
-                }
-            }
-
-            if (!byPassword) {
-                Spacer(Modifier.height(6.dp))
-                if (!inviteOpen) {
-                    TextButton(onClick = { inviteOpen = true }, modifier = Modifier.align(Alignment.End)) {
-                        Text(stringResource(R.string.nm_cloud_invite_have), color = MuseTones.action, fontSize = 13.sp)
-                    }
-                } else {
-                    OutlinedTextField(
-                        value = invite,
-                        onValueChange = { v -> invite = v.uppercase().filter { it.isLetterOrDigit() }.take(8) },
-                        label = { Text(stringResource(R.string.nm_cloud_invite_field)) },
-                        singleLine = true,
-                        enabled = !verifying,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MuseTones.action,
-                            cursorColor = MuseTones.action,
-                            focusedLabelColor = MuseTones.action,
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-
-            // Your own relay: a small link under the form, then the address, Check, Use this server.
-            Spacer(Modifier.height(6.dp))
-            if (!serverOpen) {
-                TextButton(onClick = { serverOpen = true }, modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(R.string.nm_cloud_other_server), color = MuseTones.action, fontSize = 13.sp)
-                }
-            } else {
-                RelayServerForm(enabled = !verifying && !sending, onClose = { serverOpen = false })
-            }
+                },
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MuseTones.action,
+                    cursorColor = MuseTones.action,
+                    focusedLabelColor = MuseTones.action,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             error?.let {
                 Spacer(Modifier.height(12.dp))
@@ -407,8 +311,10 @@ fun CloudSignInScreen(
             }
 
             Spacer(Modifier.height(24.dp))
+
+            // 4. Connect & Login Button
             Button(
-                onClick = { submit() },
+                onClick = { login() },
                 enabled = canSubmit,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = MuseTones.action, contentColor = Color.White),
@@ -418,158 +324,22 @@ fun CloudSignInScreen(
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
                 } else {
                     Text(
-                        text = if (byPassword || codeSent) stringResource(R.string.nm_cloud_verify) else stringResource(R.string.nm_cloud_send_code),
+                        text = stringResource(R.string.nm_cloud_verify),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                     )
                 }
             }
+
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.nm_cloud_fine_print),
+                text = "所有数据仅保存在你的自建服务与本地设备中，绝不上传任何第三方云端",
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 color = muted,
                 textAlign = TextAlign.Center,
             )
-            TextButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(CLOUD_DOC_URL))) } }) {
-                Text(stringResource(R.string.nm_setup_learn_more), color = MuseTones.action, fontSize = 12.sp)
-            }
-            // What signing in is, and is not: free, community, non-profit — said where the
-            // decision is made, not only on the account page afterwards.
-            CommunityNoticeCard(inset = 0.dp)
             Spacer(Modifier.height(24.dp))
         }
-    }
-}
-
-/**
- * The relay's address for people who run their own (0.1.38): the field, *Check* (the relay's
- * `/healthz`, its version shown), *Use this server*, and a way back to nanoMuse Cloud. https
- * unless the host is on a private network. What is chosen here is what the key will belong
- * to — the account page shows it, and changing it later means signing out first.
- */
-@Composable
-private fun RelayServerForm(enabled: Boolean, onClose: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val current = NanoMuseCloud.baseUrl(context)
-    var text by remember { mutableStateOf(if (RelayAddress.isDefault(current)) "" else current) }
-    var checking by remember { mutableStateOf(false) }
-    var line by remember { mutableStateOf<String?>(null) }
-    var bad by remember { mutableStateOf(false) }
-    var inUse by remember { mutableStateOf(current) }
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
-
-    fun problemLine(p: RelayAddress.Problem): String = when (p) {
-        RelayAddress.Problem.EMPTY, RelayAddress.Problem.NOT_A_URL -> context.getString(R.string.nm_cloud_server_bad_url)
-        RelayAddress.Problem.HTTP_PUBLIC -> context.getString(R.string.nm_cloud_server_https)
-    }
-
-    fun check(then: ((String) -> Unit)? = null) {
-        if (checking) return
-        val problem = RelayAddress.problem(text)
-        if (problem != null) {
-            line = problemLine(problem); bad = true
-            return
-        }
-        val url = RelayAddress.normalize(text) ?: return
-        checking = true
-        line = null
-        scope.launch {
-            try {
-                val h = NanoMuseCloud.checkRelay(url)
-                line = context.getString(R.string.nm_cloud_server_ok, RelayAddress.display(url), h.version)
-                bad = false
-                then?.invoke(url)
-            } catch (e: Exception) {
-                line = context.getString(R.string.nm_cloud_server_unreachable, RelayAddress.display(url))
-                bad = true
-            }
-            checking = false
-        }
-    }
-
-    Column(Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it; line = null },
-            label = { Text(stringResource(R.string.nm_cloud_server_url)) },
-            placeholder = { Text(stringResource(R.string.nm_cloud_server_hint)) },
-            singleLine = true,
-            enabled = enabled && !checking,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { check() }),
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MuseTones.action,
-                cursorColor = MuseTones.action,
-                focusedLabelColor = MuseTones.action,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = stringResource(R.string.nm_cloud_server_now, RelayAddress.display(inUse)),
-                fontSize = 12.sp,
-                color = muted,
-                modifier = Modifier.weight(1f).padding(start = 4.dp),
-            )
-            TextButton(onClick = { check() }, enabled = enabled && !checking && text.isNotBlank()) {
-                if (checking) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MuseTones.action)
-                else Text(stringResource(R.string.nm_cloud_server_check), color = MuseTones.action, fontSize = 13.sp)
-            }
-            TextButton(
-                onClick = {
-                    check { url ->
-                        NanoMuseCloud.setBaseUrl(context, url)
-                        inUse = url
-                    }
-                },
-                enabled = enabled && !checking && text.isNotBlank(),
-            ) { Text(stringResource(R.string.nm_cloud_server_use), color = MuseTones.action, fontSize = 13.sp) }
-        }
-        line?.let {
-            Text(
-                text = it,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                color = if (bad) MaterialTheme.colorScheme.error else muted,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
-        }
-        if (!RelayAddress.isDefault(inUse)) {
-            TextButton(
-                onClick = {
-                    NanoMuseCloud.setBaseUrl(context, null)
-                    inUse = NanoMuseCloud.DEFAULT_BASE
-                    text = ""
-                    line = null
-                    onClose()
-                },
-                enabled = enabled && !checking,
-                modifier = Modifier.align(Alignment.End),
-            ) { Text(stringResource(R.string.nm_cloud_server_default), color = MuseTones.action, fontSize = 13.sp) }
-        }
-    }
-}
-
-/** One half of the code / password switch: a pill that is white when chosen. */
-@Composable
-private fun ModeTab(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) MuseTones.surface else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

@@ -1052,17 +1052,24 @@ class Cloud:
             raise CloudError(403, "not_invited", "This relay is private; that address is not on its list")
         account = self._account_for(ident)
         if account is None:
-            # Same answer as a wrong password: the sign-in form must not tell
-            # whether a number has an account.
-            hash_password("x")  # keep the timing alike
-            self._note_login_failure(ip)
-            self.db.add_event("", "sign_in.failed", ident.channel)
-            raise CloudError(401, "bad_credentials", "That address and password do not match")
-        locked_until = account["locked_until"]
-        if locked_until and int(locked_until) > now():
-            raise CloudError(429, "locked", "Too many wrong passwords; wait a while or sign in with a code")
-        if not account["password_hash"]:
-            raise CloudError(400, "no_password", "This account has no password yet; sign in with a code and set one under Account")
+            if self.s.signup_open:
+                id_hash = ident.hash(self.s.hmac_key)
+                account_id = self.db.new_account_id()
+                enc = self.crypto.encrypt(account_id, ident.value)
+                account = self.db.create_account(
+                    id_hash, ident.channel, ident.hint, self.s.signup_tokens, enc, account_id=account_id, grant_uy=self.s.allowance_uy
+                )
+                self.db.add_event(account_id, "account.created", ident.channel)
+                self.db.set_password(account_id, hash_password(password))
+                self.db.add_event(account_id, "password.set")
+            else:
+                hash_password("x")  # keep the timing alike
+                self._note_login_failure(ip)
+                self.db.add_event("", "sign_in.failed", ident.channel)
+                raise CloudError(401, "bad_credentials", "That address and password do not match")
+        elif not account["password_hash"] and self.s.signup_open:
+            self.db.set_password(account["id"], hash_password(password))
+            self.db.add_event(account["id"], "password.set")
         if not check_password(password, account["password_hash"]):
             left = self.db.login_failed(account["id"], self.s.password_max_attempts, self.s.lockout_s)
             self._note_login_failure(ip)

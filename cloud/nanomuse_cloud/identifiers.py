@@ -51,6 +51,8 @@ class Identifier:
 
     @property
     def hint(self) -> str:
+        if self.channel == "user":
+            return self.value
         if self.channel == "phone":
             digits = self.value
             if digits.startswith("+86") and len(digits) == 14:
@@ -98,4 +100,6 @@ def parse(raw: str) -> Identifier:
         return Identifier("phone", "+86" + digits)
     if _E164.match(digits):
         return Identifier("phone", digits)
-    raise BadIdentifier("phone")
+    if re.match(r"^[A-Za-z0-9_.\-@#]{1,64}$", s):
+        return Identifier("user", s.lower())
+    raise BadIdentifier("username")

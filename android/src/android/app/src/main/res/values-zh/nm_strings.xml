@@ -607,7 +607,7 @@
     <string name="nm_setup_own_key">我有自己的 API key</string>
     <!-- nanoMuse: the first-run pages -->
     <string name="nm_welcome_tagline">一个开源的个人智能体，装在你的每一台设备上。</string>
-    <string name="nm_welcome_email">登录，免费开始</string>
+    <string name="nm_welcome_email">连接自建服务</string>
     <string name="nm_welcome_fine_print">一个账号连起你的几台设备，也承载免费的模型额度；不收费。登录之后随时可以改用自己的 API key。</string>
     <string name="nm_setup_source_title">让哪个模型来回答？</string>
     <string name="nm_setup_source_sub">你的账号已经自带了一个。也可以加上自己的 API key，随时切换。</string>
@@ -633,18 +633,18 @@
     <string name="nm_welcome_hands_fine_print">不开也不影响其他功能。之后随时可以在「设置 → Hands」里开启。</string>
     <string name="nm_cloud_title">自建服务与多端同步</string>
     <string name="nm_cloud_signin_title">连接自建中继服务</string>
-    <string name="nm_cloud_signin_subtitle">手机号或邮箱收一个验证码；设过密码的话也可以直接用密码。</string>
+    <string name="nm_cloud_signin_subtitle">输入自建服务器地址、用户名和密码连接多端同步</string>
     <string name="nm_cloud_mode_code">验证码登录</string>
     <string name="nm_cloud_mode_password">密码登录</string>
-    <string name="nm_cloud_password">密码</string>
-    <string name="nm_cloud_forgot_password">忘了密码？用验证码登录</string>
-    <string name="nm_cloud_identifier">中国大陆手机号或邮箱</string>
-    <string name="nm_cloud_identifier_hint">you@example.com</string>
+    <string name="nm_cloud_password">服务器密码</string>
+    <string name="nm_cloud_forgot_password">登录密码</string>
+    <string name="nm_cloud_identifier">用户名 / 账号</string>
+    <string name="nm_cloud_identifier_hint">admin / 用户名</string>
     <string name="nm_cloud_code">验证码</string>
     <string name="nm_cloud_send_code">发送验证码</string>
     <string name="nm_cloud_resend">重新发送</string>
     <string name="nm_cloud_resend_in">%1$d 秒后可重发</string>
-    <string name="nm_cloud_verify">登录</string>
+    <string name="nm_cloud_verify">连接并登录</string>
     <!-- 自建中继服务器（0.1.38）：登录页的服务器表单与账号页的那一行 -->
     <string name="nm_cloud_other_server">使用其他服务器</string>
     <string name="nm_cloud_server_url">服务器地址</string>
@@ -663,8 +663,8 @@
     <!-- 短信验证码：登录页在发送前就说明；中继服务返回 phone_region 时也用这一句 -->
     <string name="nm_cloud_sms_region">短信验证码只能发到中国大陆手机号。请改用邮箱。</string>
     <string name="nm_cloud_fine_print">服务器保存账号 id、打码后的手机号或邮箱、用量，以及你的智能体的名字和形象；其余保存什么、哪些由你决定，见隐私政策。</string>
-    <string name="nm_cloud_not_signed_in">尚未登录</string>
-    <string name="nm_cloud_not_signed_in_sub">用手机号或邮箱登录，送一份免费额度。你自己添加的服务商不受影响。</string>
+    <string name="nm_cloud_not_signed_in">尚未登录自建服务</string>
+    <string name="nm_cloud_not_signed_in_sub">输入自建服务器地址与密码登录，同步你的智能体与多设备。</string>
     <string name="nm_cloud_sign_in">登录</string>
     <string name="nm_cloud_channel_phone">手机号</string>
     <string name="nm_cloud_channel_email">邮箱</string>

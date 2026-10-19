@@ -322,7 +322,7 @@ class HubService:
         """Sign in with the account password instead of a code."""
         identifier = identifier.strip()
         if not identifier:
-            raise CloudError(400, "bad_identifier", "Enter a phone number or an e-mail address.")
+            raise CloudError(400, "bad_identifier", "Enter a username or account.")
         if not password:
             raise CloudError(400, "password_required", "Enter the password.")
         data = await self.cloud.login(identifier, password, self.device_name)
