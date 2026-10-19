@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">nanoMuse</string>
+    <string name="app_name">NyanoMuse</string>
     <string name="new_chat">Conversație nouă</string>
     <string name="settings">Setări</string>
     <string name="providers">Furnizori</string>

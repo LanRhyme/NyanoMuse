@@ -54,7 +54,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "io.github.nanomuse.app"
+        applicationId = "top.lanrhyme.nyanomuse"
         minSdk = 26
         targetSdk = 35
         versionCode = 48

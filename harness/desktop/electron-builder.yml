@@ -8,11 +8,11 @@
 # bundle and writes the zip and an APFS dmg (docs/desktop.md).
 # The appId is the one the previous desktop app (desktop/app, retired in 0.1.30) carried, so
 # this one installs over it and keeps its place in the system's permission lists.
-appId: io.github.nanomuse.desktop
-productName: nanoMuse
-executableName: nanomuse-desktop
-copyright: GPL-3.0-or-later · the nanoMuse community · built on DeepSeek Harness (MIT)
-artifactName: nanoMuse-Desktop-${version}-${os}-${arch}.${ext}
+appId: top.lanrhyme.nyanomuse.desktop
+productName: NyanoMuse
+executableName: nyanomuse-desktop
+copyright: GPL-3.0-or-later · the NyanoMuse community · built on DeepSeek Harness (MIT)
+artifactName: NyanoMuse-Desktop-${version}-${os}-${arch}.${ext}
 directories:
   output: dist
   buildResources: resources
@@ -56,7 +56,7 @@ linux:
     # and the .deb does not apply; unpack anywhere and run ./nanomuse-desktop (docs/desktop.md)
     - target: tar.gz
       arch: [x64]
-  artifactName: nanoMuse-Desktop-${version}-linux-x64.${ext}
+  artifactName: NyanoMuse-Desktop-${version}-linux-x64.${ext}
   category: Utility
   # the icon set, one PNG per size (resources/icons/<n>x<n>.png, made from app-icon.png): the deb
   # installs each under /usr/share/icons/hicolor/<n>x<n>/apps/. A single 1024px PNG landed only in

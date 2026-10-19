@@ -5,7 +5,7 @@
      directory is never consulted and the app would silently fall back
      to English. -->
 <resources>
-    <string name="app_name">nanoMuse</string>
+    <string name="app_name">NyanoMuse</string>
     <string name="new_chat">Obrolan Baru</string>
     <string name="settings">Pengaturan</string>
     <string name="providers">Penyedia</string>

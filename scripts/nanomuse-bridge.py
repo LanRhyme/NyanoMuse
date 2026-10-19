@@ -22,7 +22,11 @@ from typing import Any
 
 from PIL import Image
 
-NANOMUSE_DIR = Path.home() / ".nanomuse" / "desktop"
+NANOMUSE_DIR = (
+    Path.home() / ".nyanomuse" / "desktop"
+    if (Path.home() / ".nyanomuse").exists()
+    else Path.home() / ".nanomuse" / "desktop"
+)
 CONFIG_DIR = NANOMUSE_DIR / "nanomuse"
 SOUL_PATH = NANOMUSE_DIR / "SOUL.md"
 CREDENTIALS_PATH = NANOMUSE_DIR / ".credentials.yaml"
@@ -281,7 +285,7 @@ def push_to_android_pack(path: Path) -> None:
         subprocess.check_call(["adb", "-s", device, "push", str(path), remote_path])
         subprocess.check_call([
             "adb", "-s", device, "shell", "am", "broadcast",
-            "-a", "io.github.nanomuse.IMPORT_AVATAR",
+            "-a", "top.lanrhyme.nyanomuse.IMPORT_AVATAR",
             "--es", "path", remote_path,
         ])
         print(f"Pushed and notified Android device {device}")
@@ -310,7 +314,7 @@ def cmd_android(args: argparse.Namespace) -> None:
         try:
             remote_tmp = "/sdcard/Download/SOUL.md"
             subprocess.check_call(["adb", "-s", dev, "push", tmp_local, remote_tmp])
-            subprocess.check_call(["adb", "-s", dev, "shell", "am", "broadcast", "-a", "io.github.nanomuse.UPDATE_SOUL", "--es", "file", remote_tmp])
+            subprocess.check_call(["adb", "-s", dev, "shell", "am", "broadcast", "-a", "top.lanrhyme.nyanomuse.UPDATE_SOUL", "--es", "file", remote_tmp])
             print(f"Updated SOUL on {dev}")
         finally:
             if os.path.exists(tmp_local):
@@ -318,7 +322,7 @@ def cmd_android(args: argparse.Namespace) -> None:
     elif args.action == "push-avatar":
         push_to_android_pack(Path(args.path))
     elif args.action == "reload":
-        subprocess.check_call(["adb", "-s", dev, "shell", "am", "broadcast", "-a", "io.github.nanomuse.RELOAD_CONFIG"])
+        subprocess.check_call(["adb", "-s", dev, "shell", "am", "broadcast", "-a", "top.lanrhyme.nyanomuse.RELOAD_CONFIG"])
         print(f"Sent reload to {dev}")
 
 

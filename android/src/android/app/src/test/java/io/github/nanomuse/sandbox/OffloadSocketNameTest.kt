@@ -12,18 +12,18 @@ import java.io.File
  * (#271), and the server binds that name, not upstream's.
  */
 class OffloadSocketNameTest {
-    private val appId = "io.github.nanomuse.app"
+    private val appId = "top.lanrhyme.nyanomuse"
 
     @Test fun `the app's name carries the application id and is not upstream's`() {
         val name = OffloadSocketName.forApp(appId)
-        assertEquals("io.github.nanomuse.app.native-offload", name)
+        assertEquals("top.lanrhyme.nyanomuse.native-offload", name)
         assertNotEquals(OffloadSocketName.UPSTREAM, name)
         assertTrue(name.startsWith("$appId."))
     }
 
     @Test fun `the per-process fallback is the app's name plus the pid`() {
         val name = OffloadSocketName.forProcess(appId, 24601)
-        assertEquals("io.github.nanomuse.app.native-offload-24601", name)
+        assertEquals("top.lanrhyme.nyanomuse.native-offload-24601", name)
         assertTrue(name.startsWith(OffloadSocketName.forApp(appId)))
     }
 

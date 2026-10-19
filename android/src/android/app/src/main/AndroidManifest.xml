@@ -526,6 +526,10 @@
             android:name="io.github.nanomuse.bridge.ExternalAiReceiver"
             android:exported="true">
             <intent-filter>
+                <action android:name="top.lanrhyme.nyanomuse.UPDATE_SOUL" />
+                <action android:name="top.lanrhyme.nyanomuse.IMPORT_AVATAR" />
+                <action android:name="top.lanrhyme.nyanomuse.UPDATE_RELAY" />
+                <action android:name="top.lanrhyme.nyanomuse.RELOAD_CONFIG" />
                 <action android:name="io.github.nanomuse.UPDATE_SOUL" />
                 <action android:name="io.github.nanomuse.app.UPDATE_SOUL" />
                 <action android:name="io.github.nanomuse.IMPORT_AVATAR" />

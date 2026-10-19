@@ -66,8 +66,8 @@ const T = {
   copied: zh ? "已复制。到 GitHub 发一个 issue 时贴上即可。" : "Copied. Paste it into a GitHub issue.",
   openLogFolder: zh ? "打开日志文件夹" : "Open the log folder",
   reportHint: zh ? "「复制详情」会把这段话和日志末尾复制下来，发 issue 时贴上：" : "Copy details puts this and the end of the log on the clipboard for an issue at",
-  about: zh ? "关于 nanoMuse" : "About nanoMuse",
-  website: zh ? "nanoMuse 官网" : "nanoMuse website",
+  about: zh ? "关于 NyanoMuse" : "About NyanoMuse",
+  website: zh ? "NyanoMuse 官网" : "NyanoMuse website",
   docs: zh ? "这个桌面版的说明" : "About this desktop",
   issue: zh ? "报告问题" : "Report an issue",
   builtOn: zh ? "基于 DeepSeek Harness（MIT）" : "Built on DeepSeek Harness (MIT)",
@@ -78,10 +78,10 @@ const T = {
   window: zh ? "窗口" : "Window",
   help: zh ? "帮助" : "Help",
   edit: zh ? "编辑" : "Edit",
-  open: zh ? "打开 nanoMuse" : "Open nanoMuse",
+  open: zh ? "打开 NyanoMuse" : "Open NyanoMuse",
   newChat: zh ? "新聊天" : "New chat",
   quickChat: zh ? "快速唤起" : "Quick chat",
-  quitApp: zh ? "退出 nanoMuse" : "Quit nanoMuse",
+  quitApp: zh ? "退出 NyanoMuse" : "Quit NyanoMuse",
   // the protected exit: what a real quit (later, a restart-update) would end
   exitBusyTitle: zh ? "有工作还在进行" : "Work is still in progress",
   exitBusyLead: zh ? "现在退出会结束这些工作：" : "Quitting now would end this work:",
@@ -124,19 +124,26 @@ let restarts = 0;
 let hostProxy = "";
 
 /**
- * `~/.nanomuse/desktop`, the harness home of this app alone — the CLI's `~/.dsh` is left alone.
- * `NANOMUSE_DESKTOP_HOME` moves it (`NANOMUSE_HARNESS_HOME`, the 0.1.28–0.1.29 name, still
- * counts). A home the app kept as nanoMuse Harness under `~/.nanomuse/harness` is taken over
- * once, so the account and the chats of those two versions carry on.
+ * `~/.nyanomuse/desktop`, the harness home of this app alone — the CLI's `~/.dsh` is left alone.
+ * `NYANOMUSE_DESKTOP_HOME` or `NANOMUSE_DESKTOP_HOME` moves it (`NANOMUSE_HARNESS_HOME`, the 0.1.28–0.1.29 name, still
+ * counts). A home the app kept as nanoMuse under `~/.nanomuse/desktop` or `~/.nanomuse/harness` is taken over
+ * once, so the account and the chats carry on.
  */
 let resolvedHome: string | undefined;
 function harnessHome(): string {
   if (resolvedHome) return resolvedHome;
-  const fromEnv = process.env.NANOMUSE_DESKTOP_HOME || process.env.NANOMUSE_HARNESS_HOME;
+  const fromEnv = process.env.NYANOMUSE_DESKTOP_HOME || process.env.NANOMUSE_DESKTOP_HOME || process.env.NANOMUSE_HARNESS_HOME;
   if (fromEnv) return (resolvedHome = fromEnv);
-  const home = join(homedir(), ".nanomuse", "desktop");
+  const home = join(homedir(), ".nyanomuse", "desktop");
+  const oldHome = join(homedir(), ".nanomuse", "desktop");
   const previous = join(homedir(), ".nanomuse", "harness");
-  if (!existsSync(home) && existsSync(join(previous, "profiles"))) {
+  if (!existsSync(home) && existsSync(oldHome)) {
+    try {
+      renameSync(oldHome, home);
+    } catch {
+      return (resolvedHome = oldHome);
+    }
+  } else if (!existsSync(home) && existsSync(join(previous, "profiles"))) {
     try {
       renameSync(previous, home);
     } catch {
