@@ -1568,19 +1568,48 @@ class ChatViewModel(
             val entryId = _activeEntryId.value
             val config = providerRepository.config.value
             val entry = entryId?.let { id -> config.modelEntries.find { it.id == id } }
-            val modelId = entry?.model?.id ?: currentModel?.id
-            val isDeepSeek = io.github.nanomuse.chat.DeepSeekTracker.isDeepSeekModel(modelId)
+                ?: currentModel?.id?.let { mid -> config.modelEntries.find { it.model.id == mid } }
+                ?: _modelName.value.takeIf { it.isNotEmpty() }?.let { name -> config.modelEntries.find { it.model.displayName.equals(name, ignoreCase = true) } }
+
+            val modelId = entry?.model?.id ?: currentModel?.id ?: currentProvider?.model?.id
+            val instance = entry?.let { e -> config.instances.find { it.id == e.providerInstanceId } }
+            val baseUrl = instance?.customBaseURL
+
+            val isDeepSeek = io.github.nanomuse.chat.DeepSeekTracker.isDeepSeekModel(
+                modelId = modelId,
+                displayName = entry?.model?.displayName ?: _modelName.value,
+                providerName = _providerName.value,
+                baseUrl = baseUrl,
+            )
             if (!isDeepSeek) {
                 _deepSeekStatus.value = DeepSeekStatus(isDeepSeek = false)
                 return@launch
             }
 
             val todayCost = io.github.nanomuse.chat.DeepSeekTracker.getTodayDeepSeekCost(chatRepository.dao)
-            val instance = entry?.let { e -> config.instances.find { it.id == e.providerInstanceId } }
-            val apiKey = instance?.let { inst -> providerRepository.usableApiKey(inst) }
+            var apiKey = instance?.let { inst -> providerRepository.usableApiKey(inst) }
+            var targetBaseUrl = baseUrl
+
+            // If the active instance is a relay or doesn't have an official key, try finding the official DeepSeek instance in config
+            if (targetBaseUrl?.contains("api.deepseek.com", ignoreCase = true) != true || apiKey.isNullOrBlank()) {
+                val officialInstance = config.instances.firstOrNull { inst ->
+                    inst.isEnabled && (
+                        inst.customBaseURL?.contains("api.deepseek.com", ignoreCase = true) == true ||
+                        inst.label.contains("deepseek", ignoreCase = true)
+                    )
+                }
+                if (officialInstance != null) {
+                    val officialKey = providerRepository.usableApiKey(officialInstance)
+                    if (!officialKey.isNullOrBlank()) {
+                        apiKey = officialKey
+                        targetBaseUrl = officialInstance.customBaseURL
+                    }
+                }
+            }
+
             val balance = io.github.nanomuse.chat.DeepSeekTracker.fetchOfficialBalance(
                 apiKey = apiKey,
-                baseUrl = instance?.customBaseURL,
+                baseUrl = targetBaseUrl,
                 forceRefresh = forceRefreshBalance,
             )
             _deepSeekStatus.value = DeepSeekStatus(
@@ -3786,6 +3815,13 @@ class ChatViewModel(
             }
         }
         viewModelScope.launch {
+            _isStreaming.collect { streaming ->
+                if (!streaming) {
+                    refreshDeepSeekStatus()
+                }
+            }
+        }
+        viewModelScope.launch {
             sessionLoaded.first { it }
             io.github.nanomuse.models.ModelSlots.chatSlotWritten.collect { pick ->
                 val sid = realSessionId.ifEmpty { sessionId }
@@ -4574,6 +4610,7 @@ class ChatViewModel(
                 // missing-session path) and on exception, so the init-time
                 // config.collect can never deadlock waiting for us.
                 sessionLoaded.value = true
+                refreshDeepSeekStatus()
                 // [T-HANG-DIAG] total time spent in loadSession from ENTER to
                 // either successful completion or early return. tHangDiagStart
                 // was captured just inside `try` so this covers the whole

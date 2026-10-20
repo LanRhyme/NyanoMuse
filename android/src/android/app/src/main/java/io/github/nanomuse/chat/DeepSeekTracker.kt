@@ -23,9 +23,14 @@ object DeepSeekTracker {
     private var cachedBalance: Pair<String, Long>? = null // (formattedBalance, timestampMs)
     private const val BALANCE_CACHE_TTL_MS = 60_000L // 1 minute
 
-    fun isDeepSeekModel(modelId: String?): Boolean {
-        if (modelId.isNullOrBlank()) return false
-        return modelId.contains("deepseek", ignoreCase = true)
+    fun isDeepSeekModel(
+        modelId: String?,
+        displayName: String? = null,
+        providerName: String? = null,
+        baseUrl: String? = null,
+    ): Boolean {
+        val candidates = listOfNotNull(modelId, displayName, providerName, baseUrl)
+        return candidates.any { it.contains("deepseek", ignoreCase = true) }
     }
 
     /**
@@ -73,7 +78,7 @@ object DeepSeekTracker {
         val records = chatDao.allUsageRecords()
         for (record in records) {
             if (record.createdAt < startOfToday) continue
-            if (!isDeepSeekModel(record.modelId)) continue
+            if (!isDeepSeekModel(record.modelId, record.modelDisplayName, record.providerType)) continue
 
             val usage = try {
                 JSONObject(record.tokenUsage)

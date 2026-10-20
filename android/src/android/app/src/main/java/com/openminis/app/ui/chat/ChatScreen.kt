@@ -2713,21 +2713,58 @@ fun ChatScreen(
                             // their title where the face would be (Muse puts
                             // the face only on the main chat); the main chat
                             // gets the big face on its disc.
+                            val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
+                            val deepSeekText = deepSeekStatus.displayText
                             val nmSideChat = nmHome != null && !nmHome.isMainChat
                             val nmMainChat = nmHome != null && nmHome.isMainChat
                             if (nmSideChat) {
-                                Text(
-                                    text = sessionTitle?.trim()?.ifEmpty { null }
-                                        ?: stringResource(R.string.nm_drawer_untitled),
-                                    fontSize = 17.sp,
-                                    lineHeight = 21.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = ChatColors.primaryText,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = noFontPad,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.padding(bottom = 1.dp),
-                                )
+                                ) {
+                                    Text(
+                                        text = sessionTitle?.trim()?.ifEmpty { null }
+                                            ?: stringResource(R.string.nm_drawer_untitled),
+                                        fontSize = 17.sp,
+                                        lineHeight = 21.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = ChatColors.primaryText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = noFontPad,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                    )
+                                    if (deepSeekText != null) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
+                                                .clickable {
+                                                    viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
+                                                    showTokenUsageSheet = true
+                                                }
+                                                .padding(horizontal = 7.dp, vertical = 2.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(5.dp)
+                                                    .background(Color(0xFF007AFF), CircleShape),
+                                            )
+                                            Text(
+                                                text = deepSeekText,
+                                                fontSize = 10.sp,
+                                                lineHeight = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = ChatColors.primaryText.copy(alpha = 0.85f),
+                                                maxLines = 1,
+                                                style = noFontPad,
+                                            )
+                                        }
+                                    }
+                                }
                             } else {
                                 val topBarSoul by com.openminis.app.agent.SoulStore
                                     .cachedMetadata.collectAsState()
@@ -2749,16 +2786,51 @@ fun ChatScreen(
                                         horizontalAlignment = Alignment.Start,
                                         verticalArrangement = Arrangement.Center,
                                     ) {
-                                        Text(
-                                            text = displayTitle,
-                                            fontSize = 15.sp,
-                                            lineHeight = 17.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = ChatColors.primaryText,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            style = noFontPad,
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Text(
+                                                text = displayTitle,
+                                                fontSize = 15.sp,
+                                                lineHeight = 17.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = ChatColors.primaryText,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = noFontPad,
+                                                modifier = Modifier.weight(1f, fill = false),
+                                            )
+                                            if (deepSeekText != null) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    modifier = Modifier
+                                                        .clip(CircleShape)
+                                                        .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
+                                                        .clickable {
+                                                            viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
+                                                            showTokenUsageSheet = true
+                                                        }
+                                                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(5.dp)
+                                                            .background(Color(0xFF007AFF), CircleShape),
+                                                    )
+                                                    Text(
+                                                        text = deepSeekText,
+                                                        fontSize = 10.sp,
+                                                        lineHeight = 12.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = ChatColors.primaryText.copy(alpha = 0.85f),
+                                                        maxLines = 1,
+                                                        style = noFontPad,
+                                                    )
+                                                }
+                                            }
+                                        }
                                         if (nmStatusLine != null) {
                                             Text(
                                                 text = nmStatusLine,
@@ -2965,38 +3037,6 @@ fun ChatScreen(
                                                 onClick = { showThinkingLevelSheet = true },
                                             )
                                         }
-                                    }
-                                }
-                                val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
-                                val deepSeekText = deepSeekStatus.displayText
-                                if (deepSeekText != null) {
-                                    Spacer(Modifier.height(2.dp))
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                        modifier = Modifier
-                                            .clip(CircleShape)
-                                            .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
-                                            .clickable {
-                                                viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
-                                                showTokenUsageSheet = true
-                                            }
-                                            .padding(horizontal = 7.dp, vertical = 1.5.dp),
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(4.dp)
-                                                .background(Color(0xFF007AFF), CircleShape),
-                                        )
-                                        Text(
-                                            text = deepSeekText,
-                                            fontSize = 10.sp,
-                                            lineHeight = 12.sp,
-                                            fontWeight = FontWeight.Normal,
-                                            color = ChatColors.secondaryText,
-                                            maxLines = 1,
-                                            style = noFontPad,
-                                        )
                                     }
                                 }
                             }
