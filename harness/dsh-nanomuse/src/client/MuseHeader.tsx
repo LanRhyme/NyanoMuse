@@ -9,7 +9,7 @@
  */
 import { createElement as h, Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { dismissStar, markStarred, nudgeText, openStar } from './AccountPage.tsx'
-import type { Translate } from './api.ts'
+import { call, type Translate } from './api.ts'
 import { Avatar, motionStatus, type Mood } from './Avatar.tsx'
 import { describeCall } from './Capsule.tsx'
 import { IconCheck, IconChevronLeft, IconHeart, IconMenu, IconSpinner } from './icons.tsx'
@@ -55,7 +55,27 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
   const askingYou = waiting && pending?.kind !== 'approval'
   const [, tick] = useState(0)
   const [toast, setToast] = useState<{ n: number; at: number } | null>(null)
+  const [balance, setBalance] = useState<string | null>(null)
   const approvals = useRef(prefs.approvals.length)
+
+  useEffect(() => {
+    let cancelled = false
+    const fetchBalance = () => {
+      call<{ available: boolean; balance?: string }>('balance')
+        .then((res) => {
+          if (!cancelled && res?.available && res.balance) {
+            setBalance(res.balance)
+          }
+        })
+        .catch(() => undefined)
+    }
+    fetchBalance()
+    const timer = window.setInterval(fetchBalance, 60_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [])
   // The star (C1): the host counts the tasks that ran to their end, the days and the goals,
   // and keeps one ask at a time in `nudges.current`; a fresh one shows here for a while, or
   // until it is answered. (Settings' Account page and the studio show theirs as cards.)
@@ -146,6 +166,10 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
       h('button', { type: 'button', className: `nm-header-face${running ? ' nm-live' : waiting ? ' nm-wait' : ''}`, 'aria-label': live.profile.name || t('brand'), title: t('railProfile'), onClick: openProfile },
         h(Avatar, { size: 44, profile: live.profile, mood })),
       h('div', { className: 'nm-header-name' }, live.profile.name || t('brand')),
+      balance ? h('div', { className: 'nm-header-balance-pill', title: 'DeepSeek 官方账户余额' },
+        h('span', { className: 'nm-balance-dot' }),
+        h('span', null, `余额: ¥${balance}`),
+      ) : null,
       toast
         ? h('div', { className: 'nm-header-status nm-header-toast' }, h(IconCheck, { size: 13 }), t('statusApproved', { n: toast.n }))
         : starAsk

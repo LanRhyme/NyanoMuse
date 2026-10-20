@@ -36,11 +36,20 @@ export function parseQuestionTag(text: string): { question: string; options: str
   if (!match) return undefined
   try {
     const obj = JSON.parse(match[1]!.trim())
-    const q = obj.question || obj.title
-    if (q && Array.isArray(obj.options) && obj.options.length > 0) {
+    const q = obj.question || obj.title || obj.header
+    const opts = obj.options || (Array.isArray(obj.questions) && obj.questions[0]?.options)
+    const questionText = q || (Array.isArray(obj.questions) && obj.questions[0]?.question)
+    if (questionText && Array.isArray(opts) && opts.length > 0) {
       return {
-        question: String(q).trim(),
-        options: obj.options.map((x: unknown) => String(x || '').trim()).filter(Boolean),
+        question: String(questionText).trim(),
+        options: opts.map((x: unknown) => {
+          if (x && typeof x === 'object') {
+            const lbl = (x as Record<string, unknown>).label || ''
+            const desc = (x as Record<string, unknown>).description || ''
+            return desc ? `${lbl} - ${desc}` : String(lbl)
+          }
+          return String(x || '').trim()
+        }).filter(Boolean),
       }
     }
   } catch {}
@@ -77,6 +86,22 @@ function readFence(text: string): Fence | undefined {
   if (typeof o.question === 'string' && Array.isArray(o.options) && o.options.length > 0) {
     return { kind: 'question', question: str(o.question), options: o.options.map(str).filter(Boolean) }
   }
+  if (Array.isArray(o.questions) && o.questions.length > 0 && typeof o.questions[0] === 'object') {
+    const first = o.questions[0] as Record<string, unknown>
+    const q = str(first.question || first.title || first.header)
+    const rawOpts = Array.isArray(first.options) ? first.options : []
+    const opts = rawOpts.map((x: unknown) => {
+      if (x && typeof x === 'object') {
+        const lbl = (x as Record<string, unknown>).label || ''
+        const desc = (x as Record<string, unknown>).description || ''
+        return desc ? `${lbl} - ${desc}` : String(lbl)
+      }
+      return String(x || '').trim()
+    }).filter(Boolean)
+    if (q && opts.length > 0) {
+      return { kind: 'question', question: q, options: opts }
+    }
+  }
   return undefined
 }
 
@@ -96,42 +121,135 @@ function button(label: string, onClick: () => void): HTMLElement {
 
 const roots = new Map<HTMLElement, Root>()
 
+function cleanOptionPrefix(text: string): string {
+  return text.split(/\s+[-–—]\s+/)[0]?.trim() || text.trim()
+}
+
 function questionCard(t: Translate, q: { question: string; options: string[] }): HTMLElement {
   const root = el('div', 'nm-question-card')
-  const titleRow = el('div', 'nm-question-title-row')
-  titleRow.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
-  titleRow.append(el('span', 'nm-question-title', q.question))
-  root.append(titleRow)
+  let selectedAnswer: string | null = root.getAttribute('data-nm-answer') || null
+  let isExpanded = !selectedAnswer
 
-  const list = el('div', 'nm-question-options')
-  for (const opt of q.options) {
-    const isRecommended = /^\((?:Recommended|推荐)\)/i.test(opt) || opt.includes('（推荐）') || opt.startsWith('(推荐)')
-    const cleanText = opt.replace(/^\((?:Recommended|推荐)\)\s*/i, '')
-    const optRow = el('div', `nm-question-option${isRecommended ? ' nm-recommended' : ''}`)
-    if (isRecommended) {
-      optRow.append(el('span', 'nm-question-badge', '推荐'))
+  const render = () => {
+    root.innerHTML = ''
+    if (selectedAnswer && !isExpanded) {
+      // === Collapsed View: Compact Summary Pill ===
+      root.className = 'nm-question-card nm-question-collapsed'
+      const row = el('div', 'nm-question-collapsed-row')
+
+      const checkBadge = el('div', 'nm-question-check-badge')
+      checkBadge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+      row.append(checkBadge)
+
+      const title = el('span', 'nm-question-collapsed-title', q.question)
+      title.title = q.question
+      row.append(title)
+
+      const sep = el('span', 'nm-question-sep', '·')
+      row.append(sep)
+
+      const chip = el('div', 'nm-question-answer-chip')
+      const chipText = el('span', '', selectedAnswer)
+      chipText.title = selectedAnswer
+      chip.append(chipText)
+      row.append(chip)
+
+      const chev = el('button', 'nm-question-chevron-btn') as HTMLButtonElement
+      chev.type = 'button'
+      chev.title = '展开查看选项'
+      chev.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>'
+      row.append(chev)
+
+      row.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        isExpanded = true
+        render()
+      })
+      root.append(row)
     } else {
-      optRow.append(el('span', 'nm-question-dot'))
-    }
-    optRow.append(el('span', 'nm-question-opt-text', cleanText))
-    optRow.addEventListener('click', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      prefillComposer(cleanText)
-      window.setTimeout(() => {
-        const card = composerCard()
-        const sendBtn = card?.querySelector<HTMLButtonElement>('[class*="_primary"]:not(:disabled)')
-        if (sendBtn) {
-          sendBtn.click()
+      // === Expanded View: Interactive Question Card ===
+      root.className = 'nm-question-card nm-question-expanded'
+
+      const header = el('div', 'nm-question-header')
+      const iconBadge = el('div', 'nm-question-icon-badge')
+      iconBadge.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+      header.append(iconBadge)
+
+      const title = el('span', 'nm-question-title', q.question)
+      header.append(title)
+
+      if (selectedAnswer) {
+        header.append(el('span', 'nm-question-answered-badge', '已回答'))
+        const collapseBtn = el('button', 'nm-question-collapse-btn') as HTMLButtonElement
+        collapseBtn.type = 'button'
+        collapseBtn.innerHTML = '<span>收起</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>'
+        collapseBtn.addEventListener('click', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          isExpanded = false
+          render()
+        })
+        header.append(collapseBtn)
+      }
+      root.append(header)
+
+      const list = el('div', 'nm-question-options')
+      for (const opt of q.options) {
+        const isRecommended = /^\((?:Recommended|推荐)\)/i.test(opt) || opt.includes('（推荐）') || opt.startsWith('(推荐)')
+        const cleanText = opt.replace(/^\((?:Recommended|推荐)\)\s*/i, '').trim()
+        const isThisSelected = selectedAnswer !== null && (
+          selectedAnswer.toLowerCase() === cleanText.toLowerCase() ||
+          selectedAnswer.toLowerCase().startsWith(cleanOptionPrefix(cleanText).toLowerCase()) ||
+          cleanText.toLowerCase().startsWith(cleanOptionPrefix(selectedAnswer).toLowerCase())
+        )
+
+        let optClass = 'nm-question-option'
+        if (isThisSelected) optClass += ' nm-selected'
+        else if (isRecommended && !selectedAnswer) optClass += ' nm-recommended'
+        else if (selectedAnswer) optClass += ' nm-answered-other'
+
+        const optRow = el('div', optClass)
+
+        if (isThisSelected) {
+          const radio = el('div', 'nm-question-radio nm-selected')
+          radio.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+          optRow.append(radio)
+        } else if (isRecommended && !selectedAnswer) {
+          optRow.append(el('span', 'nm-question-badge', '推荐'))
         } else {
-          const editable = composerEditable()
-          editable?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', which: 13, keyCode: 13, bubbles: true }))
+          optRow.append(el('div', 'nm-question-radio nm-unselected'))
         }
-      }, 50)
-    })
-    list.append(optRow)
+
+        optRow.append(el('span', 'nm-question-opt-text', cleanText))
+
+        optRow.addEventListener('click', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          selectedAnswer = cleanText
+          root.setAttribute('data-nm-answer', cleanText)
+          isExpanded = false
+          render()
+
+          prefillComposer(cleanText)
+          window.setTimeout(() => {
+            const card = composerCard()
+            const sendBtn = card?.querySelector<HTMLButtonElement>('[class*="_primary"]:not(:disabled)')
+            if (sendBtn) {
+              sendBtn.click()
+            } else {
+              const editable = composerEditable()
+              editable?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', which: 13, keyCode: 13, bubbles: true }))
+            }
+          }, 50)
+        })
+        list.append(optRow)
+      }
+      root.append(list)
+    }
   }
-  root.append(list)
+
+  render()
   return root
 }
 

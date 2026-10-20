@@ -1,5 +1,7 @@
 package io.github.nanomuse.ui.chat
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,18 +12,27 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.ui.theme.ChatColors
@@ -127,148 +138,259 @@ fun InteractiveQuestionCard(
     val accentColor = ChatColors.link
     val isAnswered = !selectedAnswer.isNullOrBlank()
 
-    Column(
+    // Collapse automatically once answered, but allow user to toggle expansion
+    var isExpanded by remember(selectedAnswer) {
+        mutableStateOf(!isAnswered)
+    }
+
+    val containerShape = RoundedCornerShape(16.dp)
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(ChatColors.secondaryBg.copy(alpha = 0.55f))
-            .border(1.dp, accentColor.copy(alpha = 0.28f), RoundedCornerShape(14.dp))
-            .padding(13.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .clip(containerShape)
+            .background(
+                if (isAnswered && !isExpanded) ChatColors.toolCapsuleBg.copy(alpha = 0.5f)
+                else ChatColors.secondaryBg.copy(alpha = 0.45f)
+            )
+            .border(
+                width = 0.8.dp,
+                color = if (!isAnswered) accentColor.copy(alpha = 0.35f) else ChatColors.toolBorder,
+                shape = containerShape,
+            )
+            .animateContentSize(tween(250)),
     ) {
-        // Question Title Row
-        Row(
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.HelpOutline,
-                contentDescription = null,
-                tint = accentColor,
+        if (isAnswered && !isExpanded) {
+            // === Collapsed View: Compact Summary Pill ===
+            Row(
                 modifier = Modifier
-                    .size(18.dp)
-                    .padding(top = 1.dp),
-            )
-            Text(
-                text = data.question,
-                fontSize = 14.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ChatColors.primaryText,
-                lineHeight = 20.sp,
-                modifier = Modifier.weight(1f),
-            )
-            if (isAnswered) {
+                    .fillMaxWidth()
+                    .clickable { isExpanded = true }
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                // Leading Check Badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(ChatColors.secondaryText.copy(alpha = 0.15f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                        .size(22.dp)
+                        .background(accentColor.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = "已作答",
-                        fontSize = 10.sp,
-                        color = ChatColors.secondaryText,
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(13.dp),
                     )
                 }
-            }
-        }
 
-        // Options List
-        Column(
-            verticalArrangement = Arrangement.spacedBy(7.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            data.options.forEach { option ->
-                val isRecommended = option.contains("(Recommended)", ignoreCase = true) ||
-                    option.contains("（推荐）") || option.startsWith("(推荐)")
-
-                val cleanOptionText = option.replace(Regex("""^\((Recommended|推荐)\)\s*""", RegexOption.IGNORE_CASE), "")
-
-                val isThisSelected = isAnswered && (
-                    selectedAnswer.equals(cleanOptionText, ignoreCase = true) ||
-                    selectedAnswer.startsWith(cleanOptionText, ignoreCase = true) ||
-                    cleanOptionText.startsWith(selectedAnswer, ignoreCase = true)
+                // Question Title (Ellipsized)
+                Text(
+                    text = data.question,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = ChatColors.secondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
 
-                val itemAlpha = if (!isAnswered || isThisSelected) 1f else 0.4f
-
+                // Selected Answer Chip
                 Row(
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(accentColor.copy(alpha = 0.14f))
+                        .border(0.5.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        text = selectedAnswer.orEmpty(),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 240.dp),
+                    )
+                }
+
+                // Expand Chevron
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Expand",
+                    tint = ChatColors.secondaryText.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        } else {
+            // === Expanded View: Interactive Cards ===
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(11.dp),
+            ) {
+                // Header Row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            when {
-                                isThisSelected -> accentColor.copy(alpha = 0.22f)
-                                isRecommended -> accentColor.copy(alpha = 0.12f)
-                                else -> ChatColors.toolCapsuleBg
-                            },
-                        )
-                        .border(
-                            width = if (isThisSelected) 1.5.dp else 1.dp,
-                            color = when {
-                                isThisSelected -> accentColor
-                                isRecommended -> accentColor.copy(alpha = 0.45f)
-                                else -> ChatColors.toolBorder
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                        )
                         .then(
-                            if (!isAnswered) Modifier.clickable { onOptionSelected(cleanOptionText) }
+                            if (isAnswered) Modifier.clickable { isExpanded = false }
                             else Modifier
-                        )
-                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                        ),
                 ) {
-                    if (isThisSelected) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .padding(top = 1.5.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(accentColor)
-                                .padding(horizontal = 5.dp, vertical = 1.5.dp),
-                        ) {
-                            Text(
-                                text = "✓ 已选择",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                            )
-                        }
-                    } else if (isRecommended) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .padding(top = 1.5.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(accentColor.copy(alpha = 0.22f * itemAlpha))
-                                .padding(horizontal = 5.dp, vertical = 1.5.dp),
-                        ) {
-                            Text(
-                                text = "推荐",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = accentColor.copy(alpha = itemAlpha),
-                            )
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 6.dp)
-                                .size(6.dp)
-                                .background(ChatColors.secondaryText.copy(alpha = 0.5f * itemAlpha), CircleShape),
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .background(accentColor.copy(alpha = 0.12f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.HelpOutline,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(15.dp),
                         )
                     }
 
                     Text(
-                        text = cleanOptionText,
-                        fontSize = 13.5.sp,
-                        fontWeight = if (isThisSelected || isRecommended) FontWeight.Medium else FontWeight.Normal,
-                        color = if (isThisSelected) accentColor else ChatColors.primaryText.copy(alpha = itemAlpha),
-                        lineHeight = 18.sp,
+                        text = data.question,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ChatColors.primaryText,
+                        lineHeight = 20.sp,
                         modifier = Modifier.weight(1f),
                     )
+
+                    if (isAnswered) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(ChatColors.toolCapsuleBg)
+                                .border(0.5.dp, ChatColors.toolBorder, CircleShape)
+                                .clickable { isExpanded = false }
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                        ) {
+                            Text(
+                                text = "收起",
+                                fontSize = 11.sp,
+                                color = ChatColors.secondaryText,
+                            )
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowUp,
+                                contentDescription = "Collapse",
+                                tint = ChatColors.secondaryText,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    }
+                }
+
+                // Options List
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    data.options.forEach { option ->
+                        val isRecommended = option.contains("(Recommended)", ignoreCase = true) ||
+                            option.contains("（推荐）") || option.startsWith("(推荐)")
+
+                        val cleanOptionText = option.replace(Regex("""^\((Recommended|推荐)\)\s*""", RegexOption.IGNORE_CASE), "").trim()
+
+                        val isThisSelected = isAnswered && (
+                            selectedAnswer.equals(cleanOptionText, ignoreCase = true) ||
+                            selectedAnswer.startsWith(cleanOptionText, ignoreCase = true) ||
+                            cleanOptionText.startsWith(selectedAnswer, ignoreCase = true)
+                        )
+
+                        val optionShape = RoundedCornerShape(11.dp)
+                        val itemAlpha = if (!isAnswered || isThisSelected) 1f else 0.45f
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(optionShape)
+                                .background(
+                                    when {
+                                        isThisSelected -> accentColor.copy(alpha = 0.16f)
+                                        isRecommended && !isAnswered -> accentColor.copy(alpha = 0.08f)
+                                        else -> ChatColors.toolCapsuleBg.copy(alpha = if (isAnswered) 0.35f else 0.65f)
+                                    }
+                                )
+                                .border(
+                                    width = if (isThisSelected) 1.2.dp else 0.6.dp,
+                                    color = when {
+                                        isThisSelected -> accentColor.copy(alpha = 0.8f)
+                                        isRecommended && !isAnswered -> accentColor.copy(alpha = 0.3f)
+                                        else -> ChatColors.toolBorder
+                                    },
+                                    shape = optionShape,
+                                )
+                                .then(
+                                    if (!isAnswered) Modifier.clickable { onOptionSelected(cleanOptionText) }
+                                    else Modifier
+                                )
+                                .padding(horizontal = 13.dp, vertical = 10.dp),
+                        ) {
+                            if (isThisSelected) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .background(accentColor, CircleShape),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(11.dp),
+                                    )
+                                }
+                            } else if (isRecommended && !isAnswered) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .background(accentColor.copy(alpha = 0.16f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        text = "推荐",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = accentColor,
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .border(
+                                            width = 1.2.dp,
+                                            color = ChatColors.secondaryText.copy(alpha = 0.35f * itemAlpha),
+                                            shape = CircleShape,
+                                        ),
+                                )
+                            }
+
+                            Text(
+                                text = cleanOptionText,
+                                fontSize = 13.5.sp,
+                                fontWeight = if (isThisSelected) FontWeight.SemiBold else if (isRecommended && !isAnswered) FontWeight.Medium else FontWeight.Normal,
+                                color = if (isThisSelected) accentColor else ChatColors.primaryText.copy(alpha = itemAlpha),
+                                lineHeight = 18.5.sp,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                 }
             }
         }

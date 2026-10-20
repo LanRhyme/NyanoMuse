@@ -1401,76 +1401,266 @@ html[data-nm-muse] [data-conversation-scroll]:has(> .nm-intro-host) [class*="_co
 .nm-md-bar > span { display: block; height: 100%; background: var(--nm-accent, #0064d4); border-radius: 999px; transition: width 300ms; }
 .nm-md-failed { color: #c9302c; }
 
-/* Interactive Question Card */
+/* Interactive Question Card - Morandi Glassmorphism Design */
 .nm-question-card {
-  margin: 10px 0;
-  padding: 13px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--nm-agent-bubble, var(--dsw-alias-bg-layer-2)) 70%, transparent);
-  border: 1px solid color-mix(in srgb, var(--nm-blue, #58a6ff) 30%, transparent);
+  margin: 12px 0;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--nm-card, var(--dsw-alias-bg-layer-2, #212124)) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--nm-blue, #58a6ff) 26%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.16);
+  transition: all 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+}
+.nm-question-card.nm-question-collapsed {
+  display: inline-flex;
+  padding: 0;
+  border-radius: 999px;
+  border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 22%, transparent);
+  background: color-mix(in srgb, var(--nm-card, var(--dsw-alias-bg-layer-2, #212124)) 90%, transparent);
+  cursor: pointer;
+}
+.nm-question-card.nm-question-collapsed:hover {
+  background: color-mix(in srgb, var(--nm-card, var(--dsw-alias-bg-layer-2, #212124)) 98%, transparent);
+  border-color: var(--nm-blue, #58a6ff);
+}
+.nm-question-collapsed-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px 7px 10px;
+  font-size: 13px;
+  line-height: 1;
+  user-select: none;
+}
+.nm-question-check-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 18%, transparent);
+  color: var(--nm-blue, #58a6ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.nm-question-collapsed-title {
+  color: var(--dsw-alias-label-secondary, #a1a1aa);
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nm-question-sep {
+  color: var(--dsw-alias-label-dimmed, #71717a);
+  font-weight: 600;
+}
+.nm-question-answer-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 240px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 14%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--nm-blue, #58a6ff) 35%, transparent);
+  color: var(--nm-blue, #58a6ff);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nm-question-chevron-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin-left: 2px;
+  color: var(--dsw-alias-label-dimmed, #71717a);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.nm-question-card.nm-question-expanded {
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  min-width: 320px;
 }
-.nm-question-title-row {
+.nm-question-header {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+.nm-question-icon-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 14%, transparent);
   color: var(--nm-blue, #58a6ff);
-  font-weight: 600;
-  font-size: 14.5px;
-  line-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
 }
 .nm-question-title {
+  color: var(--dsw-alias-label-primary, #f4f4f5);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 20px;
+  flex: 1;
+}
+.nm-question-answered-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 15%, transparent);
+  color: var(--nm-blue, #58a6ff);
+}
+.nm-question-collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 0.5px solid var(--nm-divider, rgba(255,255,255,0.1));
+  background: var(--dsw-alias-bg-layer-2, rgba(255,255,255,0.06));
+  color: var(--dsw-alias-label-secondary, #a1a1aa);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.nm-question-collapse-btn:hover {
+  background: var(--dsw-alias-bg-layer-3, rgba(255,255,255,0.12));
   color: var(--dsw-alias-label-primary, #fff);
 }
 .nm-question-options {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 .nm-question-option {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 9px 12px;
-  border-radius: 10px;
-  background: var(--dsw-alias-bg-layer-2, rgba(255,255,255,0.06));
-  border: 1px solid var(--dsw-alias-border-base, rgba(255,255,255,0.1));
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 11px;
+  background: var(--dsw-alias-bg-layer-2, rgba(255,255,255,0.05));
+  border: 1px solid var(--dsw-alias-border-base, rgba(255,255,255,0.08));
   cursor: pointer;
   transition: all 150ms ease;
+  user-select: none;
 }
 .nm-question-option:hover {
-  background: var(--dsw-alias-bg-layer-3, rgba(255,255,255,0.12));
-  border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 50%, transparent);
+  background: var(--dsw-alias-bg-layer-3, rgba(255,255,255,0.1));
+  border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 40%, transparent);
 }
 .nm-question-option.nm-recommended {
-  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 12%, transparent);
-  border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 45%, transparent);
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 8%, transparent);
+  border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 30%, transparent);
+}
+.nm-question-option.nm-selected {
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 16%, transparent);
+  border-color: var(--nm-blue, #58a6ff);
+}
+.nm-question-option.nm-answered-other {
+  opacity: 0.45;
+}
+.nm-question-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.nm-question-radio.nm-unselected {
+  border: 1.5px solid var(--dsw-alias-label-tertiary, rgba(255,255,255,0.4));
+}
+.nm-question-radio.nm-selected {
+  background: var(--nm-blue, #58a6ff);
+  color: #fff;
 }
 .nm-question-badge {
-  margin-top: 1.5px;
-  padding: 1.5px 5px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: 5px;
   background: color-mix(in srgb, var(--nm-blue, #58a6ff) 22%, transparent);
   color: var(--nm-blue, #58a6ff);
-  font-size: 10.5px;
-  font-weight: bold;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1.2;
-}
-.nm-question-dot {
-  margin-top: 6px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--dsw-alias-label-tertiary, rgba(255,255,255,0.4));
-  flex: none;
 }
 .nm-question-opt-text {
   font-size: 13.5px;
-  line-height: 18px;
-  color: var(--dsw-alias-label-primary, #fff);
+  line-height: 1.45;
+  color: var(--dsw-alias-label-primary, #f4f4f5);
   flex: 1;
+}
+
+/* Header DeepSeek Balance Capsule */
+.nm-header-balance-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 12%, transparent);
+  border: 0.8px solid color-mix(in srgb, var(--nm-blue, #58a6ff) 28%, transparent);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--nm-blue, #58a6ff);
+  cursor: default;
+  user-select: none;
+  transition: all 180ms ease;
+  flex: none;
+  line-height: 1.3;
+}
+.nm-header-balance-pill:hover {
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 18%, transparent);
+}
+.nm-balance-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+/* DeepSeek Harness Native Question Card Morandi overrides */
+html[data-nanomuse] [class*="Mbwy4a_card"] {
+  background: var(--nm-card, #1c1c1e) !important;
+  border: 1px solid color-mix(in srgb, var(--nm-blue, #58a6ff) 25%, transparent) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(16px) !important;
+}
+html[data-nanomuse] [class*="Mbwy4a_option"] {
+  border-radius: 11px !important;
+  border: 1px solid var(--dsw-alias-border-base, rgba(255,255,255,0.08)) !important;
+  background: var(--dsw-alias-bg-layer-2) !important;
+  transition: all 150ms ease !important;
+}
+html[data-nanomuse] [class*="Mbwy4a_option"]:hover {
+  background: var(--dsw-alias-bg-layer-3) !important;
+  border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 40%, transparent) !important;
+}
+html[data-nanomuse] [class*="Mbwy4a_optionSelected"] {
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 16%, transparent) !important;
+  border-color: var(--nm-blue, #58a6ff) !important;
+}
+html[data-nanomuse] [class*="Mbwy4a_footerActions"] button {
+  border-radius: 999px !important;
+}
+html[data-nanomuse] [data-tool="ask_user_question"] {
+  border-radius: 14px !important;
 }
 `
 

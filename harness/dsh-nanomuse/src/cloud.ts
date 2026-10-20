@@ -3375,12 +3375,38 @@ export default class NanomuseCloud extends Service {
     res.on('close', done)
   }
 
+  private async deepSeekBalance(): Promise<{ available: boolean; balance?: string; currency?: string }> {
+    let key = ''
+    try {
+      key = (await this.ctx.credentials?.resolve(credentialRef('NANOMUSE_KEY_DEEPSEEK')))?.value ||
+            (await this.ctx.credentials?.resolve(credentialRef('DEEPSEEK_API_KEY')))?.value || ''
+    } catch {}
+    if (!key) {
+      key = process.env.NANOMUSE_KEY_DEEPSEEK || process.env.DEEPSEEK_API_KEY || ''
+    }
+    if (!key) return { available: false }
+    try {
+      const res = await fetch('https://api.deepseek.com/user/balance', {
+        headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+      })
+      if (!res.ok) return { available: false }
+      const data = (await res.json()) as { is_available?: boolean; balance_infos?: Array<{ currency: string; total_balance: string }> }
+      if (!data.is_available || !data.balance_infos?.length) return { available: false }
+      const info = data.balance_infos?.[0]
+      if (!info) return { available: false }
+      return { available: true, balance: info.total_balance, currency: info.currency }
+    } catch {
+      return { available: false }
+    }
+  }
+
   private readonly handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     const route = url.pathname.slice(API_PREFIX.length) || '/'
     if (!sameOrigin(req)) return send(res, 403, { error: { code: 'forbidden', message: 'Same-origin requests only' } })
     try {
       if (req.method === 'GET' && route === '/status') return send(res, 200, await this.status())
+      if (req.method === 'GET' && route === '/balance') return send(res, 200, await this.deepSeekBalance())
       if (req.method === 'GET' && route === '/events') return this.stream(req, res)
       if (req.method === 'GET' && route === '/live') return send(res, 200, this.live())
       // the desktop shell's protected exit (src/work.ts): the aggregate a real quit would end,
