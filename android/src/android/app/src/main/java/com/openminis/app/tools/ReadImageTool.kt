@@ -42,7 +42,7 @@ object ReadImageTool {
     fun execute(argsJson: String, sessionId: String? = null, context: Context? = null): ToolExecutionResult {
         return try {
             val args = JSONObject(argsJson)
-            val rawPath = args.optString("path", "")
+            val rawPath = args.optString("path", "").trim()
             val toolTitle = args.optString("tool_title", NAME)
 
             if (rawPath.isBlank()) {
@@ -57,15 +57,35 @@ object ReadImageTool {
                 if (sessionId != null && context != null) {
                     PRootKernel.resolveSessionHostPath(sessionId, path, context)
                 } else null
-            ) ?: PRootKernel.resolveHostPath(path)
+            ) ?: PRootKernel.resolveHostPath(path, context)
                 ?: return ToolExecutionResult("Error: Cannot resolve path: $path", false, toolTitle = toolTitle)
 
-            if (!file.exists()) {
+            val isRootMode = (context?.let { com.openminis.app.sandbox.ExecutionMode.getMode(it) }
+                ?: com.openminis.app.sandbox.ExecutionMode.currentMode()) == com.openminis.app.sandbox.ExecutionMode.ROOT
+
+            val exists = file.exists() || (isRootMode && checkExistsWithRoot(file.absolutePath))
+            if (!exists) {
                 return ToolExecutionResult("Error: File not found: $path", false, toolTitle = toolTitle)
             }
 
-            val original = BitmapFactory.decodeFile(file.absolutePath)
-                ?: return ToolExecutionResult("Error: Cannot decode image: $path", false, toolTitle = toolTitle)
+            val isDirectory = file.isDirectory || (isRootMode && checkIsDirWithRoot(file.absolutePath))
+            if (isDirectory) {
+                return ToolExecutionResult("Error: Path is a directory, not an image file: $path", false, toolTitle = toolTitle)
+            }
+
+            var rootBytes: ByteArray? = null
+            val original = if (file.canRead()) {
+                BitmapFactory.decodeFile(file.absolutePath)
+            } else if (isRootMode) {
+                rootBytes = readBytesWithRoot(file.absolutePath)
+                if (rootBytes != null && rootBytes.isNotEmpty()) {
+                    BitmapFactory.decodeByteArray(rootBytes, 0, rootBytes.size)
+                } else null
+            } else null
+
+            if (original == null) {
+                return ToolExecutionResult("Error: Cannot decode image: $path. Ensure the file is a valid PNG, JPEG, WEBP or GIF.", false, toolTitle = toolTitle)
+            }
 
             val maxEdge = 2000
             val scaled = if (original.width > maxEdge || original.height > maxEdge) {
@@ -84,7 +104,8 @@ object ReadImageTool {
             if (scaled !== original) scaled.recycle()
             original.recycle()
 
-            val metadata = "[$path | ${original.width}x${original.height} | ${file.length()} bytes]"
+            val fileLength = if (file.canRead()) file.length() else (rootBytes?.size?.toLong() ?: 0L)
+            val metadata = "[$path | ${original.width}x${original.height} | $fileLength bytes]"
             ToolExecutionResult(
                 output = metadata,
                 success = true,
@@ -99,4 +120,23 @@ object ReadImageTool {
             ToolExecutionResult("Error reading image: ${e.message}", false)
         }
     }
+
+    private fun checkExistsWithRoot(path: String): Boolean = try {
+        val escaped = path.replace("'", "'\\''")
+        val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "test -e '$escaped'"))
+        p.waitFor() == 0
+    } catch (_: Exception) { false }
+
+    private fun checkIsDirWithRoot(path: String): Boolean = try {
+        val escaped = path.replace("'", "'\\''")
+        val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "test -d '$escaped'"))
+        p.waitFor() == 0
+    } catch (_: Exception) { false }
+
+    private fun readBytesWithRoot(path: String): ByteArray? = try {
+        val escaped = path.replace("'", "'\\''")
+        val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "cat '$escaped'"))
+        val bytes = p.inputStream.readBytes()
+        if (p.waitFor() == 0 && bytes.isNotEmpty()) bytes else null
+    } catch (_: Exception) { null }
 }

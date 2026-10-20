@@ -9819,6 +9819,7 @@ class ChatViewModel(
             com.openminis.app.tools.NativeSystemTools.TOOL_DEVICE_INFO -> com.openminis.app.tools.NativeSystemTools.executeDeviceInfo(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_APP_LAUNCH -> com.openminis.app.tools.NativeSystemTools.executeAppLaunch(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SYSTEM_NOTIFY -> com.openminis.app.tools.NativeSystemTools.executeSystemNotify(argsJson, context)
+            com.openminis.app.tools.NativeSystemTools.TOOL_SCREEN_CAPTURE -> executeScreenCaptureTool(argsJson)
             else -> ToolExecutionResult("Unknown tool: $name", false)
         }
 
@@ -9916,6 +9917,51 @@ class ChatViewModel(
         // Deliberately still success=true even on describe failure: an errored
         // tool result tends to make models retry in a loop, whereas this lets the
         // model plainly tell the user the image couldn't be analyzed.
+        return base.copy(
+            output = base.output + "\n\n" + framed,
+            imageData = null,
+            imageMimeType = null,
+        )
+    }
+
+    private suspend fun executeScreenCaptureTool(argsJson: String): ToolExecutionResult {
+        val base = com.openminis.app.tools.NativeSystemTools.executeScreenCapture(argsJson, context)
+        val customPrompt = try {
+            JSONObject(argsJson).optString("prompt", "").trim().ifEmpty { null }
+        } catch (_: Exception) { null }
+        if (!base.success || base.imageData == null) return base
+        if (currentModelHasNativeVision) {
+            return if (customPrompt != null) {
+                base.copy(output = base.output + "\n\n[Requested focus: " + customPrompt + "]")
+            } else base
+        }
+
+        val bytes = base.imageData ?: return base
+        val mime = base.imageMimeType ?: "image/png"
+        val result = com.openminis.app.tools.VisionGroupResolver.describe(
+            repo = providerRepository,
+            context = context,
+            imageData = bytes,
+            mimeType = mime,
+            seed = kotlin.math.abs(argsJson.hashCode()),
+            customPrompt = customPrompt ?: "Describe what is currently visible on the Android screen in detail.",
+            onAttempt = { a ->
+                android.util.Log.i(
+                    "VisionGroup",
+                    "[VisionScreen] attempt ${a.index}/${a.total} via ${a.modelName}",
+                )
+            },
+        )
+        val framed = when (result) {
+            is com.openminis.app.tools.VisionGroupResolver.VisionResult.Success ->
+                com.openminis.app.tools.VisionGroupResolver.framedDescription(
+                    result,
+                    com.openminis.app.tools.VisionGroupResolver.groupName(providerRepository),
+                    question = customPrompt,
+                )
+            is com.openminis.app.tools.VisionGroupResolver.VisionResult.Failure ->
+                com.openminis.app.tools.VisionGroupResolver.failureText(result.reason)
+        }
         return base.copy(
             output = base.output + "\n\n" + framed,
             imageData = null,

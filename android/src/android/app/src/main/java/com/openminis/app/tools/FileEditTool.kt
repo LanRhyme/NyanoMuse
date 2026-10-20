@@ -143,7 +143,8 @@ object FileEditTool {
 
     private fun checkExistsWithRoot(absolutePath: String): Boolean {
         return try {
-            val p = ProcessBuilder("su", "-c", "test -e \"$absolutePath\"").start()
+            val escaped = absolutePath.replace("'", "'\\''")
+            val p = ProcessBuilder("su", "-c", "test -e '$escaped'").start()
             p.waitFor() == 0
         } catch (_: Exception) {
             false
@@ -151,7 +152,8 @@ object FileEditTool {
     }
 
     private fun readTextWithRoot(absolutePath: String): String {
-        val process = ProcessBuilder("su", "-c", "cat \"$absolutePath\"").start()
+        val escaped = absolutePath.replace("'", "'\\''")
+        val process = ProcessBuilder("su", "-c", "cat '$escaped'").start()
         val output = process.inputStream.bufferedReader(Charsets.UTF_8).readText()
         process.waitFor()
         if (process.exitValue() != 0 && output.isBlank()) {
@@ -162,7 +164,8 @@ object FileEditTool {
     }
 
     private fun writeWithRoot(absolutePath: String, content: String) {
-        val process = ProcessBuilder("su", "-c", "cat > \"$absolutePath\"").start()
+        val escaped = absolutePath.replace("'", "'\\''")
+        val process = ProcessBuilder("su", "-c", "cat > '$escaped'").start()
         process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(content) }
         process.waitFor()
         if (process.exitValue() != 0) {

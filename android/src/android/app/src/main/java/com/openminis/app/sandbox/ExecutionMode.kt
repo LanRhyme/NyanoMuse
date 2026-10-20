@@ -37,6 +37,11 @@ enum class ExecutionMode(val key: String, val title: String, val desc: String) {
             return mode
         }
 
+        fun currentMode(context: Context? = null): ExecutionMode {
+            if (context != null) return getMode(context)
+            return cachedMode ?: defaultMode()
+        }
+
         fun setMode(context: Context, mode: ExecutionMode) {
             cachedMode = mode
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

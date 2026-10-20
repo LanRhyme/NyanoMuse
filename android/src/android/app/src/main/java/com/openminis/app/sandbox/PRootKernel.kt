@@ -663,10 +663,31 @@ object PRootKernel {
     /** Subdirs that live under `minis-sessions/<sessionId>/` rather than the global pool. */
     private val perSessionSubdirs = setOf("attachments", "offloads", "workspace", "browser")
 
+    fun normalizeLinuxPath(rawPath: String, context: Context? = null): String {
+        val trimmed = rawPath.trim()
+        val isNonProot = ExecutionMode.currentMode(context) != ExecutionMode.PROOT_SANDBOX
+        if (isNonProot) {
+            if (trimmed == "~") return "/data/local/tmp"
+            if (trimmed.startsWith("~/")) {
+                val sub = trimmed.removePrefix("~/")
+                return if (File("/sdcard").exists()) "/sdcard/$sub" else "/data/local/tmp/$sub"
+            }
+            if (!trimmed.startsWith("/")) {
+                val commonRoots = listOf("sdcard/", "storage/", "data/", "system/", "vendor/", "product/", "odm/", "system_ext/", "mi_ext/", "apex/", "dev/", "proc/", "sys/", "etc/")
+                if (commonRoots.any { trimmed.startsWith(it) }) {
+                    return "/$trimmed"
+                }
+            }
+        }
+        return trimmed
+    }
+
     /**
-     * Resolve a `/var/minis/...` Linux path directly against a specific session's
-     * host directory, bypassing the global [bindMounts] map. Use this when the
-     * caller knows the owning session (chat link resolver, file preview, etc.) —
+     * T178: resolve a path against this session's private subdirs.
+     *
+     * In PRoot, `/var/minis/{attachments,workspace,offloads,browser}/...` are
+     * bind-mounted from `context.filesDir/minis-sessions/<sessionId>/<subdir>`.
+     * If we resolve those paths via [resolveHostPath] (which uses [bindMounts]),
      * the global map is overwritten every time another session boots its shell,
      * so its answer is last-writer-wins rather than "this session's view".
      *
@@ -674,20 +695,16 @@ object PRootKernel {
      * shared subdirs (memory/skills/shared) which don't depend on sessionId.
      */
     fun resolveSessionHostPath(sessionId: String, linuxPath: String, context: Context): File? {
+        val normalized = normalizeLinuxPath(linuxPath, context)
         if (ExecutionMode.getMode(context) != ExecutionMode.PROOT_SANDBOX) {
-            val direct = File(linuxPath)
-            if (direct.isAbsolute) {
-                return direct
-            }
-            if (linuxPath.startsWith("sdcard/") || linuxPath.startsWith("storage/") || linuxPath.startsWith("data/")) {
-                return File("/$linuxPath")
-            }
+            val direct = File(normalized)
+            if (direct.isAbsolute) return direct
         }
-        if (!linuxPath.startsWith("/var/minis/")) return resolveHostPath(linuxPath, context)
-        val rest = linuxPath.removePrefix("/var/minis/")
+        if (!normalized.startsWith("/var/minis/")) return resolveHostPath(normalized, context)
+        val rest = normalized.removePrefix("/var/minis/")
         val slash = rest.indexOf('/')
         val subdir = if (slash < 0) rest else rest.substring(0, slash)
-        if (subdir !in perSessionSubdirs) return resolveHostPath(linuxPath, context)
+        if (subdir !in perSessionSubdirs) return resolveHostPath(normalized, context)
         val sessionBase = File(context.filesDir, "minis-sessions/$sessionId/$subdir")
         val tail = if (slash < 0) "" else rest.substring(slash + 1)
         return if (tail.isEmpty()) sessionBase else File(sessionBase, tail)
@@ -698,19 +715,17 @@ object PRootKernel {
      * Returns null if no matching mount is found.
      */
     fun resolveHostPath(linuxPath: String, context: Context? = null): File? {
-        if (context != null && ExecutionMode.getMode(context) != ExecutionMode.PROOT_SANDBOX) {
-            val direct = File(linuxPath)
+        val normalized = normalizeLinuxPath(linuxPath, context)
+        if (ExecutionMode.currentMode(context) != ExecutionMode.PROOT_SANDBOX) {
+            val direct = File(normalized)
             if (direct.isAbsolute) return direct
-            if (linuxPath.startsWith("sdcard/") || linuxPath.startsWith("storage/") || linuxPath.startsWith("data/")) {
-                return File("/$linuxPath")
-            }
         }
         // Check bind mounts (longest prefix match)
         val sorted = bindMounts.keys.sortedByDescending { it.length }
         for (mountPoint in sorted) {
-            if (linuxPath == mountPoint || linuxPath.startsWith("$mountPoint/")) {
+            if (normalized == mountPoint || normalized.startsWith("$mountPoint/")) {
                 val hostBase = bindMounts[mountPoint]!!
-                val relativePath = linuxPath.removePrefix(mountPoint).removePrefix("/")
+                val relativePath = normalized.removePrefix(mountPoint).removePrefix("/")
                 return if (relativePath.isEmpty()) {
                     File(hostBase)
                 } else {
@@ -720,8 +735,8 @@ object PRootKernel {
         }
 
         // Fallback: resolve relative to rootfs
-        if (!::rootfsManager.isInitialized) return if (File(linuxPath).isAbsolute) File(linuxPath) else null
-        val stripped = linuxPath.removePrefix("/")
+        if (!::rootfsManager.isInitialized) return if (File(normalized).isAbsolute) File(normalized) else null
+        val stripped = normalized.removePrefix("/")
         return if (stripped.isEmpty()) rootfsManager.rootfsDir else File(rootfsManager.rootfsDir, stripped)
     }
 

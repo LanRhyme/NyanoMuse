@@ -12,6 +12,8 @@ import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.os.StatFs
@@ -30,12 +32,13 @@ object NativeSystemTools {
     const val TOOL_DEVICE_INFO = "device_info"
     const val TOOL_APP_LAUNCH = "app_launch"
     const val TOOL_SYSTEM_NOTIFY = "system_notify"
+    const val TOOL_SCREEN_CAPTURE = "screen_capture"
 
     const val CHANNEL_ID = "nanomuse_agent_notifications"
     private const val CHANNEL_NAME = "NyanoMuse Notifications"
 
     fun isReadOnly(name: String): Boolean = when (name) {
-        TOOL_DEVICE_INFO, FileReadTool.NAME, "memory_get", ReadImageTool.NAME -> true
+        TOOL_DEVICE_INFO, TOOL_SCREEN_CAPTURE, FileReadTool.NAME, "memory_get", ReadImageTool.NAME -> true
         else -> false
     }
 
@@ -43,6 +46,7 @@ object NativeSystemTools {
         deviceInfoDefinition(),
         appLaunchDefinition(),
         systemNotifyDefinition(),
+        screenCaptureDefinition(),
     )
 
     fun deviceInfoDefinition(): AgentToolDefinition = AgentToolDefinition(
@@ -78,6 +82,17 @@ object NativeSystemTools {
         ),
         required = listOf("tool_title", "title", "message"),
         propertyOrdering = listOf("tool_title", "title", "message", "as_toast"),
+    )
+
+    fun screenCaptureDefinition(): AgentToolDefinition = AgentToolDefinition(
+        name = TOOL_SCREEN_CAPTURE,
+        description = "Capture a real-time screenshot of the current Android screen for visual inspection and analysis. Automatically captures via native root screencap or AccessibilityService. Returns image data directly for vision models.",
+        parameters = mapOf(
+            "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does (e.g. 'Capture current screen state', 'Inspect error on screen'). Use the same language as the user."),
+            "prompt" to AgentToolParam("string", "Optional. A custom instruction describing what you want to understand from the screen (e.g. 'what app is open', 'transcribe the visible error message', 'inspect UI state')."),
+        ),
+        required = listOf("tool_title"),
+        propertyOrdering = listOf("tool_title", "prompt"),
     )
 
     fun executeDeviceInfo(argsJson: String, context: Context): ToolExecutionResult {
@@ -305,6 +320,63 @@ object NativeSystemTools {
         }
     }
 
+    fun executeScreenCapture(argsJson: String, context: Context): ToolExecutionResult {
+        val toolTitle = try { JSONObject(argsJson).optString("tool_title", "Capture Screen") } catch (_: Exception) { "Capture Screen" }
+        val isRootMode = (com.openminis.app.sandbox.ExecutionMode.getMode(context) == com.openminis.app.sandbox.ExecutionMode.ROOT)
+
+        // 1. Try Root mode native screencap first
+        if (isRootMode) {
+            try {
+                val p = ProcessBuilder("su", "-c", "/system/bin/screencap -p").start()
+                val bytes = p.inputStream.readBytes()
+                p.waitFor()
+                if (p.exitValue() == 0 && bytes.size > 100 && bytes[0] == 0x89.toByte() && bytes[1] == 0x50.toByte()) {
+                    val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+                    val w = opts.outWidth
+                    val h = opts.outHeight
+                    return ToolExecutionResult(
+                        output = "[Screen captured | ${w}x${h} | ${bytes.size} bytes]",
+                        success = true,
+                        imageData = bytes,
+                        imageMimeType = "image/png",
+                        toolTitle = toolTitle
+                    )
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. Fall back to AccessibilityService if available
+        try {
+            val svc = com.openminis.app.accessibility.MinisAccessibilityService.getInstance()
+            if (svc != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val shot = svc.captureScreenshot(android.view.Display.DEFAULT_DISPLAY)
+                val raw = shot.bitmap
+                if (raw != null) {
+                    val baos = java.io.ByteArrayOutputStream()
+                    raw.compress(Bitmap.CompressFormat.PNG, 100, baos)
+                    val w = raw.width
+                    val h = raw.height
+                    raw.recycle()
+                    val bytes = baos.toByteArray()
+                    return ToolExecutionResult(
+                        output = "[Screen captured via Accessibility | ${w}x${h} | ${bytes.size} bytes]",
+                        success = true,
+                        imageData = bytes,
+                        imageMimeType = "image/png",
+                        toolTitle = toolTitle
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+
+        return ToolExecutionResult(
+            output = "Error: Screen capture requires either Root execution mode or AccessibilityService enabled. Please enable Root mode in Settings or grant Accessibility in Android Settings.",
+            success = false,
+            toolTitle = toolTitle
+        )
+    }
+
     private fun ensureNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -328,6 +400,19 @@ object ToolSelfHealing {
                 if (lower.contains("no such file") || lower.contains("not found") || lower.contains("file does not exist")) {
                     suggestions.add("The requested file was not found. Consider listing the directory with shell_execute ('ls' or 'find') to discover the correct path, or create the file with file_write.")
                 }
+            }
+            FileWriteTool.NAME -> {
+                if (lower.contains("permission denied") || lower.contains("read-only")) {
+                    suggestions.add("Write permission was denied. Verify parent directory permissions or check if path is under a read-only partition.")
+                }
+            }
+            ReadImageTool.NAME -> {
+                if (lower.contains("cannot decode") || lower.contains("not found")) {
+                    suggestions.add("Image file could not be decoded or found. Verify the file path and that it is a valid image format (PNG, JPEG, WEBP).")
+                }
+            }
+            NativeSystemTools.TOOL_SCREEN_CAPTURE -> {
+                suggestions.add("Screen capture failed. Ensure Root mode is active or grant Accessibility permission to NyanoMuse in system settings.")
             }
             "shell_execute" -> {
                 if (lower.contains("command not found") || lower.contains("not found")) {

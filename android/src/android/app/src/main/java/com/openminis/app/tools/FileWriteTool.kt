@@ -94,14 +94,16 @@ object FileWriteTool {
 
     private fun mkdirWithRoot(absolutePath: String) {
         try {
-            val process = ProcessBuilder("su", "-c", "mkdir -p \"$absolutePath\"").start()
+            val escaped = absolutePath.replace("'", "'\\''")
+            val process = ProcessBuilder("su", "-c", "mkdir -p '$escaped'").start()
             process.waitFor()
         } catch (_: Exception) {}
     }
 
     private fun getLengthWithRoot(absolutePath: String): Long {
         return try {
-            val p = ProcessBuilder("su", "-c", "stat -c %s \"$absolutePath\" 2>/dev/null || wc -c < \"$absolutePath\"").start()
+            val escaped = absolutePath.replace("'", "'\\''")
+            val p = ProcessBuilder("su", "-c", "stat -c %s '$escaped' 2>/dev/null || wc -c < '$escaped'").start()
             val out = p.inputStream.bufferedReader().readText().trim()
             p.waitFor()
             out.toLongOrNull() ?: 0L
@@ -112,7 +114,8 @@ object FileWriteTool {
 
     private fun writeWithRoot(absolutePath: String, content: String, append: Boolean) {
         val redirect = if (append) ">>" else ">"
-        val process = ProcessBuilder("su", "-c", "cat $redirect \"$absolutePath\"").start()
+        val escaped = absolutePath.replace("'", "'\\''")
+        val process = ProcessBuilder("su", "-c", "cat $redirect '$escaped'").start()
         process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(content) }
         process.waitFor()
         if (process.exitValue() != 0) {
