@@ -935,7 +935,10 @@ export default class NanomuseRooms extends Service {
     const line = text.replace(/\s+/g, ' ').trim().slice(0, MEMORY_LINE)
     if (!line) return null
     if (this.memoryStore) {
+      const key = titleKey(line)
+      const existing = this.store.memory.find((m) => titleKey(m.text) === key)
       const record = this.memoryStore.upsert({
+        id: existing?.id,
         content: line,
         source,
       })
@@ -1045,7 +1048,15 @@ export default class NanomuseRooms extends Service {
     await add(join(home, 'sessions'), 'sessions/')
     const prefs = join(home, 'desktop.json')
     if (await stat(prefs).catch(() => null)) entries.push({ name: 'desktop.json', data: await readFile(prefs), at: new Date() })
-    entries.push({ name: 'README.txt', at: new Date(), data: Buffer.from(['Your nanoMuse data, exported ' + new Date().toISOString(), '', 'nanomuse/cloud.json    the account snapshot (no sign-in token)', 'nanomuse/profile.json  the agent’s name and look; faces/ its pictures', 'nanomuse/rooms.json    feed, ideas, goals, the library index and memory', 'sessions/              the chats, as DeepSeek Harness keeps them (zstd-compressed JSON lines)', ''].join('\n'))})
+    if (this.memoryStore) {
+      const allMemories = this.memoryStore.getAll()
+      entries.push({
+        name: 'nanomuse/memories.json',
+        data: Buffer.from(JSON.stringify(allMemories, null, 2)),
+        at: new Date(),
+      })
+    }
+    entries.push({ name: 'README.txt', at: new Date(), data: Buffer.from(['Your nanoMuse data, exported ' + new Date().toISOString(), '', 'nanomuse/cloud.json    the account snapshot (no sign-in token)', 'nanomuse/profile.json  the agent’s name and look; faces/ its pictures', 'nanomuse/rooms.json    feed, ideas, goals, the library index and memory', 'nanomuse/memories.json all structured long-term memories', 'sessions/              the chats, as DeepSeek Harness keeps them (zstd-compressed JSON lines)', ''].join('\n'))})
     await writeFile(out, zip(entries), { mode: 0o600 })
     const sc = this.ctx.get('sessionController')
     if (sc) await sc.openWorkspacePath({ path: out, action: 'reveal' }, new AbortController().signal).catch(() => undefined)
@@ -1057,6 +1068,20 @@ export default class NanomuseRooms extends Service {
     for (const goal of this.store.goals) this.goalBySession.delete(goal.sessionId)
     this.store = { ...structuredClone(EMPTY), lang: this.store.lang }
     this.automations = {}
+    if (this.memoryStore) {
+      this.memoryStore.close()
+      this.memoryStore = null
+    }
+    const dbDir = join(dshHome(), 'nanomuse')
+    await rm(join(dbDir, 'memory.db'), { force: true }).catch(() => undefined)
+    await rm(join(dbDir, 'memory.db-wal'), { force: true }).catch(() => undefined)
+    await rm(join(dbDir, 'memory.db-shm'), { force: true }).catch(() => undefined)
+    try {
+      this.memoryStore = new MemoryStore(join(dbDir, 'memory.db'))
+      this.refreshMemoryStore()
+    } catch (err: unknown) {
+      this.warn('memory store reset', err)
+    }
     await this.save()
     await this.ctx.nanomuseCloud.signOut().catch(() => undefined)
     await rm(join(dshHome(), 'nanomuse', 'profile.json'), { force: true }).catch(() => undefined)

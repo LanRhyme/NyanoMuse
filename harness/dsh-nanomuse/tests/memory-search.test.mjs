@@ -18,15 +18,15 @@ test('tokenizeForSearch generates CJK bigrams and lowercase words', () => {
   assert.ok(tokenizedMixed.includes('合成 成器'))
 })
 
-test('buildFtsQuery builds safely quoted tokens', () => {
+test('buildFtsQuery builds safely quoted tokens joined with OR', () => {
   const query = '莫兰迪 UI'
   const fts = buildFtsQuery(query)
-  assert.equal(fts, '"莫兰" "兰迪" "ui"')
+  assert.equal(fts, '"莫兰" OR "兰迪" OR "ui"')
 })
 
 test('evaluation against golden dataset matches top expectations', () => {
-  const fixturePath = join(process.cwd(), '../../tests/fixtures/memory/memory_eval_dataset.json')
-  const raw = readFileSync(fixturePath, 'utf8')
+  const fixtureUrl = new URL('../../../tests/fixtures/memory/memory_eval_dataset.json', import.meta.url)
+  const raw = readFileSync(fixtureUrl, 'utf8')
   const dataset = JSON.parse(raw)
 
   for (const q of dataset.queries) {

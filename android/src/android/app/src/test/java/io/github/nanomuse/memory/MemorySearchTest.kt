@@ -27,19 +27,24 @@ class MemorySearchTest {
     fun testBuildFtsQueryQuotesTokensSafely() {
         val query = "莫兰迪 UI"
         val fts = MemoryTokenizer.buildFtsQuery(query)
-        assertEquals("\"莫兰\" \"兰迪\" \"ui\"", fts)
+        assertEquals("\"莫兰\" OR \"兰迪\" OR \"ui\"", fts)
     }
 
     @Test
     fun testEvaluationAgainstGoldenDatasetMatchesTopExpectations() {
-        // Read golden dataset
-        val candidatePaths = listOf(
-            File("../../../../tests/fixtures/memory/memory_eval_dataset.json"),
-            File("../../../../../../tests/fixtures/memory/memory_eval_dataset.json"),
-            File("/home/lanrhyme/Projects/NyanoMuse/tests/fixtures/memory/memory_eval_dataset.json")
-        )
-        val fixtureFile = candidatePaths.firstOrNull { it.exists() }
-        requireNotNull(fixtureFile) { "Fixture dataset file not found" }
+        // Find golden dataset dynamically from parent directories
+        var curr: File? = File(".").canonicalFile
+        var fixtureFile: File? = null
+        for (step in 0..8) {
+            if (curr == null) break
+            val target = File(curr, "tests/fixtures/memory/memory_eval_dataset.json")
+            if (target.exists()) {
+                fixtureFile = target
+                break
+            }
+            curr = curr.parentFile
+        }
+        requireNotNull(fixtureFile) { "Fixture dataset file not found from ${File(".").canonicalPath}" }
 
         val root = JSONObject(fixtureFile.readText())
         val factsJson = root.getJSONArray("facts")

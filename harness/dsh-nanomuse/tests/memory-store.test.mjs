@@ -105,3 +105,39 @@ test('MemoryStore imports legacy array from rooms.json', () => {
 
   store.close()
 })
+
+test('MemoryStore deduplicates records by content when id is omitted', () => {
+  const store = new MemoryStore(':memory:')
+  const m1 = store.upsert({ content: '偏好使用莫兰迪色系' })
+  const m2 = store.upsert({ content: '偏好使用莫兰迪色系' })
+
+  assert.equal(m1.id, m2.id, 'Duplicate content should reuse existing record id')
+  assert.equal(store.activeCount(), 1)
+  store.close()
+})
+
+test('MemoryStore end-to-end search achieves 8/8 recall on golden dataset', async () => {
+  const { readFileSync } = await import('node:fs')
+  const fixtureUrl = new URL('../../../tests/fixtures/memory/memory_eval_dataset.json', import.meta.url)
+  const dataset = JSON.parse(readFileSync(fixtureUrl, 'utf8'))
+
+  const store = new MemoryStore(':memory:')
+  for (const fact of dataset.facts) {
+    store.upsert(fact)
+  }
+
+  let passed = 0
+  for (const q of dataset.queries) {
+    const results = store.search(q.query, { limit: 5 })
+    assert.ok(results.length > 0, `Query "${q.query}" should have returned candidates`)
+    const topId = results[0].item.id
+    assert.ok(
+      q.expected_top.includes(topId),
+      `Query "${q.query}" expected top in [${q.expected_top.join(', ')}], got "${topId}" (${results[0].item.content})`,
+    )
+    passed++
+  }
+
+  assert.equal(passed, 8, 'All 8 evaluation queries must pass top-1 rank')
+  store.close()
+})

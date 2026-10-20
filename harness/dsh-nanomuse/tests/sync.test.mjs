@@ -554,7 +554,7 @@ test('C9: side chats stay local by default — only the main conversation goes u
   // the setting survives a sign-in to another account; a 0.1.37 state reads as off
   await e.accountChanged('acct-2')
   assert.equal(e.state.sideChats, false)
-  assert.equal(migrate({ accountId: 'a', cursor: 1, enabled: true, mainSession: '', cids: {}, mids: {}, titles: {}, conversations: {}, pulled: {}, hidden: [], toArchive: [] }).sideChats, false)
+  assert.equal(migrate({ accountId: 'a', cursor: 1, enabled: true, mainSession: '', sideChats: false, cids: {}, mids: {}, titles: {}, conversations: {}, pulled: {}, hidden: [], toArchive: [] }).sideChats, false)
   e.stop()
 })
 

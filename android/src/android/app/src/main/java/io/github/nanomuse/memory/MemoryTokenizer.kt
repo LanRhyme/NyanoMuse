@@ -10,12 +10,12 @@ object MemoryTokenizer {
         return (code in 0x4E00..0x9FA5) || (code in 0x3400..0x4DBF) || (code in 0xF900..0xFAFF)
     }
 
-    private fun isLatinWordChar(c: Char): Boolean {
-        return (c in 'a'..'z') || (c in '0'..'9') || c == '_'
+    private fun isNonCjkWordChar(c: Char): Boolean {
+        return !isCjk(c) && (Character.isLetterOrDigit(c) || c == '_')
     }
 
-    private fun isLatinTokenChar(c: Char): Boolean {
-        return isLatinWordChar(c) || c == '-' || c == '.'
+    private fun isNonCjkTokenChar(c: Char): Boolean {
+        return isNonCjkWordChar(c) || c == '-' || c == '.'
     }
 
     fun tokenizeForSearch(text: String): String {
@@ -40,10 +40,10 @@ object MemoryTokenizer {
                 continue
             }
 
-            // Latin / Alphanumeric word processing
-            if (isLatinWordChar(char)) {
+            // Non-CJK Unicode Letter / Alphanumeric word processing
+            if (isNonCjkWordChar(char)) {
                 val sb = StringBuilder()
-                while (i < clean.length && isLatinTokenChar(clean[i])) {
+                while (i < clean.length && isNonCjkTokenChar(clean[i])) {
                     sb.append(clean[i])
                     i++
                 }
@@ -65,6 +65,6 @@ object MemoryTokenizer {
         val tokenized = tokenizeForSearch(query)
         val tokens = tokenized.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (tokens.isEmpty()) return ""
-        return tokens.joinToString(" ") { "\"${it.replace("\"", "\"\"")}\"" }
+        return tokens.joinToString(" OR ") { "\"${it.replace("\"", "\"\"")}\"" }
     }
 }

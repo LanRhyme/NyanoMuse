@@ -37,12 +37,12 @@ export function tokenizeForSearch(text: string): string {
       continue
     }
 
-    // Latin / Alphanumeric word processing
-    if (/[a-z0-9_]/.test(char)) {
+    // Unicode Letter / Alphanumeric word processing (excluding CJK)
+    if (!CJK_REGEX.test(char) && /[\p{L}\p{N}_]/u.test(char)) {
       let word = ''
       while (i < clean.length) {
         const c = clean.charAt(i)
-        if (!c || !/[a-z0-9_\-.]/.test(c)) break
+        if (!c || CJK_REGEX.test(c) || !/[\p{L}\p{N}_\-.]/u.test(c)) break
         word += c
         i++
       }
@@ -60,13 +60,15 @@ export function tokenizeForSearch(text: string): string {
 
 /**
  * Build safe FTS match query string from raw search query.
+ * Quotes each token and joins with OR so that any matching token retrieves the candidate,
+ * which is then accurately scored and filtered by rankCandidates.
  */
 export function buildFtsQuery(query: string): string {
   const tokenized = tokenizeForSearch(query)
   const tokens = tokenized.split(/\s+/).filter((t) => t.length > 0)
   if (!tokens.length) return ''
-  // Quote each token to prevent SQLite FTS syntax errors
-  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(' ')
+  // Quote each token to prevent SQLite FTS syntax errors, join with OR
+  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(' OR ')
 }
 
 export interface CandidateMemory {

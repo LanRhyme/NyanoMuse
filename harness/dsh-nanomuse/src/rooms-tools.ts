@@ -211,7 +211,7 @@ export function apply(ctx: Context): void {
             const memory = rooms.memory
             if (memory.length) {
               lines.push('', 'What you remember about the person (their Memory; add to it with remember, search deeper with recall_memory):')
-              for (const item of memory.slice(-120)) lines.push(`- ${item.text}`)
+              for (const item of memory.slice(0, 100)) lines.push(`- ${item.text}`)
             } else {
               lines.push('', 'You remember nothing about the person yet; when they tell you something they will expect you to know next time, keep it with remember.')
             }

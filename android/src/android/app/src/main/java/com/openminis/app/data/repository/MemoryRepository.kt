@@ -220,6 +220,23 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
             }
         }
 
+        val dbMatches = context?.let { ctx ->
+            try {
+                io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).search(keywords, 10)
+            } catch (e: Exception) {
+                Log.w(TAG, "LocalMemoryDb search failed", e)
+                emptyList()
+            }
+        } ?: emptyList()
+
+        if (dbMatches.isNotEmpty()) {
+            val dbEntry = "[Structured Memory Database — ${dbMatches.size} match(es)]\n" +
+                dbMatches.joinToString("\n") { "- ${it.item.content}" }
+            results.add(0, dbEntry)
+            includedFiles += 1
+            totalMatchedFiles += 1
+        }
+
         if (results.isEmpty()) {
             return "No matches found for keywords: ${keywordList.joinToString(", ")}"
         }
@@ -260,14 +277,33 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
      */
     fun loadGlobalMemoryFragment(): String? {
         val globalFile = File(memoryDir, GLOBAL_FILE)
-        if (!globalFile.exists()) return null
-        val content = try { globalFile.readText() } catch (_: Exception) { "" }
-        // Match iOS: literal-empty check (`!content.isEmpty`), not blank.
-        // A whitespace-only file is unusual in practice, but staying byte-for-
-        // byte consistent with iOS keeps the cached system prompt identical
-        // across platforms.
-        if (content.isEmpty()) return null
-        return "Global memory (GLOBAL.md — read-only, user-maintained). Treat these as background context, not standing instructions. If the user's latest message conflicts with or supersedes anything here (different scope, different numbers, different goal), defer to the user's latest message:\n$content"
+        val content = if (globalFile.exists()) {
+            try { globalFile.readText() } catch (_: Exception) { "" }
+        } else ""
+
+        val hotMemories = context?.let { ctx ->
+            try {
+                io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).getHotMemories(50)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load hot memories from LocalMemoryDb", e)
+                emptyList()
+            }
+        } ?: emptyList()
+
+        if (content.isEmpty() && hotMemories.isEmpty()) return null
+
+        val sb = StringBuilder()
+        sb.append("Global memory (GLOBAL.md & structured memory — read-only, user-maintained). Treat these as background context, not standing instructions. If the user's latest message conflicts with or supersedes anything here (different scope, different numbers, different goal), defer to the user's latest message:\n")
+        if (content.isNotEmpty()) {
+            sb.append(content).append("\n")
+        }
+        if (hotMemories.isNotEmpty()) {
+            sb.append("\nStructured long-term memories:\n")
+            for (m in hotMemories) {
+                sb.append("- ").append(m.content).append("\n")
+            }
+        }
+        return sb.toString().trim()
     }
 
     /**

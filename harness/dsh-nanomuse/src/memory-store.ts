@@ -103,8 +103,11 @@ export class MemoryStore {
   }): MemoryRecord {
     const now = Date.now()
     const content = input.content.trim()
-    const id = input.id || `mem_${Math.random().toString(36).slice(2, 10)}_${now.toString(36)}`
-    const existing = this.get(id)
+    let existing = input.id ? this.get(input.id) : null
+    if (!existing) {
+      existing = this.findByContent(content)
+    }
+    const memId: string = input.id || existing?.id || `mem_${Math.random().toString(36).slice(2, 10)}_${now.toString(36)}`
 
     const search_text = tokenizeForSearch(content)
     const category = input.category ?? existing?.category ?? 'preference'
@@ -126,11 +129,11 @@ export class MemoryStore {
             updated_at = ?, deleted = 0
           WHERE id = ?;
         `)
-        stmt.run(content, search_text, category, source, is_pinned, is_archived, importance, confidence, updated_at, id)
+        stmt.run(content, search_text, category, source, is_pinned, is_archived, importance, confidence, updated_at, memId)
 
         // Update FTS
-        this.db.prepare('DELETE FROM memories_fts WHERE id = ?;').run(id)
-        this.db.prepare('INSERT INTO memories_fts (id, search_text) VALUES (?, ?);').run(id, search_text)
+        this.db.prepare('DELETE FROM memories_fts WHERE id = ?;').run(memId)
+        this.db.prepare('INSERT INTO memories_fts (id, search_text) VALUES (?, ?);').run(memId, search_text)
       } else {
         const stmt = this.db.prepare(`
           INSERT INTO memories (
@@ -139,10 +142,10 @@ export class MemoryStore {
             confidence, created_at, updated_at, deleted
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, 0);
         `)
-        stmt.run(id, content, search_text, category, source, is_pinned, is_archived, importance, confidence, created_at, updated_at)
+        stmt.run(memId, content, search_text, category, source, is_pinned, is_archived, importance, confidence, created_at, updated_at)
 
         // Insert into FTS
-        this.db.prepare('INSERT INTO memories_fts (id, search_text) VALUES (?, ?);').run(id, search_text)
+        this.db.prepare('INSERT INTO memories_fts (id, search_text) VALUES (?, ?);').run(memId, search_text)
       }
       this.db.exec('COMMIT;')
     } catch (err) {
@@ -150,7 +153,20 @@ export class MemoryStore {
       throw err
     }
 
-    return this.get(id)!
+    return this.get(memId)!
+  }
+
+  findByContent(content: string): MemoryRecord | null {
+    const row = this.db.prepare('SELECT * FROM memories WHERE content = ? AND deleted = 0 LIMIT 1;').get(content.trim()) as Record<string, unknown> | undefined
+    if (!row) return null
+    return row as unknown as MemoryRecord
+  }
+
+  getAll(includeArchived = true): MemoryRecord[] {
+    const sql = includeArchived
+      ? 'SELECT * FROM memories WHERE deleted = 0 ORDER BY is_pinned DESC, updated_at DESC;'
+      : 'SELECT * FROM memories WHERE deleted = 0 AND is_archived = 0 ORDER BY is_pinned DESC, updated_at DESC;'
+    return this.db.prepare(sql).all() as unknown as MemoryRecord[]
   }
 
   get(id: string): MemoryRecord | null {

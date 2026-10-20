@@ -85,7 +85,7 @@ class LocalMemoryDb(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
     ): MemoryEntity {
         val db = writableDatabase
         val now = System.currentTimeMillis()
-        val memId = id ?: "mem_${System.currentTimeMillis().toString(36)}_${(1000..9999).random()}"
+        val memId = id ?: findIdByContent(content) ?: "mem_${System.currentTimeMillis().toString(36)}_${(1000..9999).random()}"
         val searchText = MemoryTokenizer.tokenizeForSearch(content)
 
         db.beginTransaction()
@@ -149,6 +149,14 @@ class LocalMemoryDb(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
                     deleted = it.getInt(it.getColumnIndexOrThrow("deleted")) == 1
                 )
             } else null
+        }
+    }
+
+    fun findIdByContent(content: String): String? {
+        val db = readableDatabase
+        val cursor = db.rawQuery("SELECT id FROM memories WHERE content = ? AND deleted = 0 LIMIT 1", arrayOf(content.trim()))
+        return cursor.use {
+            if (it.moveToFirst()) it.getString(0) else null
         }
     }
 
