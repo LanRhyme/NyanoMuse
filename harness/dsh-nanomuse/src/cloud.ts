@@ -882,7 +882,13 @@ export default class NanomuseCloud extends Service {
           }),
         'nanomuse cloud: sync on hub connect',
       )
-      if (this.state.account) sync.start()
+      if (this.state.account) {
+        if (this.state.account.id && sync.state.accountId !== this.state.account.id) {
+          void sync.accountChanged(this.state.account.id).then(() => sync.start())
+        } else {
+          sync.start()
+        }
+      }
       ctx.effect(() => () => {
         sync.stop()
         this.sync = undefined

@@ -62,8 +62,8 @@ class SyncEngine(
     private val account: String,
     private val now: () -> Long = { System.currentTimeMillis() },
     private val newId: () -> String = { UUID.randomUUID().toString() },
-    /** Settings → Data controls → "Also sync side chats": per device, off by default (C9). */
-    private val sideChats: () -> Boolean = { false },
+    /** Settings → Data controls → "Also sync side chats": on by default (C9). */
+    private val sideChats: () -> Boolean = { true },
     /** The signed-in account is not the last one (C10): the caller drops what it cached of the old one. */
     private val onAccountChanged: suspend () -> Unit = {},
 ) {

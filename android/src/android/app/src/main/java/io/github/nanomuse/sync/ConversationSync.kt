@@ -74,8 +74,8 @@ object ConversationSync {
     /** The switch as this phone knows it (the relay's word wins when it differs). */
     val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
 
-    private val _sideChats = MutableStateFlow(false)
-    /** "Also sync side chats" (C9): this phone's setting, off until the person turns it on. */
+    private val _sideChats = MutableStateFlow(true)
+    /** "Also sync side chats" (C9): this phone's setting, on by default. */
     val sideChats: StateFlow<Boolean> = _sideChats.asStateFlow()
 
     private val _captions = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -112,7 +112,7 @@ object ConversationSync {
         val ctx = context.applicationContext
         app = ctx
         _enabled.value = prefs(ctx).getBoolean(KEY_ENABLED, true)
-        _sideChats.value = prefs(ctx).getBoolean(KEY_SIDE_CHATS, false)
+        _sideChats.value = prefs(ctx).getBoolean(KEY_SIDE_CHATS, true)
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
                 when (event) {

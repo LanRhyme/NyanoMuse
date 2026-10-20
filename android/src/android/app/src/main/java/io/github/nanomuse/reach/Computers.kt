@@ -160,7 +160,7 @@ object Computers {
             append("## Your devices (nanoMuse)\n")
             if (all.isEmpty()) {
                 append("No other device is connected right now. The way to add a computer: install NyanoMuse Desktop there and sign in with the same self-hosted relay account as this device — it appears under [Devices](${Hub.DEEP_LINK}) within seconds, on any network. ")
-                append("When the user wants something done on their PC or Mac, say so in one line and point to the desktop app. ")
+                append("When the user wants something done on their PC or Mac, tell them directly in one concise line that the remote device is currently offline or disconnected from the Hub, and point to [Devices](${Hub.DEEP_LINK}). Do NOT attempt to probe local network ports, host sockets, or PRoot sandbox files to find the computer. ")
                 if (!onHub) append("This device is not on the hub itself; signing in to your self-hosted relay (Settings → Relay & Sync) connects it. ")
             } else {
                 append("Connected: ").append(all.joinToString("; ") { "${it.name} (${it.kind}, ${it.os}, via the hub — any network)" }).append(". ")
