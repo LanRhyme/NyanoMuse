@@ -86,8 +86,8 @@ fun MuseBottomBar(
                 .hazeEffect(state = hazeState) {
                     style = HazeStyle(
                         backgroundColor = barBackground,
-                        blurRadius = 28.dp,
-                        noiseFactor = 0.08f,
+                        blurRadius = 22.dp,
+                        noiseFactor = 0.05f,
                         // tints named explicitly: HazeStyle has a twin constructor taking tint: HazeTint?
                         tints = emptyList(),
                     )

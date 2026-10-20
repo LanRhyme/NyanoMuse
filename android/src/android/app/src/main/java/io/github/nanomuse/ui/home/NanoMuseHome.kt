@@ -7,17 +7,31 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
+import com.openminis.app.ui.navigation.shouldUseTwoPane
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -334,191 +348,338 @@ fun NanoMuseHome(
     // and still be one branch of the phase switch below.
     // nanoMuse: the frosted pill bar blurs this shell's content; the shell is the haze source.
     val hazeState = rememberHazeState()
+    var sidebarCollapsed by rememberSaveable { mutableStateOf(false) }
+
     val homeShell: @Composable () -> Unit = {
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen || tab == HomeTab.CHAT,
-        drawerContent = {
-            ModalDrawerSheet(
-                // nanoMuse: pure canvas like Muse's drawer, not the grey sheet.
-                drawerContainerColor = com.openminis.app.ui.theme.ChatColors.background,
-                drawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
-            ) {
-                SideChatDrawer(
-                    agentName = agentName,
-                    chatRepository = chatRepository,
-                    mainSessionId = mainSessionId,
-                    currentSessionId = chatSessionId,
-                    onOpenMain = { closeDrawer(); showMain() },
-                    onOpenSession = { id -> closeDrawer(); showSession(id) },
-                    onNewChat = { closeDrawer(); showSession("__new__${UUID.randomUUID()}") },
-                    onAllChats = { closeDrawer(); navController.safeNavigate(ROUTE_ALL_CHATS) },
-                    onSettings = { closeDrawer(); navController.safeNavigate(Routes.SETTINGS) },
-                    onSetMain = { id -> MainChat.set(context, id); closeDrawer(); showSession(id) },
-                    onSystemFiles = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.sysfiles.ROUTE_SYSTEM_FILES) },
-                    onDevices = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.cloud.ROUTE_CLOUD_ACCOUNT) },
-                    onCoding = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.coding.ROUTE_CODING) },
-                )
-            }
-        },
-    ) {
+        val twoPane = shouldUseTwoPane()
         val hasWallpaper = remember(context) { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperPath(context) != null }
-        Scaffold(
-            containerColor = if (hasWallpaper) Color.Transparent else ChatColors.background,
-            contentWindowInsets = WindowInsets(0),
-            bottomBar = {
-                MuseBottomBar(selected = tab, hazeState = hazeState, onSelect = { picked ->
-                    if (picked == HomeTab.CHAT && tab == HomeTab.CHAT && !isMainChat) {
-                        showMain()
-                    } else {
-                        focusManager.clearFocus(force = true)
-                        tab = picked
-                    }
-                })
-            },
-        ) { padding ->
-            val bottom = padding.calculateBottomPadding()
-            // Scaffold measures the entire bar, including its floating gap and
-            // navigation inset, before laying out this content. Use that same
-            // inset for placement and IME consumption, without a frame-late callback.
-            Box(
+        val holder = rememberSaveableStateHolder()
+        var pageTab by remember { mutableStateOf(if (tab == HomeTab.CHAT) HomeTab.FEED else tab) }
+        if (tab != HomeTab.CHAT) pageTab = tab
+        val chatVisible = tab == HomeTab.CHAT
+        val chatAlpha by animateFloatAsState(
+            targetValue = if (chatVisible) 1f else 0f,
+            animationSpec = tween(if (chatVisible) 120 else 220),
+            label = "chatAlpha",
+        )
+
+        // Helper to render the four non-chat pages
+        val renderPage: @Composable (page: HomeTab, bottomInset: androidx.compose.ui.unit.Dp) -> Unit = { page, bottomInset ->
+            holder.SaveableStateProvider(page.name) {
+                val header: @Composable () -> Unit = {
+                    TabHeader(
+                        tab = page,
+                        mood = mood,
+                        name = agentName,
+                        statusLine = statusLine,
+                        onAvatarClick = { navController.safeNavigate(io.github.nanomuse.ui.profile.ROUTE_AGENT_PROFILE) },
+                        onNameClick = { navController.safeNavigate(io.github.nanomuse.ui.profile.ROUTE_AGENT_PROFILE) },
+                        onOpenDrawer = { if (twoPane) sidebarCollapsed = !sidebarCollapsed else openDrawer() },
+                        navController = navController,
+                        mainSessionId = mainSessionId,
+                    )
+                }
+                when (page) {
+                    HomeTab.FEED -> FeedTab(
+                        header = header,
+                        onDiscuss = { discussPost(it) },
+                        onEditRoutine = { navController.safeNavigate(Routes.scheduledTaskEdit(it)) },
+                        bottomInset = bottomInset,
+                    )
+                    HomeTab.IDEAS -> IdeasTab(
+                        header = header,
+                        onSendToChat = { sendToMainChat(it) },
+                        onCreateRoutine = { createRoutine(it) },
+                        onStartGoal = { category, seed -> startGoal(category, seed) },
+                        bottomInset = bottomInset,
+                    )
+                    HomeTab.GOALS -> GoalsTab(
+                        header = header,
+                        onStartGoal = { startGoal(it) },
+                        onOpenSession = { showSession(it) },
+                        onEditRoutine = { navController.safeNavigate(Routes.scheduledTaskEdit(it)) },
+                        onRoutineRuns = { navController.safeNavigate(Routes.scheduledTaskRuns(it)) },
+                        onAllRoutines = { navController.safeNavigate(Routes.SCHEDULED_TASKS) },
+                        bottomInset = bottomInset,
+                    )
+                    HomeTab.LIBRARY -> LibraryTab(
+                        header = header,
+                        chatRepository = chatRepository,
+                        onPreview = { item ->
+                            FilePreviewHolder.currentItem = item
+                            navController.safeNavigate(Routes.FILE_PREVIEW)
+                        },
+                        onOpenSession = { showSession(it) },
+                        bottomInset = bottomInset,
+                    )
+                    HomeTab.CHAT -> Unit
+                }
+            }
+        }
+
+        if (twoPane) {
+            // ─── Tablet / Desktop / Wide Freeform Window Layout ───
+            Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .hazeSource(hazeState)
-                    // No bottom inset: the pill bar is an overlay and the content
-                    // slides behind it for the frosted blur. The chat and each tab
-                    // keep their own scrollable content above the pill.
-                    .consumeWindowInsets(PaddingValues(bottom = bottom)),
+                    .background(if (hasWallpaper) Color.Transparent else ChatColors.background),
             ) {
-                // Chat tab — always composed, hidden while another tab is on top.
-                val chatVisible = tab == HomeTab.CHAT
-                // Fades a touch slower than the page above it fades in, so the switch reads as
-                // one cross-fade rather than a cut to the canvas.
-                val chatAlpha by animateFloatAsState(
-                    targetValue = if (chatVisible) 1f else 0f,
-                    animationSpec = tween(if (chatVisible) 120 else 220),
-                    label = "chatAlpha",
+                // Leftmost Frosted Navigation Rail
+                MuseNavRail(
+                    selected = tab,
+                    onSelect = { picked ->
+                        if (picked == HomeTab.CHAT && tab == HomeTab.CHAT && !isMainChat) {
+                            showMain()
+                        } else {
+                            focusManager.clearFocus(force = true)
+                            tab = picked
+                        }
+                    },
+                    hazeState = hazeState,
+                    onToggleSidebar = if (tab == HomeTab.CHAT) { { sidebarCollapsed = !sidebarCollapsed } } else null,
+                    sidebarCollapsed = sidebarCollapsed,
+                    onNewChat = { showSession("__new__${UUID.randomUUID()}") },
+                    onSettings = { navController.safeNavigate(Routes.SETTINGS) },
                 )
+
+                // Main Content Area
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(0f)
-                        .graphicsLayer { alpha = chatAlpha },
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .hazeSource(hazeState),
                 ) {
-                    val sid = chatSessionId
-                    if (sid != null) {
-                        ChatScreen(
-                            sessionId = sid,
-                            chatRepository = chatRepository,
-                            providerRepository = providerRepository,
-                            memoryRepository = memoryRepository,
-                            skillRepository = skillRepository,
-                            mcpRepository = mcpRepository,
-                            onBack = { if (!isMainChat) showMain() },
-                            onNewChat = { showSession("__new__${UUID.randomUUID()}") },
-                            onOpenTerminal = { navController.safeNavigate(Routes.terminal(sessionId = sid)) },
-                            onOpenTerminalWithCommand = { command ->
-                                navController.safeNavigate(Routes.terminal(initCommand = command, sessionId = sid))
-                            },
-                            onMoveToSession = { targetId -> showSession(targetId) },
-                            onBrowseChatFiles = { navController.safeNavigate(Routes.chatFiles(sid)) },
-                            onPreviewAttachment = { item ->
-                                FilePreviewHolder.currentItem = item
-                                navController.safeNavigate(Routes.FILE_PREVIEW)
-                            },
-                            onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
-                            nmHome = NmHomeChrome(isMainChat = isMainChat, onOpenDrawer = { openDrawer() }),
-                            // nanoMuse: preserve the full-size blur source, but keep
-                            // the chat footer above the bar measured by Scaffold.
-                            nmBottomOverlay = bottom,
-                        )
-                    }
-                }
-
-                val holder = rememberSaveableStateHolder()
-                // The page that is (or was last) on top of the chat. Keeping it while the
-                // sheet fades back to the chat means the content does not blink to empty.
-                var pageTab by remember { mutableStateOf(if (tab == HomeTab.CHAT) HomeTab.FEED else tab) }
-                if (tab != HomeTab.CHAT) pageTab = tab
-                AnimatedVisibility(
-                    visible = !chatVisible,
-                    enter = fadeIn(tween(160)),
-                    exit = fadeOut(tween(120)),
-                    modifier = Modifier.fillMaxSize().zIndex(1f),
-                ) {
-                    Surface(
-                        color = ChatColors.background,
-                        // No bottom padding: tab content flows behind the pill
-                        // overlay like the chat does. Each tab ends its list
-                        // above the pill through bottomInset.
-                        modifier = Modifier.fillMaxSize(),
+                    // Chat Tab (Two-Pane with collapsible sidebar)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(0f)
+                            .graphicsLayer { alpha = chatAlpha },
                     ) {
-                        // Pages cross-fade; the header sits at the same spot on every page,
-                        // so only the content below it appears to change.
-                        AnimatedContent(
-                            targetState = pageTab,
-                            transitionSpec = {
-                                (fadeIn(tween(160)) togetherWith fadeOut(tween(120)))
-                                    .using(SizeTransform(clip = false))
-                            },
-                            label = "nmTab",
-                        ) { page ->
-                        holder.SaveableStateProvider(page.name) {
-                            val header: @Composable () -> Unit = {
-                                TabHeader(
-                                    tab = page,
-                                    mood = mood,
-                                    name = agentName,
-                                    statusLine = statusLine,
-                                    onAvatarClick = { navController.safeNavigate(io.github.nanomuse.ui.profile.ROUTE_AGENT_PROFILE) },
-                                    onNameClick = { navController.safeNavigate(io.github.nanomuse.ui.profile.ROUTE_AGENT_PROFILE) },
-                                    onOpenDrawer = { openDrawer() },
-                                    navController = navController,
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            // Collapsible SideChatDrawer
+                            AnimatedVisibility(
+                                visible = !sidebarCollapsed,
+                                enter = expandHorizontally(tween(200)) + fadeIn(tween(200)),
+                                exit = shrinkHorizontally(tween(200)) + fadeOut(tween(200)),
+                            ) {
+                                SideChatDrawer(
+                                    agentName = agentName,
+                                    chatRepository = chatRepository,
                                     mainSessionId = mainSessionId,
+                                    currentSessionId = chatSessionId,
+                                    onOpenMain = { showMain() },
+                                    onOpenSession = { id -> showSession(id) },
+                                    onNewChat = { showSession("__new__${UUID.randomUUID()}") },
+                                    onAllChats = { navController.safeNavigate(ROUTE_ALL_CHATS) },
+                                    onSettings = { navController.safeNavigate(Routes.SETTINGS) },
+                                    onSetMain = { id -> MainChat.set(context, id); showSession(id) },
+                                    onSystemFiles = { navController.safeNavigate(io.github.nanomuse.ui.sysfiles.ROUTE_SYSTEM_FILES) },
+                                    onDevices = { navController.safeNavigate(io.github.nanomuse.ui.cloud.ROUTE_CLOUD_ACCOUNT) },
+                                    onCoding = { navController.safeNavigate(io.github.nanomuse.ui.coding.ROUTE_CODING) },
+                                    modifier = Modifier.width(320.dp).fillMaxHeight(),
+                                    hazeState = hazeState,
                                 )
                             }
-                            when (page) {
-                                HomeTab.FEED -> FeedTab(
-                                    header = header,
-                                    onDiscuss = { discussPost(it) },
-                                    onEditRoutine = { navController.safeNavigate(Routes.scheduledTaskEdit(it)) },
-                                    bottomInset = bottom,
-                                )
-                                HomeTab.IDEAS -> IdeasTab(
-                                    header = header,
-                                    onSendToChat = { sendToMainChat(it) },
-                                    onCreateRoutine = { createRoutine(it) },
-                                    onStartGoal = { category, seed -> startGoal(category, seed) },
-                                    bottomInset = bottom,
-                                )
-                                HomeTab.GOALS -> GoalsTab(
-                                    header = header,
-                                    onStartGoal = { startGoal(it) },
-                                    onOpenSession = { showSession(it) },
-                                    onEditRoutine = { navController.safeNavigate(Routes.scheduledTaskEdit(it)) },
-                                    onRoutineRuns = { navController.safeNavigate(Routes.scheduledTaskRuns(it)) },
-                                    onAllRoutines = { navController.safeNavigate(Routes.SCHEDULED_TASKS) },
-                                    bottomInset = bottom,
-                                )
-                                HomeTab.LIBRARY -> LibraryTab(
-                                    header = header,
+
+                            // Chat pane
+                            val sid = chatSessionId
+                            if (sid != null) {
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                    ChatScreen(
+                                        sessionId = sid,
+                                        chatRepository = chatRepository,
+                                        providerRepository = providerRepository,
+                                        memoryRepository = memoryRepository,
+                                        skillRepository = skillRepository,
+                                        mcpRepository = mcpRepository,
+                                        onBack = { if (!isMainChat) showMain() },
+                                        onNewChat = { showSession("__new__${UUID.randomUUID()}") },
+                                        onOpenTerminal = { navController.safeNavigate(Routes.terminal(sessionId = sid)) },
+                                        onOpenTerminalWithCommand = { command ->
+                                            navController.safeNavigate(Routes.terminal(initCommand = command, sessionId = sid))
+                                        },
+                                        onMoveToSession = { targetId -> showSession(targetId) },
+                                        onBrowseChatFiles = { navController.safeNavigate(Routes.chatFiles(sid)) },
+                                        onPreviewAttachment = { item ->
+                                            FilePreviewHolder.currentItem = item
+                                            navController.safeNavigate(Routes.FILE_PREVIEW)
+                                        },
+                                        onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
+                                        nmHome = NmHomeChrome(
+                                            isMainChat = isMainChat,
+                                            onOpenDrawer = { sidebarCollapsed = !sidebarCollapsed },
+                                            isTwoPane = true,
+                                            onToggleSidebar = { sidebarCollapsed = !sidebarCollapsed },
+                                            sidebarCollapsed = sidebarCollapsed,
+                                        ),
+                                        nmBottomOverlay = 0.dp,
+                                        hazeState = hazeState,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Non-Chat Pages (Feed, Ideas, Goals, Library) centered with reading width cap
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !chatVisible,
+                        enter = fadeIn(tween(160)),
+                        exit = fadeOut(tween(120)),
+                        modifier = Modifier.fillMaxSize().zIndex(1f),
+                    ) {
+                        Surface(
+                            color = ChatColors.background,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.TopCenter,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .widthIn(max = 900.dp)
+                                        .fillMaxWidth(),
+                                ) {
+                                    AnimatedContent(
+                                        targetState = pageTab,
+                                        transitionSpec = {
+                                            (fadeIn(tween(160)) togetherWith fadeOut(tween(120)))
+                                                .using(SizeTransform(clip = false))
+                                        },
+                                        label = "nmTabWide",
+                                    ) { page ->
+                                        renderPage(page, 0.dp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // ─── Phone / Compact Window Layout ───
+            val density = LocalDensity.current
+            val imeBottomPx = WindowInsets.ime.getBottom(density)
+            val isImeOpen = imeBottomPx > 0
+
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                gesturesEnabled = drawerState.isOpen || tab == HomeTab.CHAT,
+                drawerContent = {
+                    ModalDrawerSheet(
+                        drawerContainerColor = Color.Transparent,
+                        drawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
+                    ) {
+                        SideChatDrawer(
+                            agentName = agentName,
+                            chatRepository = chatRepository,
+                            mainSessionId = mainSessionId,
+                            currentSessionId = chatSessionId,
+                            onOpenMain = { closeDrawer(); showMain() },
+                            onOpenSession = { id -> closeDrawer(); showSession(id) },
+                            onNewChat = { closeDrawer(); showSession("__new__${UUID.randomUUID()}") },
+                            onAllChats = { closeDrawer(); navController.safeNavigate(ROUTE_ALL_CHATS) },
+                            onSettings = { closeDrawer(); navController.safeNavigate(Routes.SETTINGS) },
+                            onSetMain = { id -> MainChat.set(context, id); closeDrawer(); showSession(id) },
+                            onSystemFiles = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.sysfiles.ROUTE_SYSTEM_FILES) },
+                            onDevices = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.cloud.ROUTE_CLOUD_ACCOUNT) },
+                            onCoding = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.coding.ROUTE_CODING) },
+                            modifier = Modifier.fillMaxSize(),
+                            hazeState = hazeState,
+                        )
+                    }
+                },
+            ) {
+                Scaffold(
+                    containerColor = if (hasWallpaper) Color.Transparent else ChatColors.background,
+                    contentWindowInsets = WindowInsets(0),
+                    bottomBar = {
+                        AnimatedVisibility(
+                            visible = !isImeOpen,
+                            enter = slideInVertically(tween(150)) { it } + fadeIn(tween(150)),
+                            exit = slideOutVertically(tween(150)) { it } + fadeOut(tween(150)),
+                        ) {
+                            MuseBottomBar(selected = tab, hazeState = hazeState, onSelect = { picked ->
+                                if (picked == HomeTab.CHAT && tab == HomeTab.CHAT && !isMainChat) {
+                                    showMain()
+                                } else {
+                                    focusManager.clearFocus(force = true)
+                                    tab = picked
+                                }
+                            })
+                        }
+                    },
+                ) { padding ->
+                    val bottom = if (isImeOpen) 0.dp else padding.calculateBottomPadding()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .hazeSource(hazeState)
+                            .consumeWindowInsets(PaddingValues(bottom = bottom)),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(0f)
+                                .graphicsLayer { alpha = chatAlpha },
+                        ) {
+                            val sid = chatSessionId
+                            if (sid != null) {
+                                ChatScreen(
+                                    sessionId = sid,
                                     chatRepository = chatRepository,
-                                    onPreview = { item ->
+                                    providerRepository = providerRepository,
+                                    memoryRepository = memoryRepository,
+                                    skillRepository = skillRepository,
+                                    mcpRepository = mcpRepository,
+                                    onBack = { if (!isMainChat) showMain() },
+                                    onNewChat = { showSession("__new__${UUID.randomUUID()}") },
+                                    onOpenTerminal = { navController.safeNavigate(Routes.terminal(sessionId = sid)) },
+                                    onOpenTerminalWithCommand = { command ->
+                                        navController.safeNavigate(Routes.terminal(initCommand = command, sessionId = sid))
+                                    },
+                                    onMoveToSession = { targetId -> showSession(targetId) },
+                                    onBrowseChatFiles = { navController.safeNavigate(Routes.chatFiles(sid)) },
+                                    onPreviewAttachment = { item ->
                                         FilePreviewHolder.currentItem = item
                                         navController.safeNavigate(Routes.FILE_PREVIEW)
                                     },
-                                    onOpenSession = { showSession(it) },
-                                    bottomInset = bottom,
+                                    onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
+                                    nmHome = NmHomeChrome(isMainChat = isMainChat, onOpenDrawer = { openDrawer() }),
+                                    nmBottomOverlay = bottom,
+                                    hazeState = hazeState,
                                 )
-                                HomeTab.CHAT -> Unit
                             }
                         }
+
+                        AnimatedVisibility(
+                            visible = !chatVisible,
+                            enter = fadeIn(tween(160)),
+                            exit = fadeOut(tween(120)),
+                            modifier = Modifier.fillMaxSize().zIndex(1f),
+                        ) {
+                            Surface(
+                                color = ChatColors.background,
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                AnimatedContent(
+                                    targetState = pageTab,
+                                    transitionSpec = {
+                                        (fadeIn(tween(160)) togetherWith fadeOut(tween(120)))
+                                            .using(SizeTransform(clip = false))
+                                    },
+                                    label = "nmTab",
+                                ) { page ->
+                                    renderPage(page, bottom)
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-    }
     } // homeShell
 
     AnimatedContent(

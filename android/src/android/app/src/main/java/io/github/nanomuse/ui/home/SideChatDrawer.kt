@@ -57,10 +57,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import com.openminis.app.R
 import com.openminis.app.data.db.ChatSessionEntity
 import com.openminis.app.data.repository.ChatRepository
 import com.openminis.app.ui.theme.ChatColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.hazeEffect
 import java.text.DateFormat
 import java.util.Date
 
@@ -83,6 +88,8 @@ fun SideChatDrawer(
     onAllChats: () -> Unit,
     onSettings: () -> Unit,
     onSetMain: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
     onSystemFiles: (() -> Unit)? = null,
     onDevices: (() -> Unit)? = null,
     onCoding: (() -> Unit)? = null,
@@ -107,10 +114,32 @@ fun SideChatDrawer(
             .sortedWith(compareByDescending<ChatSessionEntity> { it.pinnedAt ?: 0L }.thenByDescending { it.updatedAt })
     }
 
+    val outlineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+    val drawerBg = if (hazeState != null) MaterialTheme.colorScheme.surface.copy(alpha = 0.75f) else ChatColors.background
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(ChatColors.background)
+        modifier = modifier
+            .then(
+                if (hazeState != null) {
+                    Modifier.hazeEffect(state = hazeState) {
+                        style = HazeStyle(
+                            backgroundColor = drawerBg,
+                            blurRadius = 22.dp,
+                            noiseFactor = 0.05f,
+                            tints = emptyList(),
+                        )
+                    }
+                } else {
+                    Modifier.background(ChatColors.background)
+                }
+            )
+            .drawBehind {
+                drawLine(
+                    color = outlineColor,
+                    start = Offset(size.width, 0f),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 0.5.dp.toPx(),
+                )
+            }
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {

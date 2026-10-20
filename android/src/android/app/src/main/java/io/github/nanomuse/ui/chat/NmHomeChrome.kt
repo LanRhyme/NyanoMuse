@@ -36,6 +36,9 @@ import io.github.nanomuse.ui.home.MuseTones
 data class NmHomeChrome(
     val isMainChat: Boolean,
     val onOpenDrawer: () -> Unit,
+    val isTwoPane: Boolean = false,
+    val onToggleSidebar: (() -> Unit)? = null,
+    val sidebarCollapsed: Boolean = false,
 )
 
 /**

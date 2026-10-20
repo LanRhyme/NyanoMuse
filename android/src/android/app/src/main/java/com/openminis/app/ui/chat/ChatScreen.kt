@@ -98,7 +98,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuOpen
 import androidx.compose.material.icons.filled.Menu
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.hazeEffect
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -538,6 +542,8 @@ fun ChatScreen(
     // nanoMuse: height of the floating pill bar overlaying the bottom. The
     // composer sits above it; the message list slides behind it for the blur.
     nmBottomOverlay: androidx.compose.ui.unit.Dp = 0.dp,
+    // nanoMuse: optional shared HazeState for top bar & composer frosted glass.
+    hazeState: HazeState? = null,
 ) {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -2630,17 +2636,30 @@ fun ChatScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             // nanoMuse: the header is an overlay. The list slides underneath and
-            // the scrim melts it away: a soft shade at the top edge dissolving
-            // to clear, never a bar.
+            // either Haze frosted glass or a soft gradient scrim melts it away.
+            val topBarBg = ChatColors.background.copy(alpha = 0.65f)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to ChatColors.background.copy(alpha = 0.8f),
-                            0.55f to ChatColors.background.copy(alpha = 0.35f),
-                            1f to Color.Transparent,
-                        )
+                    .then(
+                        if (hazeState != null) {
+                            Modifier.hazeEffect(state = hazeState) {
+                                style = HazeStyle(
+                                    backgroundColor = topBarBg,
+                                    blurRadius = 22.dp,
+                                    noiseFactor = 0.05f,
+                                    tints = emptyList(),
+                                )
+                            }
+                        } else {
+                            Modifier.background(
+                                Brush.verticalGradient(
+                                    0f to ChatColors.background.copy(alpha = 0.8f),
+                                    0.55f to ChatColors.background.copy(alpha = 0.35f),
+                                    1f to Color.Transparent,
+                                )
+                            )
+                        }
                     ),
             ) {
             TopAppBar(
@@ -2982,12 +3001,22 @@ fun ChatScreen(
                 },
                 navigationIcon = {
                     // nanoMuse: inside the home shell the slot is Muse's round
-                    // hamburger, which opens the chats drawer.
+                    // hamburger, which opens the chats drawer (or toggles sidebar on tablet).
                     if (nmHome != null) {
+                        val icon = if (nmHome.isTwoPane) {
+                            if (nmHome.sidebarCollapsed) Icons.Filled.Menu else Icons.AutoMirrored.Filled.MenuOpen
+                        } else {
+                            Icons.Filled.Menu
+                        }
+                        val action = if (nmHome.isTwoPane && nmHome.onToggleSidebar != null) {
+                            nmHome.onToggleSidebar
+                        } else {
+                            nmHome.onOpenDrawer
+                        }
                         io.github.nanomuse.ui.home.MuseRoundButton(
-                            icon = Icons.Filled.Menu,
+                            icon = icon,
                             contentDescription = stringResource(R.string.nm_open_drawer),
-                            onClick = nmHome.onOpenDrawer,
+                            onClick = action,
                             modifier = Modifier.padding(start = 12.dp),
                         )
                     } else
@@ -5532,14 +5561,34 @@ fun ChatScreen(
                         }
                     },
                 ) {
+                val composerBg = if (nmPill) MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.65f) else ChatColors.inputBg
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(nmComposerShape)
-                        .background(
-                            color = if (nmPill) io.github.nanomuse.ui.home.MuseTones.bubble
-                            else ChatColors.inputBg,
-                            shape = nmComposerShape,
+                        .then(
+                            if (hazeState != null) {
+                                Modifier
+                                    .hazeEffect(state = hazeState) {
+                                        style = HazeStyle(
+                                            backgroundColor = composerBg,
+                                            blurRadius = 22.dp,
+                                            noiseFactor = 0.05f,
+                                            tints = emptyList(),
+                                        )
+                                    }
+                                    .border(
+                                        width = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                        shape = nmComposerShape,
+                                    )
+                            } else {
+                                Modifier.background(
+                                    color = if (nmPill) io.github.nanomuse.ui.home.MuseTones.bubble
+                                    else ChatColors.inputBg,
+                                    shape = nmComposerShape,
+                                )
+                            }
                         )
                         .padding(top = if (attachments.isNotEmpty()) 8.dp else if (nmPill) 0.dp else 4.dp), // nanoMuse: pill composer
                 ) {

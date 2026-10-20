@@ -244,11 +244,9 @@ fun AppNavigation(
         (context.applicationContext as com.openminis.app.MinisApp).mountedFoldersStore
     }
 
-    // nanoMuse: whether SESSION_LIST renders the home shell (compact windows) — decided here,
-    // ahead of the deep-link effects, and published for the non-composable entry points
-    // (MainActivity's warm deep links). Written during composition on purpose so the effects
-    // below already see it. Wide windows keep the upstream list/detail behaviour.
-    val nmHomeActive = !shouldUseTwoPane()
+    // nanoMuse: whether SESSION_LIST renders the home shell — now unified across both
+    // compact and wide (tablet/foldable) windows via adaptive layout in NanoMuseHome.
+    val nmHomeActive = true
     io.github.nanomuse.ui.home.HomeShell.active = nmHomeActive
 
     // App-icon quick action (New chat / Voice / Camera): the draft's id, decided once per
@@ -591,20 +589,9 @@ fun AppNavigation(
         // them keeps working unchanged. On a phone the scaffold resolves to a
         // single pane, so those pushes look and behave exactly as before.
         composable(Routes.SESSION_LIST) {
-            // nanoMuse: compact windows open on the home shell (main chat +
-            // bottom tabs); the upstream split keeps wide windows.
-            if (!shouldUseTwoPane()) {
-                io.github.nanomuse.ui.home.NanoMuseHome(
-                    navController = navController,
-                    chatRepository = chatRepository,
-                    providerRepository = providerRepository,
-                    memoryRepository = memoryRepository,
-                    skillRepository = skillRepository,
-                    mcpRepository = mcpRepository,
-                )
-            } else
-            ChatSplitScaffoldRoute(
-                initialSessionId = null,
+            // nanoMuse: unified home shell across all window sizes (compact phones
+            // and wide tablets/foldables) with adaptive navigation rail & split chat.
+            io.github.nanomuse.ui.home.NanoMuseHome(
                 navController = navController,
                 chatRepository = chatRepository,
                 providerRepository = providerRepository,
