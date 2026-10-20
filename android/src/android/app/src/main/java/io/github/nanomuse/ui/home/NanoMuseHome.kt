@@ -505,6 +505,7 @@ fun NanoMuseHome(
                                             navController.safeNavigate(Routes.FILE_PREVIEW)
                                         },
                                         onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
+                                        onOpenUsageStats = { navController.safeNavigate(Routes.USAGE_STATS) },
                                         nmHome = NmHomeChrome(
                                             isMainChat = isMainChat,
                                             onOpenDrawer = { sidebarCollapsed = !sidebarCollapsed },
@@ -645,6 +646,7 @@ fun NanoMuseHome(
                                         navController.safeNavigate(Routes.FILE_PREVIEW)
                                     },
                                     onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
+                                    onOpenUsageStats = { navController.safeNavigate(Routes.USAGE_STATS) },
                                     nmHome = NmHomeChrome(isMainChat = isMainChat, onOpenDrawer = { openDrawer() }),
                                     nmBottomOverlay = bottom,
                                 )

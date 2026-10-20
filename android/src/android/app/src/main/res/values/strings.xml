@@ -960,6 +960,15 @@
     <string name="storage_clear_confirm_text">This will delete %1$s of files. This action cannot be undone.</string>
     <string name="storage_clear_confirm_button">Clear %1$s</string>
     <string name="usage_title">Usage</string>
+    <string name="usage_heatmap_title">Activity Heatmap</string>
+    <string name="usage_heatmap_hint">Tap a square to inspect daily details</string>
+    <string name="usage_tab_today">Today</string>
+    <string name="usage_tab_week">This Week</string>
+    <string name="usage_tab_month">This Month</string>
+    <string name="usage_label_cost">Est. Cost</string>
+    <string name="usage_label_total_tokens">Total Tokens</string>
+    <string name="usage_models_used">Models Used</string>
+    <string name="usage_view_full_stats">View Complete Stats &amp; Heatmap</string>
     <string name="usage_section_total">Total Usage</string>
     <string name="usage_label_total_input">Total Input (incl. Cache)</string>
     <string name="usage_label_output">Output Tokens</string>

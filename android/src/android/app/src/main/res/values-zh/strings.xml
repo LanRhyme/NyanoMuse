@@ -873,6 +873,15 @@
     <string name="storage_clear_confirm_text">这将删除 %1$s 的文件。此操作无法撤销。</string>
     <string name="storage_clear_confirm_button">清除 %1$s</string>
     <string name="usage_title">用量</string>
+    <string name="usage_heatmap_title">用量贡献热力图</string>
+    <string name="usage_heatmap_hint">点击方格查看当日用量详情</string>
+    <string name="usage_tab_today">今日</string>
+    <string name="usage_tab_week">本周</string>
+    <string name="usage_tab_month">本月</string>
+    <string name="usage_label_cost">预估花费</string>
+    <string name="usage_label_total_tokens">总消耗 Token</string>
+    <string name="usage_models_used">调用模型</string>
+    <string name="usage_view_full_stats">查看完整用量统计与热力图</string>
     <string name="usage_section_total">总用量</string>
     <string name="usage_label_total_input">总输入（含缓存）</string>
     <string name="usage_label_output">输出 Token</string>

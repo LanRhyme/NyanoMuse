@@ -538,6 +538,7 @@ fun ChatScreen(
      *  management screen — wired to the "Edit" button on the model picker's
      *  Model Groups section header. */
     onModelGroupsClick: () -> Unit = {},
+    onOpenUsageStats: () -> Unit = {},
     // nanoMuse: non-null when this chat is a tab of the home shell — hamburger
     // instead of back, round kebab, big-face header on the main chat.
     nmHome: io.github.nanomuse.ui.chat.NmHomeChrome? = null,
@@ -2985,6 +2986,38 @@ fun ChatScreen(
                                                 onClick = { showThinkingLevelSheet = true },
                                             )
                                         }
+                                    }
+                                }
+                                val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
+                                val deepSeekText = deepSeekStatus.displayText
+                                if (deepSeekText != null) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
+                                            .clickable {
+                                                viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
+                                                showTokenUsageSheet = true
+                                            }
+                                            .padding(horizontal = 7.dp, vertical = 1.5.dp),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(4.dp)
+                                                .background(Color(0xFF007AFF), CircleShape),
+                                        )
+                                        Text(
+                                            text = deepSeekText,
+                                            fontSize = 10.sp,
+                                            lineHeight = 12.sp,
+                                            fontWeight = FontWeight.Normal,
+                                            color = ChatColors.secondaryText,
+                                            maxLines = 1,
+                                            style = noFontPad,
+                                        )
                                     }
                                 }
                             }
@@ -7206,6 +7239,7 @@ fun ChatScreen(
         TokenUsageSheet(
             viewModel = viewModel,
             onDismiss = { showTokenUsageSheet = false },
+            onOpenUsageStats = onOpenUsageStats,
         )
     }
 

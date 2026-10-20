@@ -26,6 +26,16 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.clip
+import java.util.Locale
 import com.openminis.app.R
 import com.openminis.app.i18n.uppercaseForDisplay
 
@@ -49,6 +59,7 @@ import com.openminis.app.i18n.uppercaseForDisplay
 fun TokenUsageSheet(
     viewModel: ChatViewModel,
     onDismiss: () -> Unit,
+    onOpenUsageStats: (() -> Unit)? = null,
 ) {
     var stats by remember { mutableStateOf<ChatViewModel.SessionTokenStats?>(null) }
     val contextWindow = remember { viewModel.currentModelContextWindow }
@@ -108,6 +119,46 @@ fun TokenUsageSheet(
 
             StatSection(title = stringResource(R.string.token_usage_section_agent_loop)) {
                 StatRow(stringResource(R.string.token_usage_total_loops), (s?.loopCount ?: 0).toString())
+            }
+
+            val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
+            if (deepSeekStatus.isDeepSeek) {
+                StatSection(title = "DeepSeek") {
+                    deepSeekStatus.balance?.let { bal ->
+                        StatRow("账户余额", "¥$bal")
+                    }
+                    val costStr = if (deepSeekStatus.todayCost == 0.0) "¥0.00" else String.format(Locale.US, "¥%.3f", deepSeekStatus.todayCost)
+                    StatRow("今日花费", costStr)
+                }
+            }
+
+            if (onOpenUsageStats != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .clickable {
+                            onDismiss()
+                            onOpenUsageStats()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.usage_view_full_stats),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
     }

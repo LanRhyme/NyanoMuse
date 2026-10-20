@@ -923,6 +923,7 @@ fun ChatSplitScaffoldRoute(
                     FilePreviewHolder.currentItem = item
                     navController.safeNavigate(Routes.FILE_PREVIEW)
                 },
+                onOpenUsageStats = { navController.safeNavigate(Routes.USAGE_STATS) },
                 onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
             )
         },

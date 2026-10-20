@@ -1538,6 +1538,59 @@ class ChatViewModel(
             false,
         )
 
+    data class DeepSeekStatus(
+        val isDeepSeek: Boolean = false,
+        val balance: String? = null,
+        val todayCost: Double = 0.0,
+    ) {
+        val displayText: String? get() {
+            if (!isDeepSeek) return null
+            val costStr = if (todayCost == 0.0) {
+                "¥0.00"
+            } else if (todayCost < 0.01) {
+                String.format(java.util.Locale.US, "¥%.3f", todayCost)
+            } else {
+                String.format(java.util.Locale.US, "¥%.2f", todayCost)
+            }
+            return if (!balance.isNullOrBlank()) {
+                "余额: ¥$balance · 今日花费: $costStr"
+            } else {
+                "今日花费: $costStr"
+            }
+        }
+    }
+
+    private val _deepSeekStatus = MutableStateFlow(DeepSeekStatus())
+    val deepSeekStatus: StateFlow<DeepSeekStatus> = _deepSeekStatus.asStateFlow()
+
+    fun refreshDeepSeekStatus(forceRefreshBalance: Boolean = false) {
+        viewModelScope.launch {
+            val entryId = _activeEntryId.value
+            val config = providerRepository.config.value
+            val entry = entryId?.let { id -> config.modelEntries.find { it.id == id } }
+            val modelId = entry?.model?.id ?: currentModel?.id
+            val isDeepSeek = io.github.nanomuse.chat.DeepSeekTracker.isDeepSeekModel(modelId)
+            if (!isDeepSeek) {
+                _deepSeekStatus.value = DeepSeekStatus(isDeepSeek = false)
+                return@launch
+            }
+
+            val todayCost = io.github.nanomuse.chat.DeepSeekTracker.getTodayDeepSeekCost(chatRepository.dao)
+            val instance = entry?.let { e -> config.instances.find { it.id == e.providerInstanceId } }
+            val apiKey = instance?.let { inst -> providerRepository.usableApiKey(inst) }
+            val balance = io.github.nanomuse.chat.DeepSeekTracker.fetchOfficialBalance(
+                apiKey = apiKey,
+                baseUrl = instance?.customBaseURL,
+                forceRefresh = forceRefreshBalance,
+            )
+            _deepSeekStatus.value = DeepSeekStatus(
+                isDeepSeek = true,
+                balance = balance,
+                todayCost = todayCost,
+            )
+        }
+    }
+
     internal val _showSlashMenu = MutableStateFlow(false)
     val showSlashMenu: StateFlow<Boolean> = _showSlashMenu.asStateFlow()
 
@@ -3727,6 +3780,11 @@ class ChatViewModel(
         // on a group of its own) follows too: it resolved the default when it was built and
         // would otherwise send its first message through the provider the default was on then,
         // whatever the Models page says. A side chat with a row keeps its model.
+        viewModelScope.launch {
+            _activeEntryId.collect {
+                refreshDeepSeekStatus()
+            }
+        }
         viewModelScope.launch {
             sessionLoaded.first { it }
             io.github.nanomuse.models.ModelSlots.chatSlotWritten.collect { pick ->
@@ -10702,6 +10760,7 @@ class ChatViewModel(
             // the session row — see currentModelSnapshot().
             modelSnapshot = currentModelSnapshot(),
         )
+        if (usage != null) refreshDeepSeekStatus()
         return entity.id
     }
 
@@ -10748,6 +10807,7 @@ class ChatViewModel(
             reasoningContent = reasoningContent,
             modelSnapshot = currentModelSnapshot(),
         )
+        if (usage != null) refreshDeepSeekStatus()
     }
 
     /** Persist tool results as a user-role message (mirrors iOS behavior). */
