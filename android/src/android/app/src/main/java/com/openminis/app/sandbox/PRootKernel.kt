@@ -676,8 +676,11 @@ object PRootKernel {
     fun resolveSessionHostPath(sessionId: String, linuxPath: String, context: Context): File? {
         if (ExecutionMode.getMode(context) != ExecutionMode.PROOT_SANDBOX) {
             val direct = File(linuxPath)
-            if (direct.isAbsolute && (linuxPath.startsWith("/sdcard") || linuxPath.startsWith("/storage") || linuxPath.startsWith("/data") || linuxPath.startsWith("/system") || linuxPath.startsWith("/etc") || linuxPath.startsWith("/dev") || linuxPath.startsWith("/proc") || direct.exists())) {
+            if (direct.isAbsolute) {
                 return direct
+            }
+            if (linuxPath.startsWith("sdcard/") || linuxPath.startsWith("storage/") || linuxPath.startsWith("data/")) {
+                return File("/$linuxPath")
             }
         }
         if (!linuxPath.startsWith("/var/minis/")) return resolveHostPath(linuxPath, context)
@@ -698,6 +701,9 @@ object PRootKernel {
         if (context != null && ExecutionMode.getMode(context) != ExecutionMode.PROOT_SANDBOX) {
             val direct = File(linuxPath)
             if (direct.isAbsolute) return direct
+            if (linuxPath.startsWith("sdcard/") || linuxPath.startsWith("storage/") || linuxPath.startsWith("data/")) {
+                return File("/$linuxPath")
+            }
         }
         // Check bind mounts (longest prefix match)
         val sorted = bindMounts.keys.sortedByDescending { it.length }

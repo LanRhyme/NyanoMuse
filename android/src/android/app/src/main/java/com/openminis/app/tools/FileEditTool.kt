@@ -12,10 +12,10 @@ object FileEditTool {
 
     fun definition(): AgentToolDefinition = AgentToolDefinition(
         name = NAME,
-        description = "Make targeted edits to an existing file using exact string replacement. ALWAYS use file_read first to see the current file contents before editing. Prefer file_edit over file_write when modifying existing files — only the changed part needs to be specified. The old_string must match exactly one location in the file (including whitespace/indentation), unless replace_all is true.",
+        description = "Make targeted edits to an existing file using exact string replacement on the Android filesystem. In Root mode, full access to all files across the system (/sdcard, /data, /system, etc.) is supported. ALWAYS use file_read first to see the current file contents before editing. Prefer file_edit over file_write when modifying existing files — only the changed part needs to be specified. The old_string must match exactly one location in the file (including whitespace/indentation), unless replace_all is true.",
         parameters = mapOf(
             "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does, shown to the user (e.g. 'Fix typo in Python script', 'Update config value'). Use the same language as the user."),
-            "path" to AgentToolParam("string", "Absolute Linux path to the file to edit (e.g. /root/script.py)"),
+            "path" to AgentToolParam("string", "Absolute path to the file to edit (e.g. /sdcard/Download/script.py or /data/adb/modules/sample.prop)"),
             "old_string" to AgentToolParam("string", "The exact text to find in the file. Must match precisely including whitespace and indentation. Must be unique in the file unless replace_all is true."),
             "new_string" to AgentToolParam("string", "The replacement text. Use empty string to delete old_string."),
             "replace_all" to AgentToolParam("boolean", "If true, replace ALL occurrences of old_string (default: false)"),
@@ -27,7 +27,7 @@ object FileEditTool {
     fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
         return try {
             val args = JSONObject(argsJson)
-            val path = args.optString("path", "")
+            val path = args.optString("path", "").trim()
             val oldString = args.optString("old_string", "")
             val newString = args.optString("new_string", "")
             val replaceAll = args.optBoolean("replace_all", false)
@@ -40,8 +40,10 @@ object FileEditTool {
                 return ToolExecutionResult("Error: 'old_string' is required and cannot be empty", false, toolTitle = toolTitle)
             }
 
-            // T219: read-only mount guard — see FileWriteTool for rationale.
-            if (PRootKernel.isLinuxPathUnderReadOnlyMount(path)) {
+            val isRootMode = ExecutionMode.getMode(context) == ExecutionMode.ROOT
+
+            // In non-root mode, guard against read-only mounts
+            if (!isRootMode && PRootKernel.isLinuxPathUnderReadOnlyMount(path)) {
                 return ToolExecutionResult(
                     "Error: $path is inside a read-only mounted folder and cannot be modified. " +
                         "Toggle writability in Settings → Mount External Folders if this is a mistake.",
@@ -49,19 +51,16 @@ object FileEditTool {
                 )
             }
 
-            // T123: per-session resolver — see FileWriteTool for rationale.
             val file = PRootKernel.resolveSessionHostPath(sessionId, path, context)
                 ?: return ToolExecutionResult("Error: Cannot resolve path: $path", false, toolTitle = toolTitle)
 
-            val isRootMode = ExecutionMode.getMode(context) == ExecutionMode.ROOT
             val exists = file.exists() || (isRootMode && checkExistsWithRoot(file.absolutePath))
-
             if (!exists) {
                 return ToolExecutionResult("Error: File not found: $path", false, toolTitle = toolTitle)
             }
 
             val content = try {
-                file.readText()
+                if (file.canRead()) file.readText() else if (isRootMode) readTextWithRoot(file.absolutePath) else file.readText()
             } catch (e: Exception) {
                 if (isRootMode) {
                     readTextWithRoot(file.absolutePath)
@@ -80,6 +79,24 @@ object FileEditTool {
                 searchFrom = idx + oldString.length
             }
 
+            // Fallback: line-ending normalization (\r\n vs \n)
+            var actualOldString = oldString
+            var actualContent = content
+            if (count == 0 && content.contains("\r\n") && !oldString.contains("\r\n")) {
+                val normalizedContent = content.replace("\r\n", "\n")
+                if (normalizedContent.contains(oldString)) {
+                    actualContent = normalizedContent
+                    count = 0
+                    searchFrom = 0
+                    while (true) {
+                        val idx = actualContent.indexOf(oldString, searchFrom)
+                        if (idx < 0) break
+                        count++
+                        searchFrom = idx + oldString.length
+                    }
+                }
+            }
+
             if (count == 0) {
                 return ToolExecutionResult("Error: old_string not found in $path", false, toolTitle = toolTitle)
             }
@@ -93,13 +110,19 @@ object FileEditTool {
             }
 
             val newContent = if (replaceAll) {
-                content.replace(oldString, newString)
+                actualContent.replace(actualOldString, newString)
             } else {
-                content.replaceFirst(oldString, newString)
+                actualContent.replaceFirst(actualOldString, newString)
             }
 
             try {
-                file.writeText(newContent)
+                if (file.canWrite()) {
+                    file.writeText(newContent)
+                } else if (isRootMode) {
+                    writeWithRoot(file.absolutePath, newContent)
+                } else {
+                    file.writeText(newContent)
+                }
             } catch (e: Exception) {
                 if (isRootMode) {
                     writeWithRoot(file.absolutePath, newContent)
@@ -122,14 +145,14 @@ object FileEditTool {
         return try {
             val p = ProcessBuilder("su", "-c", "test -e \"$absolutePath\"").start()
             p.waitFor() == 0
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
 
     private fun readTextWithRoot(absolutePath: String): String {
         val process = ProcessBuilder("su", "-c", "cat \"$absolutePath\"").start()
-        val output = process.inputStream.bufferedReader().readText()
+        val output = process.inputStream.bufferedReader(Charsets.UTF_8).readText()
         process.waitFor()
         if (process.exitValue() != 0 && output.isBlank()) {
             val err = process.errorStream.bufferedReader().readText()
@@ -140,7 +163,7 @@ object FileEditTool {
 
     private fun writeWithRoot(absolutePath: String, content: String) {
         val process = ProcessBuilder("su", "-c", "cat > \"$absolutePath\"").start()
-        process.outputStream.bufferedWriter().use { it.write(content) }
+        process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(content) }
         process.waitFor()
         if (process.exitValue() != 0) {
             val err = process.errorStream.bufferedReader().readText()

@@ -305,9 +305,10 @@ fun SettingsScreen(
                 io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_section_storage), icon = Icons.Outlined.Inventory2, onClick = onRootfsClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
-                io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_shared_folders), icon = Icons.Outlined.Folder, onClick = onSharedFoldersClick)
-                io.github.nanomuse.ui.muse.MuseRowDivider()
-                io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_mount_external_folders), icon = Icons.Outlined.FolderShared, onClick = onMountedFoldersClick)
+                if (currentExecMode != com.openminis.app.sandbox.ExecutionMode.ROOT) {
+                    io.github.nanomuse.ui.muse.MuseRowDivider()
+                    io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_mount_external_folders), icon = Icons.Outlined.FolderShared, onClick = onMountedFoldersClick)
+                }
                 io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_backup_restore), icon = Icons.Outlined.Backup, onClick = onBackupClick)
             }

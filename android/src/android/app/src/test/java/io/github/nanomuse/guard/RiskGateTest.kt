@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -104,5 +105,48 @@ class RiskGateTest {
         runCurrent()
         assertEquals(RiskDecision.ALLOW_ONCE, front.await())
         assertNull(RiskGate.pending.value)
+    }
+
+    @Test fun `file modifications in non-root mode are safe`() {
+        val nonRootAssessment = RiskGate.assessFileModification("/system/etc/hosts", isRootMode = false)
+        assertEquals(RiskClass.SAFE, nonRootAssessment.riskClass)
+        assertFalse(nonRootAssessment.needsApproval)
+    }
+
+    @Test fun `regular user paths in root mode are safe and frictionless`() {
+        for (path in listOf(
+            "/sdcard/Download/sample.txt",
+            "/storage/emulated/0/DCIM/photo.jpg",
+            "/data/local/tmp/script.sh",
+            "/data/adb/modules/my_module/module.prop",
+            "/var/minis/workspace/main.py",
+        )) {
+            val a = RiskGate.assessFileModification(path, isRootMode = true)
+            assertEquals(path, RiskClass.SAFE, a.riskClass)
+            assertFalse(path, a.needsApproval)
+            assertTrue(path, a.warnings.isEmpty())
+        }
+    }
+
+    @Test fun `critical system paths in root mode warn and require approval`() {
+        for (path in listOf(
+            "/system/etc/hosts",
+            "/vendor/build.prop",
+            "/product/etc/permissions.xml",
+            "/dev/block/bootdevice",
+            "/proc/sys/kernel/panic",
+            "/sys/fs/selinux/enforce",
+            "/data/system/packages.xml",
+            "/data/system/users/0/settings.xml",
+            "/data/misc/keystore/user_0",
+            "/init.rc",
+            "/init.environ.rc",
+            "/data/adb/原厂备份/stock_boot.img",
+        )) {
+            val a = RiskGate.assessFileModification(path, isRootMode = true)
+            assertEquals(path, RiskClass.DESTRUCTIVE, a.riskClass)
+            assertTrue(path, a.needsApproval)
+            assertTrue(path, a.warnings.isNotEmpty())
+        }
     }
 }

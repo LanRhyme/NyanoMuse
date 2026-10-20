@@ -9777,11 +9777,39 @@ class ChatViewModel(
                 }
                 result
             }
-            FileWriteTool.NAME -> FileWriteTool.execute(argsJson, activeSessionId, context).also {
-                if (it.success) maybeReloadSkillsForPath(argsJson)
+            FileWriteTool.NAME -> {
+                val path = JSONObject(argsJson).optString("path", "")
+                val isRootMode = com.openminis.app.sandbox.ExecutionMode.getMode(context) == com.openminis.app.sandbox.ExecutionMode.ROOT
+                val gate = io.github.nanomuse.guard.RiskGate.checkFileModification(activeSessionId, path, isWrite = true, isRootMode = isRootMode)
+                when (gate) {
+                    is io.github.nanomuse.guard.GateOutcome.Denied -> {
+                        val idx = toolBlocks.indexOfFirst { it.id == toolId }
+                        if (idx >= 0) toolBlocks[idx] = toolBlocks[idx].copy(content = "")
+                        ToolExecutionResult(gate.message, false, toolTitle = JSONObject(argsJson).optString("tool_title", FileWriteTool.NAME))
+                    }
+                    is io.github.nanomuse.guard.GateOutcome.Allowed -> {
+                        FileWriteTool.execute(argsJson, activeSessionId, context).also {
+                            if (it.success) maybeReloadSkillsForPath(argsJson)
+                        }
+                    }
+                }
             }
-            FileEditTool.NAME -> FileEditTool.execute(argsJson, activeSessionId, context).also {
-                if (it.success) maybeReloadSkillsForPath(argsJson)
+            FileEditTool.NAME -> {
+                val path = JSONObject(argsJson).optString("path", "")
+                val isRootMode = com.openminis.app.sandbox.ExecutionMode.getMode(context) == com.openminis.app.sandbox.ExecutionMode.ROOT
+                val gate = io.github.nanomuse.guard.RiskGate.checkFileModification(activeSessionId, path, isWrite = false, isRootMode = isRootMode)
+                when (gate) {
+                    is io.github.nanomuse.guard.GateOutcome.Denied -> {
+                        val idx = toolBlocks.indexOfFirst { it.id == toolId }
+                        if (idx >= 0) toolBlocks[idx] = toolBlocks[idx].copy(content = "")
+                        ToolExecutionResult(gate.message, false, toolTitle = JSONObject(argsJson).optString("tool_title", FileEditTool.NAME))
+                    }
+                    is io.github.nanomuse.guard.GateOutcome.Allowed -> {
+                        FileEditTool.execute(argsJson, activeSessionId, context).also {
+                            if (it.success) maybeReloadSkillsForPath(argsJson)
+                        }
+                    }
+                }
             }
             ReadImageTool.NAME -> executeReadImageTool(argsJson)
             "shell_execute" -> executeShellCommand(argsJson, toolId, toolBlocks, assistantId, currentText)

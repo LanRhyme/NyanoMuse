@@ -177,6 +177,47 @@ object RiskGate {
         return check(sessionId, GuardKind.SHELL, a, preview = command.trim())
     }
 
+    /** Decides for file write or edit: warns and prompts only on critical system paths under Root mode. */
+    suspend fun checkFileModification(sessionId: String, path: String, isWrite: Boolean, isRootMode: Boolean): GateOutcome {
+        val a = assessFileModification(path, isRootMode)
+        val actionVerb = if (isWrite) "Write file" else "Edit file"
+        return check(sessionId, GuardKind.SHELL, a, preview = "$actionVerb: $path")
+    }
+
+    fun assessFileModification(path: String, isRootMode: Boolean): RiskAssessment {
+        if (!isRootMode) return RiskAssessment.SAFE
+        val cleanPath = path.trim()
+        val criticalPrefixes = listOf(
+            "/dev",
+            "/proc",
+            "/sys",
+            "/system",
+            "/vendor",
+            "/product",
+            "/odm",
+            "/system_ext",
+            "/mi_ext",
+            "/apex",
+            "/data/system/packages.xml",
+            "/data/system/users",
+            "/data/misc/keystore",
+        )
+        val isCritical = criticalPrefixes.any { cleanPath == it || cleanPath.startsWith("$it/") } ||
+            cleanPath.startsWith("/init.") || cleanPath == "/init" ||
+            (cleanPath.endsWith(".img") && (cleanPath.startsWith("/boot") || cleanPath.startsWith("/data/adb") || cleanPath.contains("备份")))
+
+        return if (isCritical) {
+            RiskAssessment(
+                riskClass = RiskClass.DESTRUCTIVE,
+                reason = "Modifying core system path: $cleanPath",
+                target = cleanPath,
+                warnings = listOf("Modifying $cleanPath affects system or partition integrity"),
+            )
+        } else {
+            RiskAssessment.SAFE
+        }
+    }
+
     suspend fun check(
         sessionId: String,
         kind: GuardKind,

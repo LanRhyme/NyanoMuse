@@ -12,10 +12,10 @@ object FileWriteTool {
 
     fun definition(): AgentToolDefinition = AgentToolDefinition(
         name = NAME,
-        description = "Write content to a file on the Linux filesystem. Faster than shell_execute for writing files. Creates the file if it doesn't exist. Use append mode to add to existing files.",
+        description = "Write content to a file on the Android filesystem. In Root mode, full unrestricted write access across all files and directories (/sdcard, /data, /system, etc.) is supported. Faster than shell_execute for writing files. Creates the file if it doesn't exist. Use append mode to add to existing files.",
         parameters = mapOf(
             "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does, shown to the user (e.g. 'Create Python statistics script', 'Write configuration file'). Use the same language as the user."),
-            "path" to AgentToolParam("string", "Absolute Linux path to write (e.g. /root/test.txt)"),
+            "path" to AgentToolParam("string", "Absolute path to write (e.g. /sdcard/Download/test.txt or /data/adb/modules/sample.prop)"),
             "content" to AgentToolParam("string", "The text content to write to the file"),
             "append" to AgentToolParam("boolean", "If true, append to existing file instead of overwriting (default: false)"),
             "create_dirs" to AgentToolParam("boolean", "If true, create parent directories if they don't exist (default: false)"),
@@ -27,7 +27,7 @@ object FileWriteTool {
     fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
         return try {
             val args = JSONObject(argsJson)
-            val path = args.optString("path", "")
+            val path = args.optString("path", "").trim()
             val content = args.optString("content", "")
             val append = args.optBoolean("append", false)
             val createDirs = args.optBoolean("create_dirs", false)
@@ -37,12 +37,10 @@ object FileWriteTool {
                 return ToolExecutionResult("Error: 'path' is required", false, toolTitle = toolTitle)
             }
 
-            // T219: read-only mount guard. Reject before opening so we don't
-            // half-create files inside a Locked external mount and surface a
-            // friendly hint pointing the user at Settings. Mirrors iOS
-            // MountedFolderCoordinator.isLinuxPathUnderReadOnlyMount used by
-            // AIChatViewModel.fileWrite (AIChatViewModel.swift:8333-8341).
-            if (PRootKernel.isLinuxPathUnderReadOnlyMount(path)) {
+            val isRootMode = ExecutionMode.getMode(context) == ExecutionMode.ROOT
+
+            // In non-root mode, guard against read-only mounts
+            if (!isRootMode && PRootKernel.isLinuxPathUnderReadOnlyMount(path)) {
                 return ToolExecutionResult(
                     "Error: $path is inside a read-only mounted folder and cannot be modified. " +
                         "Toggle writability in Settings → Mount External Folders if this is a mistake.",
@@ -50,11 +48,6 @@ object FileWriteTool {
                 )
             }
 
-            // T123: per-session resolver so /var/minis/workspace/...,
-            // /var/minis/attachments/..., /var/minis/offloads/...,
-            // /var/minis/browser/... land in this session's host dir
-            // rather than the global bind-mount map (which is overwritten
-            // every time another session boots its shell, last-writer-wins).
             val file = PRootKernel.resolveSessionHostPath(sessionId, path, context)
                 ?: return ToolExecutionResult("Error: Cannot resolve path: $path", false, toolTitle = toolTitle)
 
@@ -65,23 +58,24 @@ object FileWriteTool {
                 return ToolExecutionResult("Error: Content is not valid UTF-8", false, toolTitle = toolTitle)
             }
 
-            // T123: mirror iOS AIChatViewModel L8339 — auto-create the
-            // parent dir whenever it doesn't exist, regardless of the
-            // create_dirs flag. Per-session subdirs (workspace, etc.) are
-            // materialized lazily, so a fresh session writing into
-            // /var/minis/workspace/foo/bar.md would otherwise hit "Parent
-            // directory does not exist" on the very first call.
             val parent = file.parentFile
             if (parent != null && (createDirs || !parent.exists())) {
-                parent.mkdirs()
+                if (!parent.exists() && !parent.mkdirs() && isRootMode) {
+                    mkdirWithRoot(parent.absolutePath)
+                }
             }
 
-            val isRootMode = ExecutionMode.getMode(context) == ExecutionMode.ROOT
             try {
-                if (append) {
-                    file.appendText(content)
+                if (file.canWrite() || (!file.exists() && parent != null && parent.canWrite())) {
+                    if (append) {
+                        file.appendText(content)
+                    } else {
+                        file.writeText(content)
+                    }
+                } else if (isRootMode) {
+                    writeWithRoot(file.absolutePath, content, append)
                 } else {
-                    file.writeText(content)
+                    if (append) file.appendText(content) else file.writeText(content)
                 }
             } catch (e: Exception) {
                 if (isRootMode) {
@@ -91,37 +85,35 @@ object FileWriteTool {
                 }
             }
 
-            val bytes = file.length()
-            // Diagnose "write reported success but nothing on disk" (Android 10
-            // legacy-storage FUSE shadow writes): confirm the file is actually
-            // there with the expected size right after writing. A mounted-folder
-            // write that silently no-ops shows exists=false / size mismatch here.
-            if (path.startsWith("/var/minis/mounts/")) {
-                val landed = file.exists() && file.length() == bytes
-                com.openminis.app.logging.AppLogger.info(
-                    "FileWrite",
-                    "mount write path=$path host=${file.absolutePath} bytes=$bytes " +
-                        "exists=${file.exists()} landedOk=$landed",
-                )
-                if (!landed) {
-                    com.openminis.app.logging.AppLogger.warning(
-                        "FileWrite",
-                        "mount write to $path reported success but did NOT persist to " +
-                            "${file.absolutePath} — likely missing WRITE_EXTERNAL_STORAGE / " +
-                            "shadowed FUSE view on this device",
-                    )
-                }
-            }
+            val bytes = if (file.canRead()) file.length() else if (isRootMode) getLengthWithRoot(file.absolutePath) else content.toByteArray(Charsets.UTF_8).size.toLong()
             ToolExecutionResult("Wrote to $path ($bytes bytes)", true, toolTitle = toolTitle)
         } catch (e: Exception) {
             ToolExecutionResult("Error writing file: ${e.message}", false)
         }
     }
 
+    private fun mkdirWithRoot(absolutePath: String) {
+        try {
+            val process = ProcessBuilder("su", "-c", "mkdir -p \"$absolutePath\"").start()
+            process.waitFor()
+        } catch (_: Exception) {}
+    }
+
+    private fun getLengthWithRoot(absolutePath: String): Long {
+        return try {
+            val p = ProcessBuilder("su", "-c", "stat -c %s \"$absolutePath\" 2>/dev/null || wc -c < \"$absolutePath\"").start()
+            val out = p.inputStream.bufferedReader().readText().trim()
+            p.waitFor()
+            out.toLongOrNull() ?: 0L
+        } catch (_: Exception) {
+            0L
+        }
+    }
+
     private fun writeWithRoot(absolutePath: String, content: String, append: Boolean) {
         val redirect = if (append) ">>" else ">"
         val process = ProcessBuilder("su", "-c", "cat $redirect \"$absolutePath\"").start()
-        process.outputStream.bufferedWriter().use { it.write(content) }
+        process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(content) }
         process.waitFor()
         if (process.exitValue() != 0) {
             val err = process.errorStream.bufferedReader().readText()
