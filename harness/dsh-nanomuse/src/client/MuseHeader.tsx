@@ -155,11 +155,9 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
   // a side chat carries a way back to the main chat at its top left; beside a room
   // (the split) the chat column is headed "≡ 聊天" instead, which brings the chats back.
   // The back control is the bar's navigation seat, as the phone puts its menu there.
-  const main = mainChatId()
-  const side = current !== null && main !== undefined && main !== current
   const lead = split !== null
     ? h('button', { type: 'button', className: 'nm-header-back nm-header-chats', 'aria-label': t('railChats'), title: t('splitClose'), onClick: () => nav.split(null) }, h(IconMenu, { size: 18 }), h('span', null, t('railChats')))
-    : side ? h('button', { type: 'button', className: 'nm-header-back', 'aria-label': t('chMain'), title: t('chMain'), onClick: () => nav.openSession(main) }, h(IconChevronLeft, { size: 18 })) : null
+    : null
   // The phone's bar: the face, the name and the balance capsule centred as one row, the back
   // control on the left and the background button on the right. A second line under the name
   // carries the status only while there is something to say, so an idle bar is exactly the

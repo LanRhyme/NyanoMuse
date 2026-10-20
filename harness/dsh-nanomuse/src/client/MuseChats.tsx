@@ -157,15 +157,13 @@ interface RowProps {
   t: Translate
   chat: ChatSummary
   label: string
-  main: boolean
   pinned: boolean
   selected: boolean
   useSessionStatus: UseStatusMap | undefined
   actions: ChatActions
-  onMakeMain(): void
 }
 
-function ChatRow({ t, chat, label, main, pinned, selected, useSessionStatus, actions, onMakeMain }: RowProps): ReactNode {
+function ChatRow({ t, chat, label, pinned, selected, useSessionStatus, actions }: RowProps): ReactNode {
   const status = typeof useSessionStatus === 'function' ? useSessionStatus((map) => map.get(chat.id)) : undefined
   const running = status?.running ?? chat.running
   const waiting = status?.pendingInteraction !== undefined
@@ -194,19 +192,18 @@ function ChatRow({ t, chat, label, main, pinned, selected, useSessionStatus, act
     if (event.key === 'Enter' && !composing(event)) { event.preventDefault(); commit() }
     if (event.key === 'Escape') { event.preventDefault(); cancel() }
   }
-  // Muse's row menu: pin, rename, archive (Muse says delete; the harness keeps
-  // archived chats under the column's menu) — and ours: make this the main chat.
+
   const items: MenuItem[] = [
-    ...(main ? [] : [{ id: 'pin', label: pinned ? t('chUnpin') : t('chPin'), onSelect: () => { void (pinned ? actions.unpinSession(chat.id) : actions.pinSession(chat.id)).catch(() => undefined) } }]),
+    { id: 'pin', label: pinned ? t('chUnpin') : t('chPin'), onSelect: () => { void (pinned ? actions.unpinSession(chat.id) : actions.pinSession(chat.id)).catch(() => undefined) } },
     { id: 'rename', label: t('chRename'), onSelect: begin },
-    ...(main ? [] : [{ id: 'archive', label: t('chArchive'), onSelect: () => { void actions.archiveSession(chat.id).catch(() => undefined) } }]),
-    ...(main ? [] : [{ id: 'main', label: t('chMakeMain'), onSelect: onMakeMain }]),
+    { id: 'archive', label: t('chArchive'), onSelect: () => { void actions.archiveSession(chat.id).catch(() => undefined) } },
   ]
 
-  return h('div', { className: `nm-chat-row${selected ? ' nm-selected' : ''}${main ? ' nm-main' : ''}`, 'data-session-id': chat.id },
+  return h('div', { className: `nm-chat-row${selected ? ' nm-selected' : ''}${pinned ? ' nm-pinned' : ''}`, 'data-session-id': chat.id },
     editing
       ? h('input', { className: 'nm-chat-edit', value: draft, autoFocus: true, 'aria-label': t('chRename'), onChange: (e: FormEvent<HTMLInputElement>) => setDraft(e.currentTarget.value), onBlur: commit, onKeyDown: onKey })
       : h('button', { type: 'button', className: 'nm-chat-open', 'aria-current': selected ? 'page' : undefined, onClick: () => actions.openSession(chat.id), onDoubleClick: begin },
+          pinned ? h('span', { className: 'nm-chat-pin-mark', title: t('chPin') }, '📌 ') : null,
           h('span', { className: 'nm-chat-title' }, label),
           waiting
             ? h('span', { className: 'nm-chat-mark nm-wait', title: t('chWaiting'), 'aria-label': t('chWaiting') }, 'ℹ')
@@ -242,9 +239,7 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
     .filter((s): s is ChatSummary => s !== undefined && s.origin !== 'subagent' && !s.parentId && !archivedSet.has(s.id) && !sync.foreign.has(s.id) && !batches.has(s.id))
   const current = Object.values(state.byId).find((s) => (s.retainedBy.mainView ?? 0) > 0)?.id
 
-  // The main chat: the one the account's main conversation lives in (C8) while it exists, else
-  // the remembered one, else the oldest, else the one on screen (a first session being created
-  // becomes the main chat).
+  // Under the hood, keep a main session mapped for cloud relay sync compatibility
   let mainId = sync.mainSession && visible.some((s) => s.id === sync.mainSession) ? sync.mainSession : undefined
   if (!mainId) mainId = mainStored && visible.some((s) => s.id === mainStored) ? mainStored : undefined
   if (!mainId && visible.length > 0) {
@@ -255,14 +250,13 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
     if (state.phase !== 'ready') return
     if (mainId !== mainStored) { writeMain(mainId); setMainStored(mainId) }
   }, [mainId, mainStored, state.phase])
-  // The host syncs the main chat as the account's one main conversation (C7, C8): it is told
-  // which session that is, and answers with the one the conversation already lives in.
   useEffect(() => {
     if (state.phase !== 'ready' || !mainId) return
     void call<{ sessionId?: string } | undefined>('sync/main', { sessionId: mainId })
       .then((r) => { if (r?.sessionId && r.sessionId !== mainId) { writeMain(r.sessionId); setMainStored(r.sessionId) } })
       .catch(() => undefined)
   }, [mainId, state.phase])
+
   // A chat deleted on another device goes to the archive here, and the host is told.
   const archiving = useRef(new Set<string>())
   useEffect(() => {
@@ -275,11 +269,9 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
       .finally(() => { for (const id of due) archiving.current.delete(id) })
   }, [sync.toArchive])
 
-  const main = visible.find((s) => s.id === mainId)
   const q = query.trim().toLowerCase()
-  // a synced chat is listed from the moment it exists here, though no turn ran here yet
-  const side = visible
-    .filter((s) => s.id !== mainId && (!s.blank || s.id === current || sync.sessions.has(s.id)))
+  const chats = visible
+    .filter((s) => (!s.blank || s.id === current || sync.sessions.has(s.id)))
     .filter((s) => q === '' || s.displayTitle.toLowerCase().includes(q))
     .sort((a, b) => {
       const pa = pinnedSet.has(a.id) ? 1 : 0
@@ -287,50 +279,38 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
       if (pa !== pb) return pb - pa
       return b.updatedAt - a.updatedAt
     })
-  const mainMatches = q === '' || t('chMain').toLowerCase().includes(q) || (main?.displayTitle.toLowerCase().includes(q) ?? false)
 
-  const openMain = () => {
-    if (main) actions.openSession(main.id)
-    else actions.startSession()
+  const handleNewChat = () => {
+    actions.startSession()
+    window.setTimeout(() => (document.querySelector('[contenteditable="true"]') as HTMLElement | null)?.focus(), 50)
   }
+
   const headItems: MenuItem[] = [
     { id: 'archived', label: t('chArchived'), onSelect: actions.openArchived },
   ]
 
   return h('div', { className: 'nm-chats' },
     h('div', { className: 'nm-chats-head' },
-      h('label', { className: 'nm-chats-search' },
-        h(IconSearch, { size: 15 }),
-        h('input', { ref: searchRef, type: 'search', value: query, placeholder: t('chSearch'), 'aria-label': t('chSearch'), onChange: (e: FormEvent<HTMLInputElement>) => setQuery(e.currentTarget.value) })),
-      h('button', { type: 'button', className: 'nm-icon-btn', 'aria-label': t('chMore'), 'aria-haspopup': 'menu', 'aria-expanded': headMenu !== null, ref: (el: HTMLButtonElement | null): void => { headMore.current = el }, onClick: () => setHeadMenu((c) => (c ? null : headMore.current)) }, h(IconMore, { size: 18 })),
-      headMenu ? h(RowMenu, { anchor: headMenu, items: headItems, onClose: () => setHeadMenu(null) }) : null),
+      h('button', { type: 'button', className: 'nm-chats-new-btn', onClick: handleNewChat, title: t('chNewSide') },
+        h(IconPlus, { size: 15 }),
+        h('span', null, t('chNewSide'))),
+      h('div', { className: 'nm-chats-search-row' },
+        h('label', { className: 'nm-chats-search' },
+          h(IconSearch, { size: 15 }),
+          h('input', { ref: searchRef, type: 'search', value: query, placeholder: t('chSearch'), 'aria-label': t('chSearch'), onChange: (e: FormEvent<HTMLInputElement>) => setQuery(e.currentTarget.value) })),
+        h('button', { type: 'button', className: 'nm-icon-btn', 'aria-label': t('chMore'), 'aria-haspopup': 'menu', 'aria-expanded': headMenu !== null, ref: (el: HTMLButtonElement | null): void => { headMore.current = el }, onClick: () => setHeadMenu((c) => (c ? null : headMore.current)) }, h(IconMore, { size: 18 })),
+        headMenu ? h(RowMenu, { anchor: headMenu, items: headItems, onClose: () => setHeadMenu(null) }) : null)),
     h('div', { className: 'nm-chats-list' },
-      mainMatches
-        ? (main
-            ? h(ChatRow, { t, chat: main, label: t('chMain'), main: true, pinned: false, selected: current === main.id, useSessionStatus, actions, onMakeMain: () => undefined })
-            : h('div', { className: 'nm-chat-row nm-main' },
-                h('button', { type: 'button', className: 'nm-chat-open', onClick: openMain }, h('span', { className: 'nm-chat-title' }, t('chMain')))))
-        : null,
-      h('div', { className: 'nm-chats-section' },
-        h('span', null, t('chSide')),
-        h('button', { type: 'button', className: 'nm-icon-btn nm-icon-btn-sm', 'aria-label': t('chNewSide'), title: t('chNewSide'), onClick: actions.startSession }, h(IconPlus, { size: 16 }))),
-      side.length === 0
+      chats.length === 0
         ? h('div', { className: 'nm-chats-empty' }, q === '' ? t('chEmpty') : t('chNoMatch'))
-        : side.map((chat) => h(ChatRow, {
+        : chats.map((chat) => h(ChatRow, {
             key: chat.id,
             t,
             chat,
             label: chat.blank && !sync.sessions.has(chat.id) ? t('chBlank') : chat.displayTitle || t('chBlank'),
-            main: false,
             pinned: pinnedSet.has(chat.id),
             selected: current === chat.id,
             useSessionStatus,
             actions,
-            // the host has the last word: while the account's main conversation lives in a session, that one stays the main chat
-            onMakeMain: () => {
-              void call<{ sessionId?: string } | undefined>('sync/main', { sessionId: chat.id })
-                .then((r) => { const id = r?.sessionId || chat.id; writeMain(id); setMainStored(id) })
-                .catch(() => { writeMain(chat.id); setMainStored(chat.id) })
-            },
           }))))
 }
