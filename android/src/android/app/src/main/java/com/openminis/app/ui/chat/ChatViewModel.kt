@@ -1857,6 +1857,12 @@ class ChatViewModel(
      *  rebuilds them with the current localized state. */
     internal val availableSlashCommands: List<SlashCommand> = listOf(
         SlashCommand(
+            id = "grill-me",
+            icon = Icons.Default.Psychology,
+            title = "grill-me",
+            subtitle = "深度需求访谈与方案对齐",
+        ),
+        SlashCommand(
             id = "clear",
             icon = Icons.Default.Delete,
             title = "Clear",
@@ -1912,7 +1918,7 @@ class ChatViewModel(
         // they're a typing aid. Fill the composer with the literal slash
         // command; the user then taps Send and the model handles the skill via
         // the existing SKILL.md fragment injection in runAgentLoop.
-        if (cmd.isSkill) {
+        if (cmd.isSkill || cmd.id == "grill-me") {
             AppLogger.info(TAG, "[Slash] tap skill id=${cmd.id} title=${cmd.title} → composer fill only")
             savedInputBeforeSlash = null
             _showSlashMenu.value = false

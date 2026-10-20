@@ -361,6 +361,8 @@ export const api = {
   setLLM: (body: Record<string, unknown>) =>
     request<ConnectionsData["llm"]>("/api/connections/llm", { method: "PUT", body: JSON.stringify(body) }),
   testLLM: () => request<TestResult>("/api/connections/llm/test", { method: "POST" }),
+  deepseekStatus: () =>
+    request<{ is_deepseek: boolean; balance?: string | null; currency?: string }>("/api/deepseek/status"),
   /** the models an endpoint offers: its own /models when it answers, else the preset's catalogue
    *  (or, for a custom endpoint of the list named by `endpoint`, the models saved with it) */
   llmModels: (body: { preset?: string; base_url?: string; api_key?: string; endpoint?: string }) =>

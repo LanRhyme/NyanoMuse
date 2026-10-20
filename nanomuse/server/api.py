@@ -971,6 +971,10 @@ def create_app(settings: Settings, service: MuseService | None = None) -> FastAP
     async def test_llm() -> dict[str, Any]:
         return await conn.test_llm()
 
+    @app.get("/api/deepseek/status", dependencies=dep)
+    async def deepseek_status() -> dict[str, Any]:
+        return await conn.deepseek_status()
+
     @app.post("/api/llm/models", dependencies=dep)
     async def llm_models(body: LLMModelsBody) -> dict[str, Any]:
         """The models an endpoint offers (its /models, else the preset's catalogue); saves nothing."""

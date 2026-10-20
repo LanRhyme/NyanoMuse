@@ -4472,22 +4472,38 @@ fun ChatScreen(
                                 slotKey = "mdblock:${item.parentBlockId}:${item.blockIndex}",
                                 markdown = item.messageMarkdown,
                             ) { io.github.nanomuse.ui.chat.NmAssistantBubble(enabled = nmHome != null, rawText = item.rawText) {
+                                val (cleanText, questionData) = remember(item.rawText) {
+                                    io.github.nanomuse.ui.chat.QuestionCardParser.extractQuestion(item.rawText)
+                                }
                                 LargeContentGuard(
-                                    content = item.rawText,
+                                    content = cleanText.ifEmpty { item.rawText },
                                     isStreaming = item.isStreaming,
                                     stableKey = "mdblock:${item.messageId}:${item.parentBlockId}:${item.blockIndex}",
                                 ) {
                                     SideEffect {
                                         selectionController.rememberMessageMarkdown(item.messageId, item.messageMarkdown)
                                     }
-                                    MarkdownBlock(
-                                        rawText = item.rawText,
-                                        isStreaming = item.isStreaming,
-                                        shardId = TextShardId(
-                                            messageId = item.messageId,
-                                            shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}",
-                                        ),
-                                    )
+                                    if (cleanText.isNotEmpty()) {
+                                        MarkdownBlock(
+                                            rawText = cleanText,
+                                            isStreaming = item.isStreaming,
+                                            shardId = TextShardId(
+                                                messageId = item.messageId,
+                                                shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}",
+                                            ),
+                                        )
+                                    }
+                                    if (questionData != null) {
+                                        if (cleanText.isNotEmpty()) {
+                                            Spacer(Modifier.height(8.dp))
+                                        }
+                                        io.github.nanomuse.ui.chat.InteractiveQuestionCard(
+                                            data = questionData,
+                                            onOptionSelected = { option ->
+                                                viewModel.sendMessage(option)
+                                            },
+                                        )
+                                    }
                                 }
                             } } // nanoMuse: bubble
                             is FlatChatItem.AssistantThinking -> {

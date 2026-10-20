@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronDown, FileText, Loader2, Menu, MessageSquarePlus, Monitor, MonitorSmartphone, Moon, Phone, Plus, Smartphone, Table2, Trash2, Wand2, X } from "lucide-react";
+import { ArrowUp, Ban, Check, ChevronDown, ChevronRight, FileText, Loader2, Menu, MessageSquarePlus, Monitor, MonitorSmartphone, Moon, Phone, Plus, Smartphone, Sparkles, Table2, Trash2, Wand2, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api, fileUrl } from "../api";
 import { AllowanceHeadsUp } from "../components/AllowanceWays";
@@ -16,7 +16,7 @@ import { localDetail, localLabel, useLocale, useT } from "../i18n";
 import { mentionSuggestions, mentionTarget } from "../mention";
 import { WORKING_TTL_MS } from "../presence";
 import { useStore, type Stream } from "../store";
-import type { AttachmentInfo, HubDevice, SkillInfo, ThreadMeta, TimelineEvent, UserEvent, WorkingPresence } from "../types";
+import type { AttachmentInfo, HubDevice, SkillInfo, ThreadMeta, TimelineEvent, ToolEvent, UserEvent, WorkingPresence } from "../types";
 import { cx, timeDivider, timeShort } from "../util";
 import { MuseSheet } from "./MuseSheet";
 import { countDay, countTask, StarNudgeOnce } from "../components/StarNudge";
@@ -190,6 +190,77 @@ export function ChatScreen() {
   // the steps (tool chips) stay out of the chat unless asked for; everything else always shows
   const steps = useShowSteps();
   const shown = useMemo(() => (steps ? events : events.filter((e) => e.type !== "tool")), [events, steps]);
+
+  type GroupedTimelineItem =
+    | { kind: "event"; event: TimelineEvent; prev?: TimelineEvent; rawIndex: number }
+    | { kind: "tool_group"; id: string; events: ToolEvent[] };
+
+  const groupedItems = useMemo(() => {
+    const result: GroupedTimelineItem[] = [];
+    let pendingTools: ToolEvent[] = [];
+
+    const flush = () => {
+      if (pendingTools.length > 0) {
+        result.push({
+          kind: "tool_group",
+          id: `group-${pendingTools[0].id}`,
+          events: [...pendingTools],
+        });
+        pendingTools = [];
+      }
+    };
+
+    for (let i = 0; i < shown.length; i++) {
+      const ev = shown[i];
+      if (ev.type === "tool") {
+        pendingTools.push(ev as ToolEvent);
+      } else {
+        flush();
+        result.push({
+          kind: "event",
+          event: ev,
+          prev: shown[i - 1],
+          rawIndex: i,
+        });
+      }
+    }
+    flush();
+    return result;
+  }, [shown]);
+
+  // DeepSeek status tracking
+  const [deepSeekStatus, setDeepSeekStatus] = useState<{ is_deepseek: boolean; balance?: string | null } | null>(null);
+
+  const fetchDeepSeek = useCallback(async () => {
+    try {
+      const res = await api.deepseekStatus();
+      setDeepSeekStatus(res);
+    } catch {
+      const llm = state.settings?.llm;
+      const isDs = /deepseek/i.test(llm?.provider || "") || /deepseek/i.test(llm?.model || "");
+      setDeepSeekStatus({ is_deepseek: isDs });
+    }
+  }, [state.settings?.llm]);
+
+  useEffect(() => {
+    void fetchDeepSeek();
+  }, [fetchDeepSeek]);
+
+  const deepSeekPillNode = useMemo(() => {
+    if (!deepSeekStatus?.is_deepseek) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => void fetchDeepSeek()}
+        className="flex items-center gap-1.5 rounded-full bg-surface-2/90 border border-border/50 px-2 py-0.5 text-[10.5px] font-medium text-fg/80 hover:bg-surface-2 transition shrink-0"
+        title="DeepSeek 账户状态 (点击刷新)"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-[#007AFF] shrink-0" />
+        <span>{deepSeekStatus.balance ? `DeepSeek 余额 ¥${deepSeekStatus.balance}` : "DeepSeek"}</span>
+      </button>
+    );
+  }, [deepSeekStatus, fetchDeepSeek]);
+
   // *Use nanoMuse Cloud this time* under a failed turn of one's own model (see cloud-retry.ts)
   const cloudRetryCtx = { signedIn: Boolean(state.hub?.account.signed_in), chatOnCloud: Boolean(state.settings?.llm.cloud), deviceChat: Boolean(thread?.device) };
   const cloudRetryFor = (i: number): (() => Promise<void>) | undefined => {
@@ -208,6 +279,7 @@ export function ChatScreen() {
           and menu. A scrim over the list, which scrolls under it; no bar and no line below it. */}
       <div ref={headerRef} className="pointer-events-none absolute inset-x-0 top-0 z-10">
         <MuseHeader
+          compact
           scrim
           profile={profile}
           status={status}
@@ -217,9 +289,10 @@ export function ChatScreen() {
           spinning={((status.state === "working" && status.thread === activeThread) || !!thread?.busy) && waitingHere === 0}
           badge={queued}
           onAvatar={() => setActivityOpen(true)}
+          deepSeekPill={deepSeekPillNode}
           leading={
-            <MuseRoundButton onClick={() => setDrawer(true)} label={t("Chats")} dot={threads.length > 1 && activeThread !== "main"} className="wide:invisible">
-              <Menu size={22} />
+            <MuseRoundButton small onClick={() => setDrawer(true)} label={t("Chats")} dot={threads.length > 1 && activeThread !== "main"} className="wide:invisible">
+              <Menu size={18} />
             </MuseRoundButton>
           }
           trailing={<MoreMenu actions={[{ label: t("Coding agents"), onClick: () => setTab("coding") }]} />}
@@ -242,7 +315,7 @@ export function ChatScreen() {
         />
       </div>
       {/* while reading older messages the top edge fades fully into the canvas, under the header */}
-      <div aria-hidden className="list-fade-top pointer-events-none absolute inset-x-0 top-0 z-[5] h-20" style={{ opacity: scrolledUp ? 1 : 0 }} />
+      <div aria-hidden className="list-fade-top pointer-events-none absolute inset-x-0 top-0 z-[5] h-10" style={{ opacity: scrolledUp ? 1 : 0 }} />
 
       {/* Timeline */}
       <div ref={listRef} onScroll={measure} className="relative flex-1 overflow-y-auto px-3 pb-3">
@@ -269,23 +342,34 @@ export function ChatScreen() {
               onSend={(text) => send(activeThread, text).catch((e: Error) => toast(e.message || t("Could not send")))}
             />
           )}
-          {shown.map((ev, i) => (
-            <EventView
-              key={ev.id}
-              event={ev}
-              prev={shown[i - 1]}
-              name={name}
-              onDecide={(approved, scope) =>
-                decide(ev.id, approved, scope).catch((e: Error) => toast(e.message || t("Could not send decision")))
-              }
-              onOpenFile={openFile}
-              onOpenBrowser={setBrowserView}
-              files={files}
-              onCloudRetry={cloudRetryFor(i)}
-            />
-          ))}
+          {groupedItems.map((item) =>
+            item.kind === "tool_group" ? (
+              <ToolGroupCard key={item.id} events={item.events} />
+            ) : (
+              <EventView
+                key={item.event.id}
+                event={item.event}
+                prev={item.prev}
+                name={name}
+                onDecide={(approved, scope) =>
+                  decide(item.event.id, approved, scope).catch((e: Error) => toast(e.message || t("Could not send decision")))
+                }
+                onOpenFile={openFile}
+                onOpenBrowser={setBrowserView}
+                files={files}
+                onCloudRetry={cloudRetryFor(item.rawIndex)}
+                onSend={(text) => send(activeThread, text).catch((e: Error) => toast(e.message || t("Could not send")))}
+              />
+            ),
+          )}
           {stream && stream.text && (
-            <AssistantBubble text={stream.text} streaming files={files} onOpenFile={openFile} />
+            <AssistantBubble
+              text={stream.text}
+              streaming
+              files={files}
+              onOpenFile={openFile}
+              onSend={(text) => send(activeThread, text).catch((e: Error) => toast(e.message || t("Could not send")))}
+            />
           )}
           <LiveReply stream={stream} name={name} />
           {(thread?.busy || status.state !== "idle") && !stream?.text && status.state !== "waiting" && (
@@ -333,6 +417,175 @@ export function ChatScreen() {
 }
 
 // ------------------------------------------------------------------ pieces
+function ToolGroupCard({ events }: { events: ToolEvent[] }) {
+  const [open, setOpen] = useState(false);
+  const anyRunning = events.some((e) => e.status === "running");
+  const anyError = events.some((e) => e.status === "error" || e.status === "blocked");
+  const activeTool = events.find((e) => e.status === "running") || events[0];
+
+  const headerText = useMemo(() => {
+    if (anyRunning) {
+      const title = activeTool?.title || activeTool?.summary || activeTool?.tool || "工具";
+      return events.length === 1 ? `执行中: ${title}` : `执行中: ${title} (${events.length} 个工具)`;
+    }
+    if (anyError) {
+      return events.length === 1 ? `执行出错: ${events[0].title || events[0].tool}` : `执行出错 (${events.length} 个工具/命令)`;
+    }
+    if (events.length === 1) {
+      return `已执行 ${events[0].title || events[0].summary || events[0].tool}`;
+    }
+    return `已执行 ${events.length} 个工具/命令`;
+  }, [events, anyRunning, anyError, activeTool]);
+
+  const icon = anyRunning ? (
+    <Loader2 size={13} className="animate-spin text-accent" />
+  ) : anyError ? (
+    <Ban size={13} className="text-rose-500" />
+  ) : (
+    <Check size={13} className="text-emerald-500" />
+  );
+
+  return (
+    <div className="rise my-1">
+      <div className="flex justify-start pr-8">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className={cx(
+            "flex items-center gap-2 max-w-full rounded-2xl border px-3 py-1.5 text-[12.5px] transition",
+            anyRunning
+              ? "border-accent/40 bg-surface-2 text-fg shadow-sm"
+              : "border-border/60 bg-surface-2/80 text-muted hover:text-fg",
+          )}
+        >
+          {icon}
+          <span className="truncate font-medium">{headerText}</span>
+          {open ? <ChevronDown size={13} className="shrink-0" /> : <ChevronRight size={13} className="shrink-0" />}
+        </button>
+      </div>
+      {open && (
+        <div className="mt-1.5 pl-3 border-l-2 border-border/40 space-y-1.5">
+          {events.map((ev) => (
+            <ToolChip key={ev.id} event={ev} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface QuestionCardData {
+  question: string;
+  options: string[];
+  is_multi_select?: boolean;
+}
+
+function parseQuestion(raw: string): { before: string; questionData: QuestionCardData | null; after: string } {
+  if (!raw) return { before: "", questionData: null, after: "" };
+  const match = /<question>([\s\S]*?)(?:<\/question>|$)/i.exec(raw);
+  if (!match) return { before: raw, questionData: null, after: "" };
+  const before = raw.substring(0, match.index).trim();
+  const after = raw.substring(match.index + match[0].length).trim();
+  try {
+    const jsonStr = match[1].trim();
+    const parsed = JSON.parse(jsonStr);
+    if (parsed && typeof parsed.question === "string" && Array.isArray(parsed.options)) {
+      return { before, questionData: parsed, after };
+    }
+  } catch {
+    // not valid JSON yet (e.g. while streaming)
+  }
+  return { before: raw, questionData: null, after: "" };
+}
+
+function InteractiveQuestionCard({
+  data,
+  onPick,
+}: {
+  data: QuestionCardData;
+  onPick: (option: string) => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const isMulti = !!data.is_multi_select;
+
+  const handleClick = (opt: string) => {
+    const clean = opt.replace(/^\((?:Recommended|推荐)\)\s*/i, "").trim();
+    if (!isMulti) {
+      onPick(clean);
+    } else {
+      setSelected((prev) =>
+        prev.includes(clean) ? prev.filter((x) => x !== clean) : [...prev, clean],
+      );
+    }
+  };
+
+  const handleMultiSubmit = () => {
+    if (selected.length > 0) {
+      onPick(selected.join(", "));
+    }
+  };
+
+  return (
+    <div className="my-2 rounded-2xl border border-accent/25 bg-accent/[0.04] p-3 text-fg dark:bg-accent/[0.08]">
+      <div className="flex items-center gap-2 mb-2 font-semibold text-[13.5px] text-accent">
+        <Sparkles size={15} />
+        <span>{data.question}</span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {data.options.map((opt, i) => {
+          const isRec = /^\((?:Recommended|推荐)\)/i.test(opt);
+          const clean = opt.replace(/^\((?:Recommended|推荐)\)\s*/i, "").trim();
+          const isChecked = selected.includes(clean);
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleClick(opt)}
+              className={cx(
+                "group flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-[13px] transition",
+                isRec
+                  ? "border border-accent/40 bg-surface shadow-sm hover:border-accent hover:bg-accent/[0.08]"
+                  : "border border-border/70 bg-surface/80 hover:bg-surface-2",
+                isChecked && "!border-accent !bg-accent/15",
+              )}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {isMulti && (
+                  <span
+                    className={cx(
+                      "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
+                      isChecked ? "border-accent bg-accent text-white" : "border-border",
+                    )}
+                  >
+                    {isChecked && <Check size={11} />}
+                  </span>
+                )}
+                <span className="truncate">{clean}</span>
+              </div>
+              {isRec && (
+                <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-[10.5px] font-semibold text-accent">
+                  推荐
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {isMulti && (
+        <button
+          type="button"
+          onClick={handleMultiSubmit}
+          disabled={selected.length === 0}
+          className="mt-2.5 w-full rounded-xl bg-accent py-1.5 text-[12.5px] font-medium text-white hover:opacity-90 disabled:opacity-50"
+        >
+          确认提交 ({selected.length})
+        </button>
+      )}
+    </div>
+  );
+}
+
 function EventView({
   event,
   prev,
@@ -342,6 +595,7 @@ function EventView({
   onOpenBrowser,
   files,
   onCloudRetry,
+  onSend,
 }: {
   event: TimelineEvent;
   prev?: TimelineEvent;
@@ -352,6 +606,7 @@ function EventView({
   files: readonly string[];
   /** a failed turn's *Use nanoMuse Cloud this time*, when it applies */
   onCloudRetry?: () => Promise<void>;
+  onSend?: (text: string) => void;
 }) {
   // a small centred time, iMessage style, when the conversation pauses for a while
   const divider = needsDivider(prev, event) ? <TimeDivider ts={event.ts} /> : null;
@@ -370,6 +625,7 @@ function EventView({
             onOpenFile={onOpenFile}
             spoken={event.via === "call"}
             modelUsed={event.model_used}
+            onSend={onSend}
           />
         );
       case "tool":
@@ -508,6 +764,7 @@ function AssistantBubble({
   onOpenFile,
   spoken,
   modelUsed,
+  onSend,
 }: {
   text: string;
   reasoning?: string;
@@ -519,6 +776,7 @@ function AssistantBubble({
   /** *Use nanoMuse Cloud this time*: the account's model this reply came from */
   modelUsed?: string;
   onOpenFile?: (path: string) => void;
+  onSend?: (text: string) => void;
 }) {
   const [showReasoning, setShowReasoning] = useState(false);
   const t = useT();
@@ -540,10 +798,24 @@ function AssistantBubble({
           </div>
         )}
         {/* the agent's pills, a step off the canvas: one per block of the reply; code and tables carry their own frame */}
-        {blocks.map((b, i) =>
-          b.bare ? (
+        {blocks.map((b, i) => {
+          const { before, questionData, after } = parseQuestion(b.text);
+          const renderContent = () => {
+            if (questionData) {
+              return (
+                <div className="flex flex-col">
+                  {before && <Markdown text={before} files={files} onOpenFile={onOpenFile} />}
+                  <InteractiveQuestionCard data={questionData} onPick={(opt) => onSend?.(opt)} />
+                  {after && <Markdown text={after} files={files} onOpenFile={onOpenFile} />}
+                </div>
+              );
+            }
+            return <Markdown text={b.text} files={files} onOpenFile={onOpenFile} />;
+          };
+
+          return b.bare ? (
             <div key={i} className="my-1 max-w-full">
-              <Markdown text={b.text} files={files} onOpenFile={onOpenFile} />
+              {renderContent()}
             </div>
           ) : (
             <div key={i} className={cx("my-1 max-w-[340px] rounded-[20px] bg-bubble-agent px-3.5 py-2.5 wide:max-w-[600px]", spoken && "border border-accent/15")}>
@@ -552,11 +824,11 @@ function AssistantBubble({
                   <Phone size={10} /> {t("said on a call")}
                 </div>
               )}
-              <Markdown text={b.text} files={files} onOpenFile={onOpenFile} />
-              {streaming && i === blocks.length - 1 && <span className="inline-block w-1.5 h-4 ml-0.5 align-middle bg-accent/70 animate-pulse rounded-sm" />}
+              {renderContent()}
+              {streaming && i === blocks.length - 1 && !questionData && <span className="inline-block w-1.5 h-4 ml-0.5 align-middle bg-accent/70 animate-pulse rounded-sm" />}
             </div>
-          ),
-        )}
+          );
+        })}
         {blocks.length === 0 && streaming && (
           <div className="my-1 rounded-[20px] bg-bubble-agent px-3.5 py-2.5">
             <span className="inline-block w-1.5 h-4 align-middle bg-accent/70 animate-pulse rounded-sm" />
@@ -822,10 +1094,23 @@ function Composer({
       .then((d) => setSkills(d.skills.filter((sk) => sk.enabled)))
       .catch(() => setSkills([]));
   }, [skillsOn, state.skillsVersion]);
-  const slash = /^\/([a-z0-9-]*)$/i.exec(text);
-  const matches = slash ? skills.filter((sk) => sk.name.startsWith(slash[1].toLowerCase())).slice(0, 6) : [];
-  const pick = (sk: SkillInfo) => {
-    setText(`/${sk.name} `);
+  const slash = /^\/([a-z0-9_-]*)$/i.exec(text);
+  const matches = useMemo(() => {
+    if (!slash) return [];
+    const query = slash[1].toLowerCase();
+    const builtins = [
+      { name: "grill-me", description: "深度需求访谈与方案推导协议（交互式对齐）", isCommand: true },
+      { name: "compact", description: "压缩当前会话上下文并保留关键信息", isCommand: true },
+      { name: "thinking", description: "开启或切换深度思考模式", isCommand: true },
+      { name: "clear", description: "清空当前聊天会话视图", isCommand: true },
+    ].filter((cmd) => cmd.name.startsWith(query));
+    const skillMatches = skills
+      .filter((sk) => sk.name.startsWith(query) && !builtins.some((b) => b.name === sk.name))
+      .map((sk) => ({ name: sk.name, description: sk.description, isCommand: false }));
+    return [...builtins, ...skillMatches].slice(0, 6);
+  }, [slash, skills]);
+  const pick = (item: { name: string; description: string; isCommand?: boolean }) => {
+    setText(`/${item.name} `);
     ref.current?.focus();
   };
   // "@" at the start names another device of the account: the turn runs there (contract C7 rule 8)
@@ -864,13 +1149,13 @@ function Composer({
       )}
       {matches.length > 0 && (
         <ul className="mb-2 max-h-72 overflow-y-auto rounded-3xl border border-border/70 bg-surface shadow-lg divide-y divide-border/70" role="listbox" aria-label={t("Skills")}>
-          {matches.map((sk) => (
-            <li key={sk.name}>
-              <button type="button" onClick={() => pick(sk)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-2/70 active:bg-surface-2">
-                <Wand2 size={16} className="shrink-0 text-accent" />
+          {matches.map((item) => (
+            <li key={item.name}>
+              <button type="button" onClick={() => pick(item)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-2/70 active:bg-surface-2">
+                {item.isCommand ? <Sparkles size={16} className="shrink-0 text-accent" /> : <Wand2 size={16} className="shrink-0 text-accent" />}
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-medium">/{sk.name}</span>
-                  <span className="block truncate text-[12.5px] text-muted">{sk.description}</span>
+                  <span className="block text-[14px] font-medium">/{item.name}</span>
+                  <span className="block truncate text-[12.5px] text-muted">{item.description}</span>
                 </span>
               </button>
             </li>

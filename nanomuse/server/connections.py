@@ -1753,6 +1753,61 @@ class Connections:
         self._save()
         self._publish()
 
+    async def deepseek_status(self) -> dict[str, Any]:
+        s = self.svc.app.config
+        provider = (s.llm.provider or "").lower()
+        model = (s.llm.model or "").lower()
+        base_url = (s.llm.base_url or "").lower()
+        is_deepseek = "deepseek" in provider or "deepseek" in model or "deepseek" in base_url
+        if not is_deepseek:
+            return {"is_deepseek": False}
+
+        raw_key = s.llm.api_key or ""
+        resolved_key = ""
+        if raw_key:
+            try:
+                resolved_key = self.vault.resolve(raw_key) or ""
+            except VaultError:
+                resolved_key = ""
+
+        if not resolved_key and s.llm.endpoint:
+            ep = self.endpoints.get(s.llm.endpoint)
+            if ep and ep.api_key:
+                try:
+                    resolved_key = self.vault.resolve(ep.api_key) or ""
+                except VaultError:
+                    resolved_key = ""
+
+        if not resolved_key:
+            return {"is_deepseek": True, "balance": None}
+
+        host = s.llm.base_url or "https://api.deepseek.com"
+        host = host.rstrip("/")
+        if "/v1" in host:
+            balance_url = host.split("/v1")[0] + "/user/balance"
+        else:
+            balance_url = host + "/user/balance"
+
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                res = await client.get(
+                    balance_url,
+                    headers={"Authorization": f"Bearer {resolved_key}", "Accept": "application/json"},
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    infos = data.get("balance_infos") or []
+                    if infos:
+                        total = infos[0].get("total_balance")
+                        if total is not None:
+                            val = float(total)
+                            return {"is_deepseek": True, "balance": f"{val:.2f}", "currency": "CNY"}
+        except Exception:
+            pass
+
+        return {"is_deepseek": True, "balance": None}
+
 
 __all__ = [
     "EMAIL_ADDRESS",

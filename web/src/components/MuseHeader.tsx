@@ -25,6 +25,8 @@ export function MuseHeader({
   size = 72,
   className,
   scrim = false,
+  compact = false,
+  deepSeekPill,
 }: {
   profile: Profile | null;
   status?: Status;
@@ -46,7 +48,45 @@ export function MuseHeader({
   className?: string;
   /** a shade over a list that scrolls under the header (the chat), instead of the canvas colour */
   scrim?: boolean;
+  compact?: boolean;
+  deepSeekPill?: ReactNode;
 }) {
+  if (compact) {
+    return (
+      <header className={cx("safe-top relative shrink-0 pt-1 pb-1", scrim ? "header-scrim" : "bg-bg", className)}>
+        <div className="flex items-center justify-center gap-2.5 px-14 min-h-[40px]">
+          <button type="button" onClick={onAvatar} aria-label={name} className="relative rounded-full shrink-0 pointer-events-auto">
+            <Avatar profile={profile} status={status} size={30} />
+            {badge !== undefined && badge > 0 && (
+              <span className="pointer-events-none absolute -right-1 -top-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full border border-bg bg-rose-500 px-0.5 text-[9px] font-bold text-white">
+                {badge}
+              </span>
+            )}
+          </button>
+          <div className="flex items-center gap-2 min-w-0 max-w-[70%] pointer-events-auto">
+            <button
+              type="button"
+              onClick={onName ?? onAvatar}
+              className="flex items-center gap-1.5 truncate text-[14px] font-semibold text-fg hover:opacity-80 transition"
+            >
+              <span className="truncate">{name}</span>
+              {spinning && <span className="h-2.5 w-2.5 shrink-0 animate-spin rounded-full border-[1.5px] border-accent border-t-transparent" />}
+            </button>
+            {statusLine && (
+              <span className={cx("truncate text-[11.5px]", statusTone === "accent" ? "text-accent font-medium" : "text-muted")}>
+                · {statusLine}
+              </span>
+            )}
+            {deepSeekPill}
+          </div>
+        </div>
+        {under && <div className="flex justify-center -mt-0.5 pb-0.5 pointer-events-auto">{under}</div>}
+        {leading && <div className="absolute left-3 top-1 safe-top flex items-center pointer-events-auto">{leading}</div>}
+        {trailing && <div className="absolute right-3 top-1 safe-top flex items-center gap-1.5 pointer-events-auto">{trailing}</div>}
+      </header>
+    );
+  }
+
   return (
     <header className={cx("safe-top relative shrink-0 pt-1.5 pb-1", scrim ? "header-scrim" : "bg-bg", className)}>
       <div className="flex flex-col items-center px-16">
@@ -61,6 +101,7 @@ export function MuseHeader({
         {/* the tag rides up over the chin; its area is fixed so the bar keeps its height */}
         <div className="relative z-10 -mt-2.5 flex min-h-[44px] flex-col items-center">
           <MuseNamePill name={name} statusLine={statusLine} statusTone={statusTone} spinning={spinning} onClick={onName ?? onAvatar} />
+          {deepSeekPill && <div className="mt-1">{deepSeekPill}</div>}
           {under && <div className="mt-1.5 flex max-w-full items-center">{under}</div>}
         </div>
       </div>
@@ -138,7 +179,7 @@ export function MuseRoundButton({
       disabled={disabled}
       className={cx(
         "relative flex items-center justify-center rounded-full bg-surface text-fg shadow-[0_1px_4px_rgba(0,0,0,0.14)] hover:bg-surface-2 disabled:opacity-50 dark:border dark:border-border dark:shadow-none",
-        small ? "h-10 w-10" : "h-11 w-11",
+        small ? "h-9 w-9" : "h-11 w-11",
         className,
       )}
     >

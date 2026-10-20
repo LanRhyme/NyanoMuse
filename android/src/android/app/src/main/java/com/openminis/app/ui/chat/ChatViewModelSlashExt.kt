@@ -123,6 +123,9 @@ internal fun ChatViewModel.filteredSlashCommands(): List<SlashCommand> {
                     )
                 },
             )
+            "grill-me" -> cmd.copy(
+                subtitle = "单题递进决策树，深度对齐架构与方案",
+            )
             "clear" -> cmd.copy(
                 subtitle = context.getString(R.string.slash_clear_subtitle),
             )
