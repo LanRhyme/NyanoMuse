@@ -2995,22 +2995,27 @@ fun ChatScreen(
                     // nanoMuse: inside the home shell the slot is Muse's round
                     // hamburger, which opens the chats drawer (or toggles sidebar on tablet).
                     if (nmHome != null) {
-                        val icon = if (nmHome.isTwoPane) {
-                            if (nmHome.sidebarCollapsed) Icons.Filled.Menu else Icons.AutoMirrored.Filled.MenuOpen
+                        if (nmHome.isTwoPane && !nmHome.sidebarCollapsed) {
+                            // On tablet two-pane when sidebar is open, MuseNavRail already hosts
+                            // the collapse button on the far left rail. Suppress duplicate icon in chat header.
                         } else {
-                            Icons.Filled.Menu
+                            val icon = if (nmHome.isTwoPane) {
+                                Icons.Filled.Menu
+                            } else {
+                                Icons.Filled.Menu
+                            }
+                            val action = if (nmHome.isTwoPane && nmHome.onToggleSidebar != null) {
+                                nmHome.onToggleSidebar
+                            } else {
+                                nmHome.onOpenDrawer
+                            }
+                            io.github.nanomuse.ui.home.MuseRoundButton(
+                                icon = icon,
+                                contentDescription = stringResource(R.string.nm_open_drawer),
+                                onClick = action,
+                                modifier = Modifier.padding(start = 12.dp),
+                            )
                         }
-                        val action = if (nmHome.isTwoPane && nmHome.onToggleSidebar != null) {
-                            nmHome.onToggleSidebar
-                        } else {
-                            nmHome.onOpenDrawer
-                        }
-                        io.github.nanomuse.ui.home.MuseRoundButton(
-                            icon = icon,
-                            contentDescription = stringResource(R.string.nm_open_drawer),
-                            onClick = action,
-                            modifier = Modifier.padding(start = 12.dp),
-                        )
                     } else
                     // [T-android-tablet-split] See `isTwoPane`.
                     if (!isTwoPane) {
