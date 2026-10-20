@@ -696,11 +696,13 @@ object PRootKernel {
      */
     fun resolveSessionHostPath(sessionId: String, linuxPath: String, context: Context): File? {
         val normalized = normalizeLinuxPath(linuxPath, context)
-        if (ExecutionMode.getMode(context) != ExecutionMode.PROOT_SANDBOX) {
-            val direct = File(normalized)
-            if (direct.isAbsolute) return direct
+        if (!normalized.startsWith("/var/minis/")) {
+            if (ExecutionMode.getMode(context) != ExecutionMode.PROOT_SANDBOX) {
+                val direct = File(normalized)
+                if (direct.isAbsolute) return direct
+            }
+            return resolveHostPath(normalized, context)
         }
-        if (!normalized.startsWith("/var/minis/")) return resolveHostPath(normalized, context)
         val rest = normalized.removePrefix("/var/minis/")
         val slash = rest.indexOf('/')
         val subdir = if (slash < 0) rest else rest.substring(0, slash)
@@ -716,11 +718,7 @@ object PRootKernel {
      */
     fun resolveHostPath(linuxPath: String, context: Context? = null): File? {
         val normalized = normalizeLinuxPath(linuxPath, context)
-        if (ExecutionMode.currentMode(context) != ExecutionMode.PROOT_SANDBOX) {
-            val direct = File(normalized)
-            if (direct.isAbsolute) return direct
-        }
-        // Check bind mounts (longest prefix match)
+        // Check bind mounts (longest prefix match) so /var/minis/... resolves properly even in Root mode
         val sorted = bindMounts.keys.sortedByDescending { it.length }
         for (mountPoint in sorted) {
             if (normalized == mountPoint || normalized.startsWith("$mountPoint/")) {
@@ -732,6 +730,11 @@ object PRootKernel {
                     File(hostBase, relativePath)
                 }
             }
+        }
+
+        if (ExecutionMode.currentMode(context) != ExecutionMode.PROOT_SANDBOX) {
+            val direct = File(normalized)
+            if (direct.isAbsolute) return direct
         }
 
         // Fallback: resolve relative to rootfs
