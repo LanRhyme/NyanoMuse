@@ -486,7 +486,7 @@ test('a pull keeps the other devices’ rows for the transcript and hands the mo
 
 // ---- contract C9: main first ------------------------------------------------------------------
 
-test('C9: side chats stay local by default — only the main conversation goes up, the pull asks for scope=main, a side row makes no session; the switch turns both on and off', async () => {
+test('C9: side chats toggle — off: only main goes up; on: all chats sync; unified design defaults unmigrated states to true', async () => {
   const relay = fakeRelay()
   relay.add('their-side', 'side', 'Dinner plans')
   relay.say('their-side', 'user', 'book a table')
@@ -551,9 +551,10 @@ test('C9: side chats stay local by default — only the main conversation goes u
   await until(() => [...relay.msgs.values()].some((m) => m.text === 'main answer'))
   await tick(30)
   assert.ok(![...relay.msgs.values()].some((m) => m.text === 'side answer'))
-  // the setting survives a sign-in to another account; a 0.1.37 state reads as off
+  // the setting survives a sign-in to another account; unified design defaults unmigrated states to on (true), while explicit off is preserved
   await e.accountChanged('acct-2')
   assert.equal(e.state.sideChats, false)
+  assert.equal(migrate({ accountId: 'a', cursor: 1, enabled: true, mainSession: '', cids: {}, mids: {}, titles: {}, conversations: {}, pulled: {}, hidden: [], toArchive: [] }).sideChats, true)
   assert.equal(migrate({ accountId: 'a', cursor: 1, enabled: true, mainSession: '', sideChats: false, cids: {}, mids: {}, titles: {}, conversations: {}, pulled: {}, hidden: [], toArchive: [] }).sideChats, false)
   e.stop()
 })

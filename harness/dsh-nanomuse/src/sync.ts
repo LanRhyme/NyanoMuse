@@ -450,7 +450,7 @@ export interface SyncState {
   enabled: boolean
   /** The session that is the main chat here: the account's one main conversation. */
   mainSession: string
-  /** "Also sync side chats" (C9), per device, off by default: off → only the main conversation goes up and comes down. */
+  /** "Also sync side chats" (C9), per device, on by default: all conversations sync across devices. Can be toggled off in Data Controls. */
   sideChats: boolean
   /** dsh session id → conversation id. */
   cids: Record<string, string>
