@@ -159,9 +159,9 @@ object Computers {
         return buildString {
             append("## Your devices (nanoMuse)\n")
             if (all.isEmpty()) {
-                append("No other device is connected right now. The way to add a computer: install nanoMuse Desktop there (https://github.com/LanRhyme/NyanoMuse/releases) and sign in with the same nanoMuse Cloud account as this phone — it appears under [Devices](${Hub.DEEP_LINK}) within seconds, on any network. ")
+                append("No other device is connected right now. The way to add a computer: install NyanoMuse Desktop there and sign in with the same self-hosted relay account as this device — it appears under [Devices](${Hub.DEEP_LINK}) within seconds, on any network. ")
                 append("When the user wants something done on their PC or Mac, say so in one line and point to the desktop app. ")
-                if (!onHub) append("This phone is not on the hub itself; signing in to nanoMuse Cloud puts it there. ")
+                if (!onHub) append("This device is not on the hub itself; signing in to your self-hosted relay (Settings → Relay & Sync) connects it. ")
             } else {
                 append("Connected: ").append(all.joinToString("; ") { "${it.name} (${it.kind}, ${it.os}, via the hub — any network)" }).append(". ")
                 append("`nanomuse-pc run \"<command>\" [--on <device>] [--cwd <dir>] [--timeout <s>]` runs a shell command there and returns exit code, stdout and stderr — the same approval rules as the phone's shell apply, decided on this phone before anything is sent; ")

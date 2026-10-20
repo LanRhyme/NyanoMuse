@@ -95,6 +95,43 @@ object ExecutionCoordinator {
             // suspected source of the Chinese-emoji filename vanishing bug
             Log.w(TAG, "[diag] execute sessionId=$sessionId cmd=${command.take(120).replace('\n', ' ')}")
 
+            val trimmedCmd = command.trim()
+            val isNonProot = ExecutionMode.getMode(appContext) != ExecutionMode.PROOT_SANDBOX
+
+            // In Root / Host mode, direct-dispatch internal CLI tools (nanomuse-pc, android-*, etc.)
+            // so models can run them natively without needing the Alpine PRoot rootfs.
+            if (isNonProot) {
+                val tokens = try {
+                    io.github.nanomuse.guard.ShellGuard.tokenize(trimmedCmd)
+                } catch (_: Exception) {
+                    trimmedCmd.split(Regex("\\s+"))
+                }
+                val rawFirst = tokens.firstOrNull()?.removePrefix("/usr/local/bin/")?.removePrefix("./")
+                if (rawFirst != null && NativeOffloadServer.canHandle(rawFirst)) {
+                    val normalizedTokens = listOf(rawFirst) + tokens.drop(1)
+                    val offload = NativeOffloadServer.dispatchDirect(normalizedTokens, sessionId)
+                    if (offload != null) {
+                        val out = offload.output.trimEnd()
+                        lineCallback?.invoke(out)
+                        val durationMs = System.currentTimeMillis() - startTime
+                        return@withLock CommandResult(
+                            output = if (offload.exitCode != 0) "$out\n(exit code: ${offload.exitCode})" else out,
+                            exitCode = offload.exitCode,
+                            durationMs = durationMs
+                        )
+                    }
+                }
+                // Handle "which <tool>" or "command -v <tool>" queries for internal CLI tools
+                if (trimmedCmd.startsWith("which ") || trimmedCmd.startsWith("command -v ")) {
+                    val query = trimmedCmd.substringAfter(" ").trim().removePrefix("/usr/local/bin/")
+                    if (NativeOffloadServer.canHandle(query)) {
+                        val out = "/usr/local/bin/$query"
+                        lineCallback?.invoke(out)
+                        return@withLock CommandResult(output = out, exitCode = 0, durationMs = System.currentTimeMillis() - startTime)
+                    }
+                }
+            }
+
             // Get or create shell — protected by globalLock to avoid duplicate creation
             val shell = getOrCreateShell(sessionId)
 

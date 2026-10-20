@@ -94,6 +94,25 @@ object NativeOffloadServer {
         Log.d(TAG, "register '$name' (total=${handlers.size})")
     }
 
+    fun canHandle(name: String): Boolean = handlers.containsKey(name)
+
+    fun dispatchDirect(argv: List<String>, sessionId: String?, cwd: String = "/storage/emulated/0"): NativeOffloadResult? {
+        val name = argv.firstOrNull() ?: return null
+        val handler = handlers[name] ?: return null
+        val req = NativeOffloadRequest(
+            pid = android.os.Process.myPid(),
+            argv = argv,
+            env = emptyMap(),
+            cwd = cwd,
+            sessionId = sessionId,
+        )
+        return try {
+            handler.handle(req)
+        } catch (e: Exception) {
+            NativeOffloadResult(1, "Error in $name: ${e.message}\n")
+        }
+    }
+
     @Synchronized
     fun start(rootfsDir: File) {
         rootfsTmpDir = File(rootfsDir, "tmp")
