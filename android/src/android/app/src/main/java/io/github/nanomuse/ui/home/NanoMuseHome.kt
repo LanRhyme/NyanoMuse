@@ -338,11 +338,10 @@ fun NanoMuseHome(
     }
     fun closeDrawer() = scope.launch { drawerState.close() }
 
-    // Back: close the drawer → leave a non-chat tab → leave a side chat → (system) leave the app.
+    // Back: close the drawer → leave a non-chat tab → (system) leave the app.
     val homeShown = phase == HomePhase.HOME
     BackHandler(enabled = homeShown && drawerState.isOpen) { closeDrawer() }
     BackHandler(enabled = homeShown && !drawerState.isOpen && tab != HomeTab.CHAT) { tab = HomeTab.CHAT }
-    BackHandler(enabled = homeShown && !drawerState.isOpen && tab == HomeTab.CHAT && !isMainChat && mainSessionId != null) { showMain() }
 
     // The drawer + tab shell, as a local composable so it can share every piece of state above
     // and still be one branch of the phase switch below.
@@ -428,12 +427,8 @@ fun NanoMuseHome(
                 MuseNavRail(
                     selected = tab,
                     onSelect = { picked ->
-                        if (picked == HomeTab.CHAT && tab == HomeTab.CHAT && !isMainChat) {
-                            showMain()
-                        } else {
-                            focusManager.clearFocus(force = true)
-                            tab = picked
-                        }
+                        focusManager.clearFocus(force = true)
+                        tab = picked
                     },
                     hazeState = hazeState,
                     onToggleSidebar = if (tab == HomeTab.CHAT) { { sidebarCollapsed = !sidebarCollapsed } } else null,
@@ -492,7 +487,7 @@ fun NanoMuseHome(
                                         memoryRepository = memoryRepository,
                                         skillRepository = skillRepository,
                                         mcpRepository = mcpRepository,
-                                        onBack = { if (!isMainChat) showMain() },
+                                        onBack = {},
                                         onNewChat = { showSession("__new__${UUID.randomUUID()}") },
                                         onOpenTerminal = { navController.safeNavigate(Routes.terminal(sessionId = sid)) },
                                         onOpenTerminalWithCommand = { command ->
@@ -601,12 +596,8 @@ fun NanoMuseHome(
                             exit = slideOutVertically(tween(150)) { it } + fadeOut(tween(150)),
                         ) {
                             MuseBottomBar(selected = tab, hazeState = hazeState, onSelect = { picked ->
-                                if (picked == HomeTab.CHAT && tab == HomeTab.CHAT && !isMainChat) {
-                                    showMain()
-                                } else {
-                                    focusManager.clearFocus(force = true)
-                                    tab = picked
-                                }
+                                focusManager.clearFocus(force = true)
+                                tab = picked
                             })
                         }
                     },
@@ -633,7 +624,7 @@ fun NanoMuseHome(
                                     memoryRepository = memoryRepository,
                                     skillRepository = skillRepository,
                                     mcpRepository = mcpRepository,
-                                    onBack = { if (!isMainChat) showMain() },
+                                    onBack = {},
                                     onNewChat = { showSession("__new__${UUID.randomUUID()}") },
                                     onOpenTerminal = { navController.safeNavigate(Routes.terminal(sessionId = sid)) },
                                     onOpenTerminalWithCommand = { command ->

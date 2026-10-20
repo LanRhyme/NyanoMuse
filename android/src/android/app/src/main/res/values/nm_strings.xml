@@ -70,16 +70,21 @@
     <string name="nm_open_drawer">Chats</string>
 
     <!-- Home: the chats drawer -->
-    <string name="nm_drawer_main_chat">Main chat</string>
-    <string name="nm_drawer_side_chats">Side chats</string>
+    <string name="nm_drawer_main_chat">All chats</string>
+    <string name="nm_drawer_side_chats">Chats</string>
     <string name="nm_drawer_all_chats">All chats</string>
-    <string name="nm_drawer_empty_title">Start a side chat</string>
-    <string name="nm_drawer_empty_body">Side chats are an optional way to keep conversations organised by topic.</string>
-    <string name="nm_drawer_search">Search</string>
-    <string name="nm_drawer_new_chat">New side chat</string>
+    <string name="nm_drawer_empty_title">No chats yet</string>
+    <string name="nm_drawer_empty_body">Tap above to start a conversation</string>
+    <string name="nm_drawer_search">Search chats</string>
+    <string name="nm_drawer_new_chat">New chat</string>
     <string name="nm_drawer_settings">Settings</string>
     <string name="nm_drawer_untitled">New chat</string>
-    <string name="nm_drawer_set_main">Make this the main chat</string>
+    <string name="nm_drawer_set_main">Set as default</string>
+    <string name="nm_drawer_pin">Pin</string>
+    <string name="nm_drawer_unpin">Unpin</string>
+    <string name="nm_drawer_rename">Rename</string>
+    <string name="nm_drawer_delete">Delete chat</string>
+    <string name="nm_drawer_delete_confirm">Are you sure you want to delete this chat?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Goals</string>
@@ -1015,8 +1020,8 @@
     <string name="nm_sync_from">From %1$s</string>
     <string name="nm_sync_attachment_note">[Attachment %1$s, stays on the device it was made on]</string>
     <!-- Contract C9 (0.1.38): side chats stay local unless asked for; the device working on a line -->
-    <string name="nm_sync_side_title">Also sync side chats</string>
-    <string name="nm_sync_side_sub">Off: side chats stay on this device. On: this device\'s side chats go to the account and the other devices\' side chats come here.</string>
+    <string name="nm_sync_side_title">Sync all chats</string>
+    <string name="nm_sync_side_sub">When turned on, all chats on this device will synchronize bidirectionally with your cloud account.</string>
     <string name="nm_sync_working">%1$s is working…</string>
     <string name="nm_devices_ask">Ask this device</string>
     <string name="nm_devices_ask_hint">Tap a device that is online to write to it from the chat: the message starts with @ and its name, and that device does the work.</string>
@@ -1085,7 +1090,7 @@
     <string name="nm_models_image_sub">Portraits of your Muse and the pictures you ask for.</string>
     <string name="nm_models_video_title">Making clips</string>
     <string name="nm_models_video_sub">Short clips of your Muse.</string>
-    <string name="nm_models_chat_applies">Applies to the main chat and to new chats; a side chat keeps its model.</string>
+    <string name="nm_models_chat_applies">Applies to the current chat and to new chats.</string>
     <string name="nm_models_media_more">More picture and clip options</string>
     <string name="nm_models_media_more_sub">Type a model name, see what stops without each model, or check again which video models a key can use.</string>
     <string name="nm_models_cloud_switch">Use self-hosted models</string>

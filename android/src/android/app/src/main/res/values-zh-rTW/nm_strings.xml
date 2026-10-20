@@ -66,16 +66,21 @@
     <string name="nm_more">更多</string>
     <string name="nm_open_drawer">對話</string>
 
-    <string name="nm_drawer_main_chat">主要聊天</string>
-    <string name="nm_drawer_side_chats">旁聊</string>
+    <string name="nm_drawer_main_chat">全部對話</string>
+    <string name="nm_drawer_side_chats">全部對話</string>
     <string name="nm_drawer_all_chats">全部對話</string>
-    <string name="nm_drawer_empty_title">發起旁聊</string>
-    <string name="nm_drawer_empty_body">旁聊是按主題整理對話的可選方式。</string>
-    <string name="nm_drawer_search">搜尋</string>
-    <string name="nm_drawer_new_chat">新建旁聊</string>
+    <string name="nm_drawer_empty_title">暫無歷史對話</string>
+    <string name="nm_drawer_empty_body">點擊上方開啟新對話</string>
+    <string name="nm_drawer_search">搜尋對話</string>
+    <string name="nm_drawer_new_chat">新建對話</string>
     <string name="nm_drawer_settings">設定</string>
     <string name="nm_drawer_untitled">新對話</string>
-    <string name="nm_drawer_set_main">設為主要聊天</string>
+    <string name="nm_drawer_set_main">設為預設</string>
+    <string name="nm_drawer_pin">置頂</string>
+    <string name="nm_drawer_unpin">取消置頂</string>
+    <string name="nm_drawer_rename">重新命名</string>
+    <string name="nm_drawer_delete">刪除對話</string>
+    <string name="nm_drawer_delete_confirm">確定要刪除此對話嗎？</string>
 
     <string name="nm_goals_title">目標</string>
     <string name="nm_goals_tracking">追蹤</string>
@@ -1003,8 +1008,8 @@
     <string name="nm_sync_from">來自 %1$s</string>
     <string name="nm_sync_attachment_note">[附件 %1$s，只留在產生它的裝置上]</string>
     <!-- 約定 C9（0.1.38）：旁聊預設只留在本機；某台裝置正在處理某一行 -->
-    <string name="nm_sync_side_title">同時同步旁聊</string>
-    <string name="nm_sync_side_sub">關：旁聊只留在本機。開：本機的旁聊上傳到帳號，其他裝置的旁聊也會同步過來。</string>
+    <string name="nm_sync_side_title">同步所有對話</string>
+    <string name="nm_sync_side_sub">開啟後本裝置的所有對話將與雲端保持雙向即時同步。</string>
     <string name="nm_sync_working">%1$s 正在處理…</string>
     <string name="nm_devices_ask">交給這台裝置</string>
     <string name="nm_devices_ask_hint">點一台在線的裝置，就能在聊天裡對它說話：訊息以 @ 加裝置名開頭，由那台裝置去做。</string>
@@ -1073,7 +1078,7 @@
     <string name="nm_models_image_sub">形象的肖像，以及你要的圖片。</string>
     <string name="nm_models_video_title">產生影片</string>
     <string name="nm_models_video_sub">形象的短影片。</string>
-    <string name="nm_models_chat_applies">對主要聊天和新對話生效；旁聊保留自己的模型。</string>
+    <string name="nm_models_chat_applies">對當前對話和新對話生效。</string>
     <string name="nm_models_media_more">更多圖片和影片選項</string>
     <string name="nm_models_media_more_sub">手動輸入模型名稱、查看缺了哪個模型會停下什麼，或重新檢查一把 key 能用哪些影片模型。</string>
     <string name="nm_models_cloud_switch">使用 nanoMuse Cloud 模型</string>

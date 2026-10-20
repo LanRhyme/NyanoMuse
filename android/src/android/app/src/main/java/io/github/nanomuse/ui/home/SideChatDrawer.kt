@@ -19,32 +19,41 @@ import androidx.compose.foundation.layout.statusBarsPadding
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -106,10 +115,13 @@ fun SideChatDrawer(
     }
     // nanoMuse: a chat from another device of the account is the same chat here (contract C8) — no
     // badge per chat; the turns written elsewhere carry "From Pixel 8" in the bubble instead
+    val coroutineScope = rememberCoroutineScope()
+    var sessionToRename by remember { mutableStateOf<ChatSessionEntity?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    var sessionToDelete by remember { mutableStateOf<ChatSessionEntity?>(null) }
     var query by remember { mutableStateOf("") }
-    val sideChats = remember(sessions, mainSessionId, query) {
+    val allChats = remember(sessions, query) {
         sessions
-            .filter { it.id != mainSessionId }
             .filter { query.isBlank() || (it.title ?: "").contains(query, ignoreCase = true) }
             .sortedWith(compareByDescending<ChatSessionEntity> { it.pinnedAt ?: 0L }.thenByDescending { it.updatedAt })
     }
@@ -155,30 +167,32 @@ fun SideChatDrawer(
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = nmInk,
-            modifier = Modifier.padding(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 18.dp),
+            modifier = Modifier.padding(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 12.dp),
         )
 
-        // Main chat row — selected when it is what the chat tab shows.
-        val mainSelected = currentSessionId == null || currentSessionId == mainSessionId
+        // Prominent "+ 新建会话" action button (matching desktop .nm-chats-new-btn)
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
             modifier = Modifier
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 14.dp, vertical = 2.dp)
                 .fillMaxWidth()
+                .height(42.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (mainSelected) nmRowSelected else Color.Transparent)
-                .clickable(onClick = onOpenMain)
-                .padding(horizontal = 14.dp, vertical = 13.dp),
+                .background(ChatColors.link.copy(alpha = 0.12f))
+                .border(0.8.dp, ChatColors.link.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                .clickable(onClick = onNewChat)
         ) {
-            Icon(Icons.Outlined.Home, contentDescription = null, modifier = Modifier.size(22.dp), tint = nmInk)
-            Spacer(Modifier.size(14.dp))
+            Icon(Icons.Outlined.Add, contentDescription = null, tint = ChatColors.link, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(8.dp))
             Text(
-                text = stringResource(R.string.nm_drawer_main_chat),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = nmInk,
+                text = stringResource(R.string.nm_drawer_new_chat),
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = ChatColors.link,
             )
         }
+        Spacer(Modifier.height(4.dp))
 
         // nanoMuse: Devices — the account's other Muses, one tap away like a chat (docs/every-device.md)
         if (onDevices != null) {
@@ -245,7 +259,7 @@ fun SideChatDrawer(
             modifier = Modifier.padding(start = 26.dp, end = 12.dp, top = 14.dp),
         ) {
             Text(
-                text = stringResource(R.string.nm_drawer_side_chats).uppercase(),
+                text = stringResource(R.string.nm_drawer_all_chats).uppercase(),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 1.sp,
@@ -262,7 +276,7 @@ fun SideChatDrawer(
             }
         }
 
-        if (sideChats.isEmpty()) {
+        if (allChats.isEmpty()) {
             Column(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp),
                 verticalArrangement = Arrangement.Center,
@@ -291,15 +305,28 @@ fun SideChatDrawer(
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)) {
-                items(sideChats, key = { it.id }) { session ->
+                items(allChats, key = { it.id }) { session ->
+                    val isSelected = session.id == currentSessionId || (currentSessionId == null && session.id == mainSessionId)
                     SideChatRow(
                         session = session,
-                        selected = session.id == currentSessionId,
+                        selected = isSelected,
                         selectedFill = nmRowSelected,
                         ink = nmInk,
                         muted = nmMuted,
                         onClick = { onOpenSession(session.id) },
-                        onSetMain = { onSetMain(session.id) },
+                        onTogglePin = {
+                            coroutineScope.launch {
+                                val newPin = if (session.pinnedAt != null) null else System.currentTimeMillis()
+                                chatRepository.dao.updatePinnedAt(session.id, newPin)
+                            }
+                        },
+                        onRename = {
+                            renameText = session.title ?: ""
+                            sessionToRename = session
+                        },
+                        onDelete = {
+                            sessionToDelete = session
+                        },
                     )
                 }
             }
@@ -378,6 +405,71 @@ fun SideChatDrawer(
             }
         }
     }
+
+    if (sessionToRename != null) {
+        val s = sessionToRename!!
+        AlertDialog(
+            onDismissRequest = { sessionToRename = null },
+            title = { Text(stringResource(R.string.nm_drawer_rename)) },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val trimmed = renameText.trim()
+                        if (trimmed.isNotEmpty()) {
+                            coroutineScope.launch {
+                                chatRepository.updateSessionTitle(s.id, trimmed)
+                            }
+                        }
+                        sessionToRename = null
+                    }
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { sessionToRename = null }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (sessionToDelete != null) {
+        val s = sessionToDelete!!
+        AlertDialog(
+            onDismissRequest = { sessionToDelete = null },
+            title = { Text(stringResource(R.string.nm_drawer_delete)) },
+            text = { Text(stringResource(R.string.nm_drawer_delete_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            chatRepository.deleteSession(s.id)
+                            if (currentSessionId == s.id) {
+                                onNewChat()
+                            }
+                        }
+                        sessionToDelete = null
+                    }
+                ) {
+                    Text(stringResource(R.string.nm_drawer_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { sessionToDelete = null }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -389,7 +481,9 @@ private fun SideChatRow(
     ink: androidx.compose.ui.graphics.Color,
     muted: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit,
-    onSetMain: () -> Unit,
+    onTogglePin: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
     Box {
@@ -403,6 +497,15 @@ private fun SideChatRow(
                 .combinedClickable(onClick = onClick, onLongClick = { menu = true })
                 .padding(horizontal = 14.dp, vertical = 11.dp),
         ) {
+            if (session.pinnedAt != null) {
+                Icon(
+                    Icons.Outlined.PushPin,
+                    contentDescription = null,
+                    tint = ChatColors.link,
+                    modifier = Modifier.size(15.dp).padding(end = 2.dp),
+                )
+                Spacer(Modifier.size(4.dp))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = session.title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.nm_drawer_untitled),
@@ -410,6 +513,7 @@ private fun SideChatRow(
                     color = ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    fontWeight = if (selected || session.pinnedAt != null) FontWeight.Medium else FontWeight.Normal,
                 )
             }
             Spacer(Modifier.size(10.dp))
@@ -421,8 +525,19 @@ private fun SideChatRow(
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.nm_drawer_set_main)) },
-                onClick = { menu = false; onSetMain() },
+                text = { Text(if (session.pinnedAt != null) stringResource(R.string.nm_drawer_unpin) else stringResource(R.string.nm_drawer_pin)) },
+                leadingIcon = { Icon(Icons.Outlined.PushPin, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; onTogglePin() },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.nm_drawer_rename)) },
+                leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; onRename() },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.nm_drawer_delete), color = MaterialTheme.colorScheme.error) },
+                leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; onDelete() },
             )
         }
     }

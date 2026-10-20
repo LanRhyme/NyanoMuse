@@ -589,7 +589,7 @@ fun ChatScreen(
     // nanoMuse: Muse's header carries only the name; the model rows under it are a
     // Setting (Appearance → Home), off by default on the main chat of the home shell.
     val nmHeaderModelShown by io.github.nanomuse.ui.chat.rememberHeaderModelShown()
-    val nmHideModelRows = nmHome != null && nmHome.isMainChat && !nmHeaderModelShown
+    val nmHideModelRows = nmHome != null && !nmHeaderModelShown
     val nmAvatarSize by io.github.nanomuse.ui.avatar.rememberAvatarSize() // nanoMuse: Settings → Appearance → Avatar size
     // nanoMuse: the agent's steps (tool pills, reasoning, the bar over the
     // composer) are a Setting (Appearance → Conversation), off by default;
@@ -631,8 +631,8 @@ fun ChatScreen(
         nmStarNudge = ask
     }
     // nanoMuse: the asks that arrive away from any screen (the 7th / 30th day the app was
-    // opened) show here, in the main chat, when the agent is not mid-reply.
-    if (nmHome != null && nmHome.isMainChat) {
+    // opened) show here when the agent is not mid-reply.
+    if (nmHome != null) {
         val nmPendingAsk by io.github.nanomuse.community.StarPrompt.pending.collectAsState()
         LaunchedEffect(nmPendingAsk, isStreaming) {
             val ask = nmPendingAsk ?: return@LaunchedEffect
@@ -2715,60 +2715,11 @@ fun ChatScreen(
                             // gets the big face on its disc.
                             val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
                             val deepSeekText = deepSeekStatus.displayText
-                            val nmSideChat = nmHome != null && !nmHome.isMainChat
-                            val nmMainChat = nmHome != null && nmHome.isMainChat
-                            if (nmSideChat) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.padding(bottom = 1.dp),
-                                ) {
-                                    Text(
-                                        text = sessionTitle?.trim()?.ifEmpty { null }
-                                            ?: stringResource(R.string.nm_drawer_untitled),
-                                        fontSize = 17.sp,
-                                        lineHeight = 21.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = ChatColors.primaryText,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = noFontPad,
-                                        modifier = Modifier.weight(1f, fill = false),
-                                    )
-                                    if (deepSeekText != null) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
-                                                .clickable {
-                                                    viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
-                                                    showTokenUsageSheet = true
-                                                }
-                                                .padding(horizontal = 7.dp, vertical = 2.dp),
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(5.dp)
-                                                    .background(Color(0xFF007AFF), CircleShape),
-                                            )
-                                            Text(
-                                                text = deepSeekText,
-                                                fontSize = 10.sp,
-                                                lineHeight = 12.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = ChatColors.primaryText.copy(alpha = 0.85f),
-                                                maxLines = 1,
-                                                style = noFontPad,
-                                            )
-                                        }
-                                    }
-                                }
-                            } else {
+                            if (nmHome != null) {
                                 val topBarSoul by com.openminis.app.agent.SoulStore
                                     .cachedMetadata.collectAsState()
-                                val displayTitle = topBarSoul.name.trim().ifEmpty { stringResource(R.string.app_name) }
+                                val agentDisplayName = topBarSoul.name.trim().ifEmpty { stringResource(R.string.app_name) }
+                                val displayTitle = sessionTitle?.trim()?.ifEmpty { null } ?: agentDisplayName
                                 val nmStatusLine = io.github.nanomuse.ui.header.rememberNanoMuseStatusLine(isStreaming, nmMood, replying = nmReplying, request = nmRequestBrief)
 
                                 Row(
@@ -3476,8 +3427,7 @@ fun ChatScreen(
                 // title less.
                 expandedHeight = when {
                     nmHome == null -> 52.dp
-                    nmHome.isMainChat -> if (nmHideModelRows) 50.dp else 64.dp
-                    else -> 50.dp
+                    else -> if (nmHideModelRows) 50.dp else 64.dp
                 },
             )
             } // nanoMuse: close the header-fade wrapper

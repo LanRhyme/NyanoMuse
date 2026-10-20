@@ -67,16 +67,21 @@
     <string name="nm_open_drawer">对话</string>
 
     <!-- 首页：对话抽屉 -->
-    <string name="nm_drawer_main_chat">主要聊天</string>
-    <string name="nm_drawer_side_chats">旁聊</string>
-    <string name="nm_drawer_all_chats">全部对话</string>
-    <string name="nm_drawer_empty_title">发起旁聊</string>
-    <string name="nm_drawer_empty_body">旁聊是按主题整理对话的可选方式。</string>
-    <string name="nm_drawer_search">搜索</string>
-    <string name="nm_drawer_new_chat">新建旁聊</string>
+    <string name="nm_drawer_main_chat">全部会话</string>
+    <string name="nm_drawer_side_chats">全部会话</string>
+    <string name="nm_drawer_all_chats">全部会话</string>
+    <string name="nm_drawer_empty_title">暂无历史会话</string>
+    <string name="nm_drawer_empty_body">点击上方开启新对话</string>
+    <string name="nm_drawer_search">搜索会话</string>
+    <string name="nm_drawer_new_chat">新建会话</string>
     <string name="nm_drawer_settings">设置</string>
-    <string name="nm_drawer_untitled">新对话</string>
-    <string name="nm_drawer_set_main">设为主要聊天</string>
+    <string name="nm_drawer_untitled">新会话</string>
+    <string name="nm_drawer_set_main">设为默认</string>
+    <string name="nm_drawer_pin">置顶</string>
+    <string name="nm_drawer_unpin">取消置顶</string>
+    <string name="nm_drawer_rename">重命名</string>
+    <string name="nm_drawer_delete">删除会话</string>
+    <string name="nm_drawer_delete_confirm">确定要删除此会话吗？</string>
 
     <!-- 目标 -->
     <string name="nm_goals_title">目标</string>
@@ -989,8 +994,8 @@
     <string name="nm_sync_from">来自 %1$s</string>
     <string name="nm_sync_attachment_note">[附件 %1$s，只留在产生它的设备上]</string>
     <!-- 约定 C9（0.1.38）：旁聊默认只留在本机；某台设备正在处理某一行 -->
-    <string name="nm_sync_side_title">同时同步旁聊</string>
-    <string name="nm_sync_side_sub">关：旁聊只留在本机。开：本机的旁聊上传到账号，其他设备的旁聊也会同步过来。</string>
+    <string name="nm_sync_side_title">同步所有会话</string>
+    <string name="nm_sync_side_sub">开启后本设备的所有会话将与云端保持双向实时同步。</string>
     <string name="nm_sync_working">%1$s 正在处理…</string>
     <string name="nm_devices_ask">交给这台设备</string>
     <string name="nm_devices_ask_hint">点一台在线的设备，就能在聊天里对它说话：消息以 @ 加设备名开头，由那台设备去做。</string>
@@ -1080,7 +1085,7 @@
     <string name="nm_models_image_sub">形象的肖像，以及你要的图片。</string>
     <string name="nm_models_video_title">生成视频</string>
     <string name="nm_models_video_sub">形象的短视频。</string>
-    <string name="nm_models_chat_applies">对主要聊天和新对话生效；旁聊保留自己的模型。</string>
+    <string name="nm_models_chat_applies">对当前会话和新会话生效。</string>
     <string name="nm_models_media_more">更多图片和视频选项</string>
     <string name="nm_models_media_more_sub">手动输入模型名、查看缺了哪个模型会停下什么，或重新检查一把 key 能用哪些视频模型。</string>
     <string name="nm_models_cloud_switch">使用自建服务模型</string>
