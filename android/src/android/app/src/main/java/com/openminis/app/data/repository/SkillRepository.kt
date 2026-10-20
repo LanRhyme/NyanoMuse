@@ -1137,7 +1137,7 @@ class SkillRepository(private val context: Context) {
 
     private fun installBundledSkills() {
         installOneBundledSkill("skill-creator", "2.0.0", SKILL_CREATOR_CONTENT)
-        installOneBundledSkill("grill-me", "1.0.0", GRILL_ME_CONTENT)
+        installOneBundledSkill("grill-me", "2.0.0", GRILL_ME_CONTENT)
     }
 
     private fun installOneBundledSkill(bundledId: String, bundledVersion: String, content: String) {
@@ -1676,40 +1676,47 @@ Do not create extraneous files: README.md, INSTALLATION_GUIDE.md, CHANGELOG.md, 
 private val GRILL_ME_CONTENT = """
 ---
 name: grill-me
-description: 深度需求访谈与方案推导协议。采用单题递进决策树对齐需求，输出交互式选择题卡片并生成完整执行规划。
+description: 深度需求访谈与方案推导协议，采用单题递进决策树对齐需求，调用原生 ask_user_question 工具与用户交互并生成完整执行规划
 channel: chat
 metadata:
   author: nanoMuse
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
 # Grill-Me 需求对齐与架构访谈协议
 
-当用户触发 `/grill-me` 或要求深入推导设计方案时，必须严格执行本协议，不得一次性抛出大段发散性提问。
+当用户触发 `/grill-me` 或要求深入推导设计方案时，必须严格执行本协议，不得一次性抛出大段发散性提问
 
 ## 核心行为准则
 1. **单题递进原则（One Question at a Time）**：
-   - 严禁一次抛出多个问题或并列大段调查问卷。
-   - 沿着决策树逐步深挖，逐一解决关键架构决策、范围界定、数据流转、边界情况与交互偏好。
-2. **交互选项格式（Interactive Question Protocol）**：
-   - 每个问题必须严格使用 `<question>` 结构化标签包裹 JSON：
-   <question>
-   {
-     "question": "问题的精炼陈述？",
-     "options": [
-       "(Recommended) 你的推荐方案与简要理由",
-       "备选方案 A",
-       "备选方案 B"
-     ],
-     "is_multi_select": false
-   }
-   </question>
-   - 选项文字直接代表用户的回答意图，而不是描述 AI 自身行为。
-   - 推荐方案置于首位，并以 `(Recommended)` 为前缀。
-   - 选项数量通常为 2~4 个，精炼明确。
+   - 严禁一次抛出多个问题或并列大段调查问卷
+   - 沿着决策树逐步深挖，逐一解决关键架构决策、范围界定、数据流转、边界情况与交互偏好
+2. **工具调用交互规范（Tool-Calling Protocol）**：
+   - 向用户提问时，**必须且只能**调用 `ask_user_question` 原生工具（严禁在正文中使用 `<question>` 标签或纯文本问卷）
+   - 工具调用参数结构：
+     ```json
+     {
+       "questions": [
+         {
+           "question": "问题的精炼陈述？",
+           "options": [
+             "(Recommended) 你的推荐方案与简要理由",
+             "备选方案 A",
+             "备选方案 B"
+           ],
+           "is_multi_select": false
+         }
+       ]
+     }
+     ```
+   - 选项文字直接代表用户的回答意图，而不是描述 AI 自身行为
+   - 推荐方案置于首位，并以 `(Recommended)` 为前缀
+   - 选项数量通常为 2~4 个，精炼明确
+   - 发起工具调用后，代理将挂起等待用户点击选择或输入自定义回答，用户作答后会自动恢复执行
 3. **探索先于提问**：
-   - 若问题可通过探索代码库、本地配置或设备环境直接获取答案，必须先自行探索，切勿向用户提问已可知的信息。
+   - 若问题可通过探索代码库、本地配置或设备环境直接获取答案，必须先自行探索，切勿向用户提问已可知的信息
 4. **终局收敛与方案生成**：
-   - 当所有决策分支已彻底澄清达成共识时，输出完整的实施步骤、改动文件清单与技术指标，引导用户执行。
+   - 当所有决策分支已彻底澄清达成共识时，输出完整的实施步骤、改动文件清单与技术指标，引导用户执行
 """.trimIndent()
+
 

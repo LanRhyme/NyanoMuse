@@ -41,10 +41,25 @@ object AgentTools {
             add(memoryWriteDefinition())
             add(memoryGetDefinition())
         }
+        add(askUserQuestionDefinition())
         addAll(NativeSystemTools.makeDefinitions())
     }
 
-    // Aligned with iOS AIChatViewModel.swift:4982-4993
+    const val TOOL_ASK_USER_QUESTION = "ask_user_question"
+
+    fun askUserQuestionDefinition(): AgentToolDefinition = AgentToolDefinition(
+        name = TOOL_ASK_USER_QUESTION,
+        description = "Ask the user questions with interactive choices to clarify requirements, resolve ambiguities, or confirm technical decisions. " +
+            "Calling this tool presents interactive question cards in the conversation and pauses execution until the user chooses an option. " +
+            "Provide 2-4 concise options. If you recommend an option, put it first and prefix with '(Recommended)'.",
+        parameters = mapOf(
+            "questions" to AgentToolParam(
+                type = "string",
+                description = "Array of question objects or stringified JSON. Each question object contains: {\"question\": \"Question text\", \"options\": [\"(Recommended) Choice A\", \"Choice B\"], \"header\": \"Optional title\", \"multi_select\": false}.",
+            ),
+        ),
+        required = listOf("questions"),
+    )
     private fun shellExecuteDefinition(executionMode: com.openminis.app.sandbox.ExecutionMode = com.openminis.app.sandbox.ExecutionMode.ROOT): AgentToolDefinition {
         val desc = when (executionMode) {
             com.openminis.app.sandbox.ExecutionMode.ROOT ->

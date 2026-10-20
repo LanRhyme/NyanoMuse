@@ -3894,6 +3894,7 @@ fun ChatScreen(
                         newest is FlatChatItem.UserBubble && newest.message.isQueued
                     if (newest !is FlatChatItem.AssistantToolUse &&
                         newest !is FlatChatItem.AssistantToolGroup &&
+                        newest !is FlatChatItem.AssistantAskQuestion &&
                         newest !is FlatChatItem.AssistantTyping &&
                         !isQueuedBubble
                     ) return@LaunchedEffect
@@ -3932,6 +3933,7 @@ fun ChatScreen(
                     is FlatChatItem.AssistantThinking -> grayedMap[originalMessageId(messageId)] == true
                     is FlatChatItem.AssistantToolGroup -> grayedMap[originalMessageId(messageId)] == true
                     is FlatChatItem.AssistantToolUse -> grayedMap[originalMessageId(messageId)] == true
+                    is FlatChatItem.AssistantAskQuestion -> grayedMap[originalMessageId(messageId)] == true
                     is FlatChatItem.AssistantInfo -> false  // system rows never grayed
                     is FlatChatItem.NanoMuseNaming -> false // nanoMuse
                     is FlatChatItem.NanoMuseAvatarOptions -> false // nanoMuse
@@ -4607,6 +4609,29 @@ fun ChatScreen(
                                     ).show()
                                 },
                             )
+                            is FlatChatItem.AssistantAskQuestion -> {
+                                val qData = remember(item.block.toolArgs) {
+                                    io.github.nanomuse.ui.chat.QuestionCardParser.parseFromToolArgs(item.block.toolArgs)
+                                }
+                                if (qData != null) {
+                                    val isPending = item.block.toolStatus == ToolBlockStatus.RUNNING ||
+                                        item.block.toolStatus == ToolBlockStatus.PENDING ||
+                                        item.block.content.isEmpty()
+                                    val selected = if (!isPending) {
+                                        item.block.content.removePrefix("User selected: ").trim()
+                                    } else null
+                                    io.github.nanomuse.ui.chat.InteractiveQuestionCard(
+                                        data = qData,
+                                        selectedAnswer = selected,
+                                        onOptionSelected = { option ->
+                                            viewModel.answerQuestion(item.block.id, option)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                    )
+                                }
+                            }
                             is FlatChatItem.AssistantInfo -> FallbackInfoBlock(
                                 block = item.block,
                                 // Only the compact-divider info block should

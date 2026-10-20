@@ -454,6 +454,14 @@ internal sealed class FlatChatItem {
         override val contentType = "info"
     }
 
+    data class AssistantAskQuestion(
+        val messageId: String,
+        val block: AssistantBlock,
+    ) : FlatChatItem() {
+        override val key = "ask_question:$messageId:${block.id}"
+        override val contentType = "ask_question"
+    }
+
     // nanoMuse: the first-conversation name chooser; rendered by
     // io.github.nanomuse.ui.onboarding.NamingCard from the view model's state.
     data class NanoMuseNaming(val messageId: String) : FlatChatItem() {
@@ -602,6 +610,7 @@ internal fun buildFlatChatItems(
             is FlatChatItem.AssistantToolGroup -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantToolUse -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantInfo -> item.copy(messageId = "${item.messageId}#$n")
+            is FlatChatItem.AssistantAskQuestion -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.NanoMuseNaming -> item.copy(messageId = "${item.messageId}#$n") // nanoMuse
             is FlatChatItem.NanoMuseAvatarOptions -> item.copy(messageId = "${item.messageId}#$n") // nanoMuse
             is FlatChatItem.NanoMuseAvatarShare -> item.copy(messageId = "${item.messageId}#$n") // nanoMuse
@@ -773,14 +782,22 @@ internal fun buildFlatChatItems(
                     out.add(dedupe(FlatChatItem.NanoMuseAllowance(message.id))) // nanoMuse
                 }
                 else -> {
-                    // Tool / command block (tool_use / shell_execute / etc.)
-                    if (currentGroupMessageId == null) {
-                        currentGroupMessageId = message.id
+                    if (block.toolName == "ask_user_question" || block.toolName == "ask_question") {
+                        flushToolGroup()
+                        out.add(dedupe(FlatChatItem.AssistantAskQuestion(
+                            messageId = message.id,
+                            block = block,
+                        )))
+                    } else {
+                        // Tool / command block (tool_use / shell_execute / etc.)
+                        if (currentGroupMessageId == null) {
+                            currentGroupMessageId = message.id
+                        }
+                        if (block.id == lastCancelledToolId) {
+                            currentGroupHasCancelled = true
+                        }
+                        pendingToolBlocks.add(block)
                     }
-                    if (block.id == lastCancelledToolId) {
-                        currentGroupHasCancelled = true
-                    }
-                    pendingToolBlocks.add(block)
                 }
             }
         }
@@ -807,7 +824,7 @@ internal fun buildFlatChatItems(
                 "info" -> false
                 "thinking" -> showSteps && (message.thinkingLevel?.isEnabled ?: true) // nanoMuse: hidden steps do not count
                 "text" -> it.content.isNotEmpty()
-                "tool_use" -> showSteps // pills render immediately — when the steps are shown (nanoMuse)
+                "tool_use" -> if (it.toolName == "ask_user_question" || it.toolName == "ask_question") true else showSteps // pills render immediately — when the steps are shown (nanoMuse)
                 else -> true // the app's own cards
             }
         }
@@ -840,5 +857,6 @@ internal fun buildFlatChatItems(
 private fun stepsOnlyTurn(m: ChatMessage): Boolean =
     m.role == "assistant" && !m.isStreaming && m.error == null && m.content.isEmpty() &&
         m.toolBlocks.isNotEmpty() && m.toolBlocks.all {
-            it.kind == "tool_use" || it.kind == "thinking" || (it.kind == "text" && it.content.isEmpty())
+            (it.kind == "tool_use" && it.toolName != "ask_user_question" && it.toolName != "ask_question") ||
+            it.kind == "thinking" || (it.kind == "text" && it.content.isEmpty())
         }

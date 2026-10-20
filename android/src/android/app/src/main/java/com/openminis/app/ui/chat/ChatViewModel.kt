@@ -65,6 +65,8 @@ import com.openminis.app.offload.OffloadPermissionManager
 import com.openminis.app.service.SessionActivityTracker
 import com.openminis.app.service.SessionConcurrencyManager
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -6565,6 +6567,11 @@ class ChatViewModel(
     fun nmTakeCountableTurn(): Boolean = nmCountableTurn.also { nmCountableTurn = false }
 
     fun sendMessage(text: String) {
+        val firstPending = pendingQuestionDeferreds.entries.firstOrNull()
+        if (firstPending != null) {
+            firstPending.value.complete(text)
+            return
+        }
         // nanoMuse: "change your avatar to …" (and a pick while the options are
         // up) is handled in the app, not by the model.
         if (nmInterceptAvatar(text)) { nmCountableTurn = false; return }
@@ -9921,6 +9928,7 @@ class ChatViewModel(
             com.openminis.app.tools.NativeSystemTools.TOOL_APP_LAUNCH -> com.openminis.app.tools.NativeSystemTools.executeAppLaunch(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SYSTEM_NOTIFY -> com.openminis.app.tools.NativeSystemTools.executeSystemNotify(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SCREEN_CAPTURE -> executeScreenCaptureTool(argsJson)
+            com.openminis.app.tools.AgentTools.TOOL_ASK_USER_QUESTION, "ask_user_question", "ask_question" -> executeAskUserQuestion(toolId, argsJson)
             else -> ToolExecutionResult("Unknown tool: $name", false)
         }
 
@@ -9930,6 +9938,33 @@ class ChatViewModel(
         } else {
             baseResult
         }
+    }
+
+    private val pendingQuestionDeferreds = ConcurrentHashMap<String, CompletableDeferred<String>>()
+
+    private suspend fun executeAskUserQuestion(toolId: String, argsJson: String): ToolExecutionResult {
+        val deferred = CompletableDeferred<String>()
+        pendingQuestionDeferreds[toolId] = deferred
+        return try {
+            val answer = deferred.await()
+            ToolExecutionResult(
+                output = "User selected: $answer",
+                success = true,
+                toolTitle = "User Answer: $answer",
+            )
+        } catch (e: CancellationException) {
+            ToolExecutionResult(
+                output = "Question was cancelled or skipped.",
+                success = false,
+                toolTitle = "Question Cancelled",
+            )
+        } finally {
+            pendingQuestionDeferreds.remove(toolId)
+        }
+    }
+
+    fun answerQuestion(toolId: String, answer: String) {
+        pendingQuestionDeferreds[toolId]?.complete(answer)
     }
 
     /**
@@ -12163,6 +12198,8 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         AppLogger.info(TAG_STREAM, "cancelStream invoked _isStreaming=false (sid=$activeSessionId)")
         streamJob?.cancel()
         _isStreaming.value = false
+        pendingQuestionDeferreds.values.forEach { it.cancel() }
+        pendingQuestionDeferreds.clear()
         // T-streaming-side-channel: flush any in-flight delta back into the
         // canonical message so the rest of cancelStream's cleanup (publish
         // overlay excerpt, persist, retry-eligible state) sees the real
