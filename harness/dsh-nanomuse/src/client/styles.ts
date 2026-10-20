@@ -45,7 +45,7 @@ html[data-nanomuse] {
   --nm-blue: #2f6fd0;
   --nm-blue-hover: #2a63ba;
   --nm-rail: 66px;
-  --nm-header-h: 108px;
+  --nm-header-h: 68px;
   --nm-radius: 14px;
   --nm-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
 }
@@ -272,14 +272,14 @@ header[data-window-drag]:has(.nm-header) { position: relative; min-height: var(-
    staying under the rail, the columns and the pages; the harness's base token follows inside the
    conversation so the composer's own fade matches. (The header sits in its slot's display:contents
    anchor, so the thread is the anchor's sibling, not the header's.) */
-html[data-nm-muse] header[data-window-drag]:has(.nm-header) { position: absolute; top: 0; left: 0; right: 0; z-index: 6; border-bottom: 0; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--nm-canvas) 80%, transparent) 0%, color-mix(in srgb, var(--nm-canvas) 35%, transparent) 55%, transparent 100%); }
+html[data-nm-muse] header[data-window-drag]:has(.nm-header) { position: absolute; top: 0; left: 0; right: 0; z-index: 6; border-bottom: 0; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--nm-canvas) 85%, transparent) 0%, color-mix(in srgb, var(--nm-canvas) 20%, transparent) 60%, transparent 100%); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 html[data-nm-muse] header[data-window-drag]:has(.nm-header) :is(button, a, input, [role="tab"], [role="dialog"], [role="menu"], .nm-header, .nm-header-drag) { pointer-events: auto; }
 html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] { background: var(--nm-canvas); --dsw-alias-bg-base: var(--nm-canvas); }
 html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] > [data-conversation-scroll] { padding-top: var(--nm-header-h); }
 /* Centred with auto margins, not translateX(-50%): the window's drag-region map is built from
    untransformed boxes, and a transformed, pointer-events:none box over a drag region left the
    face unclickable on macOS. The header block itself is the no-drag island (see desk-a below). */
-.nm-header { position: absolute; left: 0; right: 0; top: 12px; width: fit-content; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 3px; z-index: 2; max-width: min(60%, 520px); }
+.nm-header { position: absolute; left: 0; right: 0; top: 6px; width: fit-content; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 2; max-width: min(60%, 520px); }
 .nm-header-face { position: relative; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 2px transparent; transition: box-shadow 300ms; }
 .nm-header-face.nm-live { box-shadow: 0 0 0 2px var(--nm-accent); }
 .nm-header-face.nm-wait { box-shadow: 0 0 0 2px var(--dsw-alias-state-warn-primary, #d98c1f); }
@@ -1400,6 +1400,78 @@ html[data-nm-muse] [data-conversation-scroll]:has(> .nm-intro-host) [class*="_co
 .nm-md-bar { height: 4px; margin: 0 14px 12px; border-radius: 999px; background: var(--dsw-alias-bg-layer-3); overflow: hidden; }
 .nm-md-bar > span { display: block; height: 100%; background: var(--nm-accent, #0064d4); border-radius: 999px; transition: width 300ms; }
 .nm-md-failed { color: #c9302c; }
+
+/* Interactive Question Card */
+.nm-question-card {
+  margin: 10px 0;
+  padding: 13px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--nm-agent-bubble, var(--dsw-alias-bg-layer-2)) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--nm-blue, #58a6ff) 30%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.nm-question-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--nm-blue, #58a6ff);
+  font-weight: 600;
+  font-size: 14.5px;
+  line-height: 20px;
+}
+.nm-question-title {
+  color: var(--dsw-alias-label-primary, #fff);
+}
+.nm-question-options {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.nm-question-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2, rgba(255,255,255,0.06));
+  border: 1px solid var(--dsw-alias-border-base, rgba(255,255,255,0.1));
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.nm-question-option:hover {
+  background: var(--dsw-alias-bg-layer-3, rgba(255,255,255,0.12));
+  border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 50%, transparent);
+}
+.nm-question-option.nm-recommended {
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 12%, transparent);
+  border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 45%, transparent);
+}
+.nm-question-badge {
+  margin-top: 1.5px;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 22%, transparent);
+  color: var(--nm-blue, #58a6ff);
+  font-size: 10.5px;
+  font-weight: bold;
+  line-height: 1.2;
+}
+.nm-question-dot {
+  margin-top: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-tertiary, rgba(255,255,255,0.4));
+  flex: none;
+}
+.nm-question-opt-text {
+  font-size: 13.5px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary, #fff);
+  flex: 1;
+}
 `
 
 /** Put the stylesheet in the head once and mark the document as ours. */

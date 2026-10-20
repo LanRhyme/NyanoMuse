@@ -18,6 +18,7 @@ import { peekLive } from './live.ts'
 import { NamingCard } from './NamingCard.tsx'
 import { nav } from './rooms.ts'
 import { FEED_PANEL, GOALS_PANEL } from './panels.ts'
+import { composerCard, composerEditable, prefillComposer } from './composer.ts'
 
 const DONE = 'data-nm-fence'
 
@@ -28,6 +29,23 @@ type Fence =
   | { kind: 'avatar'; desc: string; chosen: number }
   /** The first conversation's ```nanomuse-naming block: the chooser when it suggests names, nothing to show otherwise. */
   | { kind: 'naming'; suggestions: string[]; chooser: boolean }
+  | { kind: 'question'; question: string; options: string[] }
+
+export function parseQuestionTag(text: string): { question: string; options: string[] } | undefined {
+  const match = /<question>([\s\S]*?)(?:<\/question>|$)/i.exec(text)
+  if (!match) return undefined
+  try {
+    const obj = JSON.parse(match[1]!.trim())
+    const q = obj.question || obj.title
+    if (q && Array.isArray(obj.options) && obj.options.length > 0) {
+      return {
+        question: String(q).trim(),
+        options: obj.options.map((x: unknown) => String(x || '').trim()).filter(Boolean),
+      }
+    }
+  } catch {}
+  return undefined
+}
 
 function readFence(text: string): Fence | undefined {
   const trimmed = text.trim()
@@ -56,6 +74,9 @@ function readFence(text: string): Fence | undefined {
     return { kind: 'goal', title: str(o.title), why: str(o.why), steps: Array.isArray(o.steps) ? o.steps.map(str).filter(Boolean).slice(0, 5) : [], everyHours: Math.max(0, Math.round(Number(o.check_every_hours) || 0)), checkTime: m ? `${m[1]!.padStart(2, '0')}:${m[2]}` : '09:00' }
   }
   if (typeof o.title === 'string' && typeof o.body === 'string' && ('emoji' in o || 'type' in o || 'source' in o)) return { kind: 'feed', title: str(o.title), emoji: str(o.emoji) || '📝', body: str(o.body) }
+  if (typeof o.question === 'string' && Array.isArray(o.options) && o.options.length > 0) {
+    return { kind: 'question', question: str(o.question), options: o.options.map(str).filter(Boolean) }
+  }
   return undefined
 }
 
@@ -75,6 +96,45 @@ function button(label: string, onClick: () => void): HTMLElement {
 
 const roots = new Map<HTMLElement, Root>()
 
+function questionCard(t: Translate, q: { question: string; options: string[] }): HTMLElement {
+  const root = el('div', 'nm-question-card')
+  const titleRow = el('div', 'nm-question-title-row')
+  titleRow.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+  titleRow.append(el('span', 'nm-question-title', q.question))
+  root.append(titleRow)
+
+  const list = el('div', 'nm-question-options')
+  for (const opt of q.options) {
+    const isRecommended = /^\((?:Recommended|推荐)\)/i.test(opt) || opt.includes('（推荐）') || opt.startsWith('(推荐)')
+    const cleanText = opt.replace(/^\((?:Recommended|推荐)\)\s*/i, '')
+    const optRow = el('div', `nm-question-option${isRecommended ? ' nm-recommended' : ''}`)
+    if (isRecommended) {
+      optRow.append(el('span', 'nm-question-badge', '推荐'))
+    } else {
+      optRow.append(el('span', 'nm-question-dot'))
+    }
+    optRow.append(el('span', 'nm-question-opt-text', cleanText))
+    optRow.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      prefillComposer(cleanText)
+      window.setTimeout(() => {
+        const card = composerCard()
+        const sendBtn = card?.querySelector<HTMLButtonElement>('[class*="_primary"]:not(:disabled)')
+        if (sendBtn) {
+          sendBtn.click()
+        } else {
+          const editable = composerEditable()
+          editable?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', which: 13, keyCode: 13, bubbles: true }))
+        }
+      }, 50)
+    })
+    list.append(optRow)
+  }
+  root.append(list)
+  return root
+}
+
 function card(t: Translate, fence: Fence): HTMLElement {
   const root = el('div', `nm-fence nm-fence-${fence.kind}`)
   switch (fence.kind) {
@@ -83,6 +143,9 @@ function card(t: Translate, fence: Fence): HTMLElement {
       roots.set(root, createRoot(root))
       roots.get(root)!.render(h(NamingCard, { t, suggested: fence.suggestions }))
       return root
+    }
+    case 'question': {
+      return questionCard(t, fence)
     }
     case 'goal': {
       root.append(el('div', 'nm-fence-kind', t('fcGoalCreated')))
@@ -167,6 +230,29 @@ export function renderFenceCards(t: Translate): () => void {
       if (fence.kind === 'naming' && !fence.chooser) continue
       block.insertAdjacentElement('afterend', card(t, fence))
     }
+    for (const qEl of document.querySelectorAll<HTMLElement>(`question:not([${DONE}])`)) {
+      qEl.setAttribute(DONE, 'yes')
+      qEl.style.display = 'none'
+      const q = parseQuestionTag(`<question>${qEl.textContent}</question>`)
+      if (q) {
+        qEl.insertAdjacentElement('afterend', questionCard(t, q))
+      }
+    }
+    for (const p of document.querySelectorAll<HTMLElement>(`[class*="_markdown"] p:not([${DONE}])`)) {
+      const text = p.textContent || ''
+      if (!text.includes('<question>')) continue
+      const q = parseQuestionTag(text)
+      if (q) {
+        p.setAttribute(DONE, 'yes')
+        const clean = text.replace(/<question>[\s\S]*?(?:<\/question>|$)/i, '').trim()
+        if (clean) {
+          p.textContent = clean
+        } else {
+          p.style.display = 'none'
+        }
+        p.insertAdjacentElement('afterend', questionCard(t, q))
+      }
+    }
   }
   const schedule = () => { if (!scheduled) scheduled = window.requestAnimationFrame(sweep) }
   const observer = new MutationObserver(schedule)
@@ -177,10 +263,12 @@ export function renderFenceCards(t: Translate): () => void {
     if (scheduled) window.cancelAnimationFrame(scheduled)
     for (const [node, root] of roots) { root.unmount(); node.remove() }
     roots.clear()
-    for (const node of document.querySelectorAll('.nm-fence')) node.remove()
-    for (const block of document.querySelectorAll<HTMLElement>(`.md-code-block[${DONE}]`)) {
+    for (const node of document.querySelectorAll('.nm-fence, .nm-question-card')) node.remove()
+    for (const block of document.querySelectorAll<HTMLElement>(`[${DONE}]`)) {
       block.removeAttribute(DONE)
-      block.style.display = ''
+      if (block.classList.contains('md-code-block') || block.tagName.toLowerCase() === 'question') {
+        block.style.display = ''
+      }
     }
   }
 }

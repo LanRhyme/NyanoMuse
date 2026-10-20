@@ -77,29 +77,33 @@ fun InteractiveQuestionCard(
     onOptionSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val accentColor = ChatColors.link
+
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(ChatColors.secondaryBg.copy(alpha = 0.7f))
-            .border(1.dp, ChatColors.sendButton.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
-            .padding(14.dp),
+            .clip(RoundedCornerShape(14.dp))
+            .background(ChatColors.secondaryBg.copy(alpha = 0.55f))
+            .border(1.dp, accentColor.copy(alpha = 0.28f), RoundedCornerShape(14.dp))
+            .padding(13.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // Question Title Row
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(
                 imageVector = Icons.Default.HelpOutline,
                 contentDescription = null,
-                tint = ChatColors.sendButton,
-                modifier = Modifier.size(18.dp),
+                tint = accentColor,
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(top = 1.dp),
             )
             Text(
                 text = data.question,
-                fontSize = 15.sp,
+                fontSize = 14.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = ChatColors.primaryText,
                 lineHeight = 20.sp,
@@ -108,7 +112,7 @@ fun InteractiveQuestionCard(
 
         // Options List
         Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             data.options.forEach { option ->
@@ -118,19 +122,19 @@ fun InteractiveQuestionCard(
                 val cleanOptionText = option.replace(Regex("""^\((Recommended|推荐)\)\s*""", RegexOption.IGNORE_CASE), "")
 
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(
-                            if (isRecommended) ChatColors.sendButton.copy(alpha = 0.15f)
-                            else ChatColors.secondaryBg.copy(alpha = 0.8f),
+                            if (isRecommended) accentColor.copy(alpha = 0.12f)
+                            else ChatColors.toolCapsuleBg,
                         )
                         .border(
-                            width = if (isRecommended) 1.5.dp else 1.dp,
-                            color = if (isRecommended) ChatColors.sendButton.copy(alpha = 0.8f) else ChatColors.secondaryText.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(12.dp),
+                            width = 1.dp,
+                            color = if (isRecommended) accentColor.copy(alpha = 0.45f) else ChatColors.toolBorder,
+                            shape = RoundedCornerShape(10.dp),
                         )
                         .clickable { onOptionSelected(cleanOptionText) }
                         .padding(horizontal = 12.dp, vertical = 9.dp),
@@ -139,20 +143,22 @@ fun InteractiveQuestionCard(
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
+                                .padding(top = 1.5.dp)
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(ChatColors.sendButton)
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                                .background(accentColor.copy(alpha = 0.22f))
+                                .padding(horizontal = 5.dp, vertical = 1.5.dp),
                         ) {
                             Text(
                                 text = "推荐",
-                                fontSize = 10.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White,
+                                color = accentColor,
                             )
                         }
                     } else {
                         Box(
                             modifier = Modifier
+                                .padding(top = 6.dp)
                                 .size(6.dp)
                                 .background(ChatColors.secondaryText.copy(alpha = 0.5f), CircleShape),
                         )

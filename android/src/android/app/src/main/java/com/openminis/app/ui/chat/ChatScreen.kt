@@ -4483,26 +4483,28 @@ fun ChatScreen(
                                     SideEffect {
                                         selectionController.rememberMessageMarkdown(item.messageId, item.messageMarkdown)
                                     }
-                                    if (cleanText.isNotEmpty()) {
-                                        MarkdownBlock(
-                                            rawText = cleanText,
-                                            isStreaming = item.isStreaming,
-                                            shardId = TextShardId(
-                                                messageId = item.messageId,
-                                                shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}",
-                                            ),
-                                        )
-                                    }
-                                    if (questionData != null) {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
                                         if (cleanText.isNotEmpty()) {
-                                            Spacer(Modifier.height(8.dp))
+                                            MarkdownBlock(
+                                                rawText = cleanText,
+                                                isStreaming = item.isStreaming,
+                                                shardId = TextShardId(
+                                                    messageId = item.messageId,
+                                                    shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}",
+                                                ),
+                                            )
                                         }
-                                        io.github.nanomuse.ui.chat.InteractiveQuestionCard(
-                                            data = questionData,
-                                            onOptionSelected = { option ->
-                                                viewModel.sendMessage(option)
-                                            },
-                                        )
+                                        if (questionData != null) {
+                                            if (cleanText.isNotEmpty()) {
+                                                Spacer(Modifier.height(10.dp))
+                                            }
+                                            io.github.nanomuse.ui.chat.InteractiveQuestionCard(
+                                                data = questionData,
+                                                onOptionSelected = { option ->
+                                                    viewModel.sendMessage(option)
+                                                },
+                                            )
+                                        }
                                     }
                                 }
                             } } // nanoMuse: bubble
