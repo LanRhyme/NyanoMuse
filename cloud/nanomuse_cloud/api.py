@@ -701,6 +701,23 @@ def create_app(
             await hub.notify_sync(caller.account_id, int(out["cursor"]), device)
         return out
 
+    @app.get("/v1/sync/memory/pull")
+    async def sync_memory_pull(
+        since: int = 0, limit: int = DEFAULT_PAGE, caller: Caller = Depends(sync_dep)
+    ) -> dict:
+        return sync_store.pull_memory_ops(caller.account_id, since=since, limit=limit)
+
+    @app.post("/v1/sync/memory/push")
+    async def sync_memory_push(request: Request, caller: Caller = Depends(sync_dep)) -> dict:
+        body = await _json(request)
+        device = str(body.get("device") or "")[:80]
+        ops = body.get("ops") or []
+        out = sync_store.push_memory_ops(caller.account_id, device, ops)
+        hub = getattr(app.state, "hub", None)
+        if hub is not None and out["accepted"]:
+            await hub.notify_sync(caller.account_id, int(out["cursor"]), device)
+        return out
+
     @app.delete("/v1/sync/changes")
     async def sync_wipe(caller: Caller = Depends(sync_dep)) -> dict:
         out = sync_store.wipe(caller.account_id)

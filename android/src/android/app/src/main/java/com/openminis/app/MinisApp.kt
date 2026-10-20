@@ -436,7 +436,7 @@ class MinisApp : Application(), ImageLoaderFactory {
         skillRepository = SkillRepository(this)
         mcpRepository = MCPRepository(this)
         io.github.nanomuse.connectors.Connectors.refreshStaleAsync(this) // nanoMuse: connectors' OAuth tokens near their end → refreshed, headers rewritten
-        memoryRepository = MemoryRepository(java.io.File(filesDir, "minis-global/memory"))
+        memoryRepository = MemoryRepository(java.io.File(filesDir, "minis-global/memory"), this) // nanoMuse: pass context for LocalMemoryDb
         webAppShortcutRepository = WebAppShortcutRepository(database.webAppShortcutDao())
 
         // T-android-safemode-lateinit-crash: every repository the UI layer

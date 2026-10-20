@@ -1,0 +1,120 @@
+{
+  "description": "NyanoMuse long-term memory golden evaluation dataset",
+  "version": 1,
+  "facts": [
+    {
+      "id": "mem_01",
+      "content": "界面偏好低饱和度莫兰迪色系，极简无多余高光",
+      "category": "preference",
+      "is_pinned": 1,
+      "importance": 0.9,
+      "created_at": 1740000000000
+    },
+    {
+      "id": "mem_02",
+      "content": "日常交流扮演毛茸茸纯黑大蓝眼小猫，自称本喵或小喵，称呼用户为老大",
+      "category": "habit",
+      "is_pinned": 1,
+      "importance": 1.0,
+      "created_at": 1740000100000
+    },
+    {
+      "id": "mem_03",
+      "content": "主力平板型号为 OnePlus Pad 2 Pro (OPD2413)，运行 ColorOS 16 与定制内核",
+      "category": "device",
+      "is_pinned": 1,
+      "importance": 0.9,
+      "created_at": 1740000200000
+    },
+    {
+      "id": "mem_04",
+      "content": "电脑系统使用 Arch Linux (CachyOS)，显示服务器为 Wayland，合成器为 Niri",
+      "category": "device",
+      "is_pinned": 1,
+      "importance": 0.95,
+      "created_at": 1740000300000
+    },
+    {
+      "id": "mem_05",
+      "content": "临时文件与一次性脚本一律存放在 ~/tmp 目录，保持家目录干净",
+      "category": "habit",
+      "is_pinned": 0,
+      "importance": 0.8,
+      "created_at": 1740000400000
+    },
+    {
+      "id": "mem_06",
+      "content": "编写或更新 README 与 Markdown 文档时绝不使用句号，绝不使用表情符号",
+      "category": "habit",
+      "is_pinned": 0,
+      "importance": 0.85,
+      "created_at": 1740000500000
+    },
+    {
+      "id": "mem_07",
+      "content": "安装软件包优先使用 paru 管理 AUR，使用 pacman 管理官方源，加 --noconfirm 参数",
+      "category": "habit",
+      "is_pinned": 0,
+      "importance": 0.75,
+      "created_at": 1740000600000
+    },
+    {
+      "id": "mem_08",
+      "content": "全局动态主题脚本位于 ~/.config/noctalia/morandi-gen.py，监听壁纸自动生成莫兰迪配色",
+      "category": "custom",
+      "is_pinned": 0,
+      "importance": 0.8,
+      "created_at": 1740000700000
+    },
+    {
+      "id": "mem_09",
+      "content": "系统挂载了 Windows 物理分区 /mnt/WindowsC 和 /mnt/WindowsD 用于外部资源访问",
+      "category": "device",
+      "is_pinned": 0,
+      "importance": 0.7,
+      "created_at": 1740000800000
+    },
+    {
+      "id": "mem_10",
+      "content": "手机型号为红米 K60 (mondrian)，运行 ColorOS 移植版与 SukiSU Root",
+      "category": "device",
+      "is_pinned": 0,
+      "importance": 0.8,
+      "created_at": 1740000900000
+    }
+  ],
+  "queries": [
+    {
+      "query": "文档格式有什么特殊规范",
+      "expected_top": ["mem_06"]
+    },
+    {
+      "query": "平板上运行的是什么系统",
+      "expected_top": ["mem_03"]
+    },
+    {
+      "query": "临时脚本应该保存在哪里",
+      "expected_top": ["mem_05"]
+    },
+    {
+      "query": "当前电脑的窗口管理器和合成器是什么",
+      "expected_top": ["mem_04"]
+    },
+    {
+      "query": "壁纸切换后怎么更新软件配色方案",
+      "expected_top": ["mem_08", "mem_01"]
+    },
+    {
+      "query": "如何安装系统软件包和AUR包",
+      "expected_top": ["mem_07"]
+    },
+    {
+      "query": "如何自称和称呼用户",
+      "expected_top": ["mem_02"]
+    },
+    {
+      "query": "Windows 分区挂载在哪里",
+      "expected_top": ["mem_09"]
+    }
+  ]
+}

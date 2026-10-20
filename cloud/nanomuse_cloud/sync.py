@@ -242,6 +242,7 @@ class SyncStore:
     def _wipe(self, c: sqlite3.Connection, account_id: str) -> None:
         c.execute("DELETE FROM sync_messages WHERE account_id=?", (account_id,))
         c.execute("DELETE FROM sync_conversations WHERE account_id=?", (account_id,))
+        c.execute("DELETE FROM sync_memory_oplog WHERE account_id=?", (account_id,))
         self.presence.forget(account_id)
 
     def wipe(self, account_id: str) -> dict:
@@ -585,6 +586,121 @@ class SyncStore:
         cutoff = t - TOMBSTONE_DAYS * 86400
         c.execute("DELETE FROM sync_messages WHERE deleted=1 AND deleted_at IS NOT NULL AND deleted_at<?", (cutoff,))
         c.execute("DELETE FROM sync_conversations WHERE deleted=1 AND deleted_at IS NOT NULL AND deleted_at<?", (cutoff,))
+
+    # -- memory oplog sync (C15) --
+
+    def push_memory_ops(self, account_id: str, device: str, ops: list[dict]) -> dict:
+        """Push memory mutation operations.
+        Idempotent: known `op_id` is ignored and returns its assigned seq."""
+        if not isinstance(ops, list):
+            raise CloudError(400, "bad_request", "ops must be a list")
+        if len(ops) > MAX_POST_MESSAGES:
+            raise CloudError(413, "too_many_ops", f"At most {MAX_POST_MESSAGES} operations per request")
+        device = str(device or "")[:80]
+        t = now()
+        accepted = 0
+        assigned: list[dict] = []
+        with self.db.tx() as c:
+            if not self._enabled(c, account_id):
+                raise CloudError(409, "sync_off", "Sync is off for this account")
+            for op in ops:
+                if not isinstance(op, dict):
+                    continue
+                op_id = str(op.get("op_id") or "").strip().lower()
+                if not op_id:
+                    continue
+                # Idempotency check
+                existing = c.execute(
+                    "SELECT seq, op_id FROM sync_memory_oplog WHERE account_id=? AND op_id=?",
+                    (account_id, op_id),
+                ).fetchone()
+                if existing is not None:
+                    assigned.append({"op_id": op_id, "seq": int(existing["seq"])})
+                    continue
+
+                op_type = str(op.get("op_type") or "upsert_memory")
+                payload = op.get("payload") or {}
+                if not isinstance(payload, dict):
+                    payload = {}
+                memory_id = str(payload.get("id") or op.get("memory_id") or "")[:80]
+                if not memory_id:
+                    continue
+
+                content = str(payload.get("content") or "")[:2000]
+                before_content = str(payload.get("before_content") or "")[:2000]
+                category = str(payload.get("category") or "preference")[:50]
+                source = str(payload.get("source") or "agent")[:50]
+                is_pinned = 1 if payload.get("is_pinned") else 0
+                is_archived = 1 if payload.get("is_archived") else 0
+                try:
+                    importance = max(0.0, min(1.0, float(payload.get("importance") or 0.5)))
+                except (TypeError, ValueError):
+                    importance = 0.5
+                client_time = int(op.get("client_time") or t)
+                updated_at = int(payload.get("updated_at") or client_time)
+                deleted = 1 if payload.get("deleted") or op_type == "delete_memory" else 0
+
+                seq = self._next_seq(c, account_id)
+                c.execute(
+                    """INSERT INTO sync_memory_oplog (
+                        account_id, seq, op_id, device_id, op_type, memory_id,
+                        content, before_content, category, source, is_pinned,
+                        is_archived, importance, updated_at, deleted, client_time, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        account_id, seq, op_id, device, op_type, memory_id,
+                        content, before_content, category, source, is_pinned,
+                        is_archived, importance, updated_at, deleted, client_time, t,
+                    ),
+                )
+                accepted += 1
+                assigned.append({"op_id": op_id, "seq": seq})
+            cursor = self._cursor(c, account_id)
+        return {"cursor": cursor, "accepted": accepted, "assigned": assigned}
+
+    def pull_memory_ops(self, account_id: str, since: int = 0, limit: int = DEFAULT_PAGE) -> dict:
+        """Pull memory mutation operations strictly after `since` sequence number."""
+        since = max(0, int(since))
+        limit = max(1, min(int(limit), MAX_PAGE))
+        with self.db.tx() as c:
+            if not self._enabled(c, account_id):
+                raise CloudError(409, "sync_off", "Sync is off for this account")
+            rows = c.execute(
+                """SELECT seq, op_id, device_id, op_type, memory_id, content,
+                          before_content, category, source, is_pinned, is_archived,
+                          importance, updated_at, deleted, client_time, created_at
+                   FROM sync_memory_oplog
+                   WHERE account_id=? AND seq>?
+                   ORDER BY seq ASC LIMIT ?""",
+                (account_id, since, limit + 1),
+            ).fetchall()
+            more = len(rows) > limit
+            rows = rows[:limit]
+            cursor = int(rows[-1]["seq"]) if more and rows else self._cursor(c, account_id)
+            ops = [
+                {
+                    "seq": int(r["seq"]),
+                    "op_id": str(r["op_id"]),
+                    "device_id": str(r["device_id"]),
+                    "op_type": str(r["op_type"]),
+                    "payload": {
+                        "id": str(r["memory_id"]),
+                        "content": str(r["content"]),
+                        "before_content": str(r["before_content"]),
+                        "category": str(r["category"]),
+                        "source": str(r["source"]),
+                        "is_pinned": bool(r["is_pinned"]),
+                        "is_archived": bool(r["is_archived"]),
+                        "importance": float(r["importance"]),
+                        "updated_at": int(r["updated_at"]),
+                        "deleted": bool(r["deleted"]),
+                    },
+                    "client_time": int(r["client_time"]),
+                    "created_at": int(r["created_at"]),
+                }
+                for r in rows
+            ]
+        return {"cursor": cursor, "more": more, "ops": ops}
 
     # -- the operator --
 

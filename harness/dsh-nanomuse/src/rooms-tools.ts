@@ -131,6 +131,34 @@ export function apply(ctx: Context): void {
     () =>
       ctx.tools.register(
         defineTool({
+          name: 'recall_memory',
+          description: "Search the person's long-term memory for relevant preferences, habits, device specs, or past instructions. Use it whenever you need to check specific past facts or preferences that might not be in your immediate context.",
+          parameters: {
+            query: { type: 'string', required: true, description: 'The search query or keyword phrase.' },
+            limit: { type: 'number', description: 'Maximum number of memories to recall (default 5, max 15).' },
+          },
+          output: {
+            schema: { type: 'object', properties: { results: { type: 'array', items: { type: 'string' } } }, additionalProperties: false },
+            render: (_args, value) => {
+              const list = Array.isArray(value?.results) ? value.results : []
+              return [{ type: 'text', text: list.length ? `Recalled ${list.length} memories:\n${list.map((r: string) => `- ${r}`).join('\n')}` : 'No matching memories found.' }]
+            },
+          },
+          async execute(args) {
+            const limit = Math.min(Math.max(1, typeof args.limit === 'number' ? args.limit : 5), 15)
+            const matches = rooms.searchMemory(args.query, { limit, includeArchived: true })
+            return { results: matches.map((m) => m.item.content) }
+          },
+          presentCall: (args) => ({ card: 'generic', title: `Recall memory: ${(args.query || '').slice(0, 60)}`, kind: 'other', rawInput: args }),
+        }),
+      ),
+    'nanomuse rooms: recall_memory',
+  )
+
+  ctx.effect(
+    () =>
+      ctx.tools.register(
+        defineTool({
           name: 'draw_new_look',
           description: "Open the avatar studio on the person's screen with a description of the new look they asked for (\"change your avatar to an orange cat with a scarf\"). Four candidates are drawn there and they pick one; you do not draw the pictures yourself. Call it only when they ask for a new look.",
           parameters: {
@@ -182,8 +210,8 @@ export function apply(ctx: Context): void {
             if (rooms.feedInstructions) lines.push(`What the person wants in their Feed: ${rooms.feedInstructions.slice(0, 300)}`)
             const memory = rooms.memory
             if (memory.length) {
-              lines.push('', 'What you remember about the person (their Memory; add to it with remember):')
-              for (const item of memory.slice(-60)) lines.push(`- ${item.text}`)
+              lines.push('', 'What you remember about the person (their Memory; add to it with remember, search deeper with recall_memory):')
+              for (const item of memory.slice(-120)) lines.push(`- ${item.text}`)
             } else {
               lines.push('', 'You remember nothing about the person yet; when they tell you something they will expect you to know next time, keep it with remember.')
             }

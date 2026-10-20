@@ -1,5 +1,6 @@
 package com.openminis.app.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.openminis.app.logging.AppLogger
 import java.io.File
@@ -7,16 +8,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * Manages the memory directory (`minis-global/memory/`).
- * Mirrors iOS memory system:
- *   - GLOBAL.md: read-only for agent, user-maintained via Settings
- *   - YYYY-MM-DD.md: daily logs with timestamped entries, agent writes via memory_write
- *   - memory_get: fuzzy keyword search across files
- *   - loadGlobalMemoryFragment() / loadRecentDailyMemoryFragment(): emit
- *     two separate text blocks for the system prompt (mirrors iOS exactly)
- */
-class MemoryRepository(private val memoryDir: File) {
+// nanoMuse: support optional Context for LocalMemoryDb dual-write and retrieval
+class MemoryRepository(private val memoryDir: File, private val context: Context? = null) {
 
     companion object {
         private const val TAG = "MemoryRepository"
@@ -82,6 +75,17 @@ class MemoryRepository(private val memoryDir: File) {
         return try {
             file.writeText(newContent)
             Log.i(TAG, "Memory written to $fileName (${content.length} chars)")
+            // nanoMuse: dual-write into LocalMemoryDb for CJK Bigram FTS retrieval
+            context?.let { ctx ->
+                try {
+                    io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).upsert(
+                        content = content,
+                        source = "agent"
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "LocalMemoryDb dual-write failed", e)
+                }
+            }
             "Memory saved to $fileName (${content.length} chars)"
         } catch (e: Exception) {
             Log.e(TAG, "Failed to write memory", e)

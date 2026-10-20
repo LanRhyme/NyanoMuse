@@ -29,6 +29,8 @@ import { avatarFence, avatarMemoryLine } from './avatar-flow.ts'
 import { FENCE_FEED, FENCE_GOAL, FENCE_GOAL_UPDATE, findFences, goalCategory, goalCheckPrompt, goalCreationNote, goalHomeNote, goalOpener, parseFeedDraft, parseGoalBlock, parseGoalUpdate, parseIdeas, type GoalBlock, type GoalUpdateBlock, type IdeaKind, type StaticIdea } from './fences.ts'
 import { afterTurn, boundTo, currentSuggestions, dismissChooser, FIRST_RUN_EMPTY, pickName, promptAddendum, readFirstRun, startConversation, type FirstRunState } from './firstrun.ts'
 import { DEFAULT_NUDGES, dueAsk, LEDGER_EMPTY, NUDGES_EVERY_MS, NUDGES_ORIGIN, NUDGES_TIMEOUT_MS, readLedger, readNudges, recordAsk, recordDay, recordStarred, recordTask, type Ask, type Moment, type NudgeLedger, type NudgesPolicy, type NudgesView } from './nudges.ts'
+import { MemoryStore, type MemoryRecord } from './memory-store.ts'
+import type { ScoredMatch } from './memory-search.ts'
 import { packageAssetsDir } from './profile.ts'
 import { randomBytes } from 'node:crypto'
 import { createReadStream, readFileSync } from 'node:fs'
@@ -309,7 +311,7 @@ const ACTIVITY_STEPS = 60
 const STEP_TEXT = 1200
 const DOC_MAX = 20_000
 const STUDIO_STYLES: Record<string, true> = { muse: true, flat: true, clay: true, watercolor: true, pixel: true, line: true, sticker: true }
-const MEMORY_MAX = 400
+const MEMORY_HOT_LIMIT = 150
 const MEMORY_LINE = 400
 
 const KINDS: Record<string, LibraryKind> = {
@@ -369,6 +371,7 @@ export default class NanomuseRooms extends Service {
   private nudges: { policy: NudgesPolicy; fetchedAt: number; ledger: NudgeLedger; current: Ask | null } = { policy: structuredClone(DEFAULT_NUDGES), fetchedAt: 0, ledger: structuredClone(LEDGER_EMPTY), current: null }
   private writingNudges: Promise<void> = Promise.resolve()
   private fetchingNudges = false
+  private memoryStore: MemoryStore | null = null
 
   constructor(ctx: Context) {
     super(ctx, 'nanomuseRooms')
@@ -380,6 +383,17 @@ export default class NanomuseRooms extends Service {
 
   async [Service.init](): Promise<void> {
     this.store = await this.read()
+    try {
+      const dbDir = join(dshHome(), 'nanomuse')
+      await mkdir(dbDir, { recursive: true }).catch(() => undefined)
+      this.memoryStore = new MemoryStore(join(dbDir, 'memory.db'))
+      if (this.store.memory.length > 0) {
+        this.memoryStore.importLegacy(this.store.memory)
+      }
+      this.refreshMemoryStore()
+    } catch (err: unknown) {
+      this.warn('memory store init', err)
+    }
     this.firstRun = await this.readSmall(this.firstRunPath, readFirstRun)
     const nudges = await this.readSmall(this.nudgesPath, (raw) => raw)
     const saved = nudges && typeof nudges === 'object' ? (nudges as Record<string, unknown>) : {}
@@ -407,6 +421,7 @@ export default class NanomuseRooms extends Service {
       for (const res of this.streams) res.end()
       this.streams.clear()
       for (const run of this.runs.values()) run.reject(new Error('nanomuse rooms: shutting down'))
+      if (this.memoryStore) this.memoryStore.close()
     }, 'nanomuse rooms: stop')
     // the schedule service may come up after us: read the automations once it is there, and again on demand
     this.ctx.inject(['schedule' as never], () => void this.refreshAutomations().catch(() => undefined))
@@ -720,6 +735,22 @@ export default class NanomuseRooms extends Service {
     await this.save()
   }
 
+  private refreshMemoryStore(): void {
+    if (!this.memoryStore) return
+    const hot = this.memoryStore.getHotMemories(MEMORY_HOT_LIMIT)
+    this.store.memory = hot.map((m) => ({
+      id: m.id,
+      at: m.updated_at,
+      text: m.content,
+      source: (m.source === 'person' || m.source === 'import' ? m.source : 'agent') as MemoryItem['source'],
+    }))
+  }
+
+  searchMemory(query: string, options?: { limit?: number; includeArchived?: boolean }): ScoredMatch<MemoryRecord>[] {
+    if (!this.memoryStore) return []
+    return this.memoryStore.search(query, options)
+  }
+
   /** MEMORY.md written back: every bullet is a memory; a bullet gone is forgotten, a new one is kept. */
   private async applyMemoryDoc(text: string): Promise<void> {
     const lines = text
@@ -727,16 +758,37 @@ export default class NanomuseRooms extends Service {
       .map((l) => /^\s*(?:[-*•]|\d+[.)])\s+(.*)$/.exec(l)?.[1]?.trim() ?? '')
       .map((l) => l.replace(/^\(?\d{4}-\d{2}-\d{2}\)?[:：]?\s*/, '').trim())
       .filter((l) => l.length > 1)
-    const keep = new Set(lines.map(titleKey))
-    const before = this.store.memory.length
-    this.store.memory = this.store.memory.filter((m) => keep.has(titleKey(m.text)))
-    const have = new Set(this.store.memory.map((m) => titleKey(m.text)))
-    for (const line of lines.slice(0, MEMORY_MAX)) {
-      if (have.has(titleKey(line))) continue
-      have.add(titleKey(line))
-      this.store.memory.push({ id: newId('mem'), at: Date.now(), text: line.slice(0, MEMORY_LINE), source: 'person' })
+    if (this.memoryStore) {
+      const active = this.memoryStore.getHotMemories(1000)
+      const keep = new Set(lines.map(titleKey))
+      for (const m of active) {
+        if (!keep.has(titleKey(m.content))) {
+          this.memoryStore.delete(m.id)
+        }
+      }
+      const have = new Set(active.map((m) => titleKey(m.content)))
+      for (const line of lines) {
+        if (have.has(titleKey(line))) continue
+        have.add(titleKey(line))
+        this.memoryStore.upsert({
+          content: line.slice(0, MEMORY_LINE),
+          source: 'person',
+        })
+      }
+      this.refreshMemoryStore()
+    } else {
+      const keep = new Set(lines.map(titleKey))
+      const before = this.store.memory.length
+      this.store.memory = this.store.memory.filter((m) => keep.has(titleKey(m.text)))
+      const have = new Set(this.store.memory.map((m) => titleKey(m.text)))
+      for (const line of lines) {
+        if (have.has(titleKey(line))) continue
+        have.add(titleKey(line))
+        this.store.memory.push({ id: newId('mem'), at: Date.now(), text: line.slice(0, MEMORY_LINE), source: 'person' })
+      }
+      if (this.store.memory.length === before && !lines.length) return
     }
-    if (this.store.memory.length !== before || lines.length) await this.save()
+    await this.save()
   }
 
   // ---- activity: what each chat did -------------------------------------------------------------
@@ -799,7 +851,14 @@ export default class NanomuseRooms extends Service {
       case 'user/message': {
         if (event.data.source.kind !== 'user') return
         const text = textOf(event.data.content).replace(/\s+/g, ' ').trim()
-        if (text) record.request = text.slice(0, 200)
+        if (text) {
+          record.request = text.slice(0, 200)
+          // Safe passive extraction: ONLY inspect user messages (prevent tool injection)
+          const memoryMatch = /^(?:记住|请记住|以后记住|记录一下)\s*[:：,，]?\s*(.+)$/i.exec(text)
+          if (memoryMatch && memoryMatch[1] && memoryMatch[1].length > 2) {
+            void this.remember(memoryMatch[1].trim(), 'person').catch(() => undefined)
+          }
+        }
         this.activityChanged(record)
         return
       }
@@ -875,6 +934,16 @@ export default class NanomuseRooms extends Service {
   async remember(text: string, source: MemoryItem['source'] = 'agent'): Promise<MemoryItem | null> {
     const line = text.replace(/\s+/g, ' ').trim().slice(0, MEMORY_LINE)
     if (!line) return null
+    if (this.memoryStore) {
+      const record = this.memoryStore.upsert({
+        content: line,
+        source,
+      })
+      this.memoryStore.archiveStale(MEMORY_HOT_LIMIT)
+      this.refreshMemoryStore()
+      await this.save()
+      return { id: record.id, at: record.updated_at, text: record.content, source }
+    }
     const key = titleKey(line)
     const existing = this.store.memory.find((m) => titleKey(m.text) === key)
     if (existing) {
@@ -884,25 +953,30 @@ export default class NanomuseRooms extends Service {
     }
     const item: MemoryItem = { id: newId('mem'), at: Date.now(), text: line, source }
     this.store.memory.push(item)
-    if (this.store.memory.length > MEMORY_MAX) this.store.memory.splice(0, this.store.memory.length - MEMORY_MAX)
     await this.save()
     return item
   }
 
   async forget(id: string): Promise<void> {
-    const before = this.store.memory.length
-    this.store.memory = this.store.memory.filter((m) => m.id !== id)
-    if (this.store.memory.length !== before) await this.save()
+    if (this.memoryStore) {
+      this.memoryStore.delete(id)
+      this.refreshMemoryStore()
+    } else {
+      const before = this.store.memory.length
+      this.store.memory = this.store.memory.filter((m) => m.id !== id)
+      if (this.store.memory.length === before) return
+    }
+    await this.save()
   }
 
   /** Muse's "import memory": a text pasted from another assistant — one line or paragraph per memory. */
   async importMemory(text: string): Promise<number> {
     const lines = text.split(/\n+/).map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').trim()).filter((l) => l.length > 1)
     let added = 0
-    for (const line of lines.slice(0, 200)) {
+    for (const line of lines.slice(0, 500)) {
       const before = this.store.memory.length
       await this.remember(line, 'import')
-      if (this.store.memory.length > before) added++
+      if (this.store.memory.length > before || this.memoryStore) added++
     }
     return added
   }
@@ -1992,6 +2066,20 @@ export default class NanomuseRooms extends Service {
           return send(res, 204)
         case '/memory/import':
           return send(res, 200, { added: await this.importMemory(String(body.text ?? '')) })
+        case '/memory/search':
+          return send(res, 200, {
+            results: this.searchMemory(String(body.query ?? ''), {
+              limit: typeof body.limit === 'number' ? body.limit : 10,
+              includeArchived: Boolean(body.includeArchived),
+            }).map((m) => ({
+              id: m.item.id,
+              content: m.item.content,
+              category: m.item.category,
+              score: m.score,
+              is_pinned: m.item.is_pinned,
+              updated_at: m.item.updated_at,
+            })),
+          })
         case '/data/export':
           return send(res, 200, { path: await this.exportData() })
         case '/data/reset':

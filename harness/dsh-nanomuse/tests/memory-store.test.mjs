@@ -1,0 +1,107 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { MemoryStore } from '../src/memory-store.ts'
+
+test('MemoryStore initializes and executes CRUD with synchronized FTS', () => {
+  const store = new MemoryStore(':memory:')
+
+  // 1. Insert
+  const item = store.upsert({
+    id: 'mem_arch',
+    content: '电脑系统使用 Arch Linux (CachyOS) 与 Niri 合成器',
+    category: 'device',
+    is_pinned: 1,
+    importance: 0.9,
+  })
+  assert.equal(item.id, 'mem_arch')
+  assert.equal(item.is_pinned, 1)
+  assert.ok(item.search_text.includes('arch'))
+  assert.ok(item.search_text.includes('niri'))
+
+  // Verify FTS row
+  const ftsRow = store.db.prepare('SELECT * FROM memories_fts WHERE id = ?').get('mem_arch')
+  assert.ok(ftsRow, 'FTS table should contain the inserted item')
+
+  // 2. Search
+  const searchResults = store.search('Niri 合成器')
+  assert.equal(searchResults.length, 1)
+  assert.equal(searchResults[0].item.id, 'mem_arch')
+  assert.equal(searchResults[0].item.use_count, 1)
+
+  // 3. Update
+  store.upsert({
+    id: 'mem_arch',
+    content: '电脑系统使用 Arch Linux (CachyOS) 与 Wayland 窗口管理器',
+    category: 'device',
+  })
+  const updated = store.get('mem_arch')
+  assert.ok(updated.content.includes('Wayland'))
+  assert.ok(updated.search_text.includes('wayland'))
+
+  // Verify old term no longer in FTS
+  const oldSearch = store.search('Niri')
+  assert.equal(oldSearch.length, 0, 'Old content term should be purged from FTS')
+
+  const newSearch = store.search('Wayland')
+  assert.equal(newSearch.length, 1)
+
+  // 4. Soft Delete
+  store.delete('mem_arch')
+  assert.equal(store.get('mem_arch').deleted, 1)
+  assert.equal(store.search('Wayland').length, 0, 'Deleted items should not match search')
+
+  store.close()
+})
+
+test('MemoryStore archives stale items to Cold without losing retrieval', () => {
+  const store = new MemoryStore(':memory:')
+
+  // Insert 5 items
+  for (let i = 1; i <= 5; i++) {
+    store.upsert({
+      id: `mem_${i}`,
+      content: `关于用户的临时偏好细节条目第 ${i} 项`,
+      importance: i * 0.1,
+      is_pinned: i === 5 ? 1 : 0, // mem_5 is pinned
+    })
+  }
+
+  assert.equal(store.activeCount(), 5)
+
+  // Archive stale down to active threshold of 3
+  const archivedCount = store.archiveStale(3)
+  assert.equal(archivedCount, 2)
+  assert.equal(store.activeCount(), 3)
+
+  // mem_5 (pinned) should never be archived
+  const mem5 = store.get('mem_5')
+  assert.equal(mem5.is_archived, 0)
+
+  // Archived items still queryable with includeArchived: true
+  const results = store.search('偏好细节', { includeArchived: true, limit: 10 })
+  assert.equal(results.length, 5)
+
+  // Active query only returns active items
+  const activeResults = store.search('偏好细节', { includeArchived: false, limit: 10 })
+  assert.equal(activeResults.length, 3)
+
+  store.close()
+})
+
+test('MemoryStore imports legacy array from rooms.json', () => {
+  const store = new MemoryStore(':memory:')
+  const legacy = [
+    { id: 'old_1', text: '喜欢莫兰迪色调', at: 1740000000000, source: 'person' },
+    { id: 'old_2', text: '临时文件存放在 ~/tmp', at: 1740000100000, source: 'agent' },
+  ]
+
+  const count = store.importLegacy(legacy)
+  assert.equal(count, 2)
+  assert.equal(store.activeCount(), 2)
+
+  const hit = store.search('莫兰迪')
+  assert.equal(hit.length, 1)
+  assert.equal(hit[0].item.id, 'old_1')
+
+  store.close()
+})

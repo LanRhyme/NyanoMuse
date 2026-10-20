@@ -212,6 +212,28 @@ CREATE TABLE IF NOT EXISTS sync_cursors (
     account_id    TEXT PRIMARY KEY REFERENCES accounts(id),
     seq           INTEGER NOT NULL DEFAULT 0  -- one counter per account; cursor = its value
 );
+CREATE TABLE IF NOT EXISTS sync_memory_oplog (
+    account_id    TEXT NOT NULL REFERENCES accounts(id),
+    seq           INTEGER NOT NULL,
+    op_id         TEXT NOT NULL,
+    device_id     TEXT NOT NULL DEFAULT '',
+    op_type       TEXT NOT NULL,
+    memory_id     TEXT NOT NULL,
+    content       TEXT NOT NULL DEFAULT '',
+    before_content TEXT NOT NULL DEFAULT '',
+    category      TEXT NOT NULL DEFAULT 'preference',
+    source        TEXT NOT NULL DEFAULT 'agent',
+    is_pinned     INTEGER NOT NULL DEFAULT 0,
+    is_archived   INTEGER NOT NULL DEFAULT 0,
+    importance    REAL NOT NULL DEFAULT 0.5,
+    updated_at    INTEGER NOT NULL,
+    deleted       INTEGER NOT NULL DEFAULT 0,
+    client_time   INTEGER NOT NULL,
+    created_at    INTEGER NOT NULL,
+    PRIMARY KEY (account_id, seq)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS sync_memory_oplog_op_id ON sync_memory_oplog(account_id, op_id);
+CREATE INDEX IF NOT EXISTS sync_memory_oplog_mem_id ON sync_memory_oplog(account_id, memory_id);
 CREATE TABLE IF NOT EXISTS sync_configs (
     account_id    TEXT PRIMARY KEY REFERENCES accounts(id),
     rev           INTEGER NOT NULL DEFAULT 0,
