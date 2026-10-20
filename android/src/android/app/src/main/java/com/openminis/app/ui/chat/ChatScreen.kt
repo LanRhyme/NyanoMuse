@@ -103,6 +103,8 @@ import androidx.compose.material.icons.filled.Menu
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -548,6 +550,7 @@ fun ChatScreen(
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val chatHazeState = rememberHazeState()
     // Scoped to a process-level per-session ViewModelStore (ChatViewModelStore)
     // so the ViewModel and its viewModelScope survive:
     //   - configuration changes (rotation — NavBackStackEntry still alive)
@@ -2637,30 +2640,19 @@ fun ChatScreen(
         topBar = {
             // nanoMuse: the header is an overlay. The list slides underneath and
             // either Haze frosted glass or a soft gradient scrim melts it away.
-            val topBarBg = ChatColors.background.copy(alpha = 0.65f)
+            val topBarBg = ChatColors.background.copy(alpha = 0.72f)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(
-                        if (hazeState != null) {
-                            Modifier.hazeEffect(state = hazeState) {
-                                style = HazeStyle(
-                                    backgroundColor = topBarBg,
-                                    blurRadius = 22.dp,
-                                    noiseFactor = 0.05f,
-                                    tints = emptyList(),
-                                )
-                            }
-                        } else {
-                            Modifier.background(
-                                Brush.verticalGradient(
-                                    0f to ChatColors.background.copy(alpha = 0.8f),
-                                    0.55f to ChatColors.background.copy(alpha = 0.35f),
-                                    1f to Color.Transparent,
-                                )
-                            )
-                        }
-                    ),
+                    .hazeEffect(state = chatHazeState) {
+                        style = HazeStyle(
+                            backgroundColor = topBarBg,
+                            blurRadius = 24.dp,
+                            noiseFactor = 0.05f,
+                            tints = emptyList(),
+                        )
+                    }
+                    .background(topBarBg),
             ) {
             TopAppBar(
                 title = {
@@ -3516,7 +3508,11 @@ fun ChatScreen(
             // nanoMuse: the list fills the whole Box, extending behind the
             // pill bar so the haze has content to blur. Bottom contentPadding
             // keeps the last message clear of the composer + pill.
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(state = chatHazeState),
+            ) {
                 // nanoMuse: the measured footer already includes the tool preview,
                 // approval cards, composer and pill inset. Only breathing room is extra.
                 val bottomReserve = if (nmToolBarShown) 14.dp else 20.dp
@@ -5561,34 +5557,31 @@ fun ChatScreen(
                         }
                     },
                 ) {
-                val composerBg = if (nmPill) MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.65f) else ChatColors.inputBg
+                val composerBg = if (nmPill) {
+                    MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.75f)
+                } else {
+                    ChatColors.inputBg
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(nmComposerShape)
-                        .then(
-                            if (hazeState != null) {
-                                Modifier
-                                    .hazeEffect(state = hazeState) {
-                                        style = HazeStyle(
-                                            backgroundColor = composerBg,
-                                            blurRadius = 22.dp,
-                                            noiseFactor = 0.05f,
-                                            tints = emptyList(),
-                                        )
-                                    }
-                                    .border(
-                                        width = 0.5.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                                        shape = nmComposerShape,
-                                    )
-                            } else {
-                                Modifier.background(
-                                    color = if (nmPill) io.github.nanomuse.ui.home.MuseTones.bubble
-                                    else ChatColors.inputBg,
-                                    shape = nmComposerShape,
-                                )
-                            }
+                        .hazeEffect(state = chatHazeState) {
+                            style = HazeStyle(
+                                backgroundColor = composerBg,
+                                blurRadius = 24.dp,
+                                noiseFactor = 0.05f,
+                                tints = emptyList(),
+                            )
+                        }
+                        .background(
+                            color = composerBg,
+                            shape = nmComposerShape,
+                        )
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                            shape = nmComposerShape,
                         )
                         .padding(top = if (attachments.isNotEmpty()) 8.dp else if (nmPill) 0.dp else 4.dp), // nanoMuse: pill composer
                 ) {

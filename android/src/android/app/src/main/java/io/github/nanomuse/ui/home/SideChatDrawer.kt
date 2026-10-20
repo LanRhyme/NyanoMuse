@@ -115,7 +115,7 @@ fun SideChatDrawer(
     }
 
     val outlineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-    val drawerBg = if (hazeState != null) MaterialTheme.colorScheme.surface.copy(alpha = 0.75f) else ChatColors.background
+    val drawerBg = if (hazeState != null) MaterialTheme.colorScheme.surface.copy(alpha = 0.85f) else ChatColors.background
     Column(
         modifier = modifier
             .then(
@@ -129,9 +129,10 @@ fun SideChatDrawer(
                         )
                     }
                 } else {
-                    Modifier.background(ChatColors.background)
+                    Modifier
                 }
             )
+            .background(drawerBg)
             .drawBehind {
                 drawLine(
                     color = outlineColor,

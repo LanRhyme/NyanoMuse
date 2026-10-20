@@ -87,6 +87,7 @@ fun MuseNavRail(
                     tints = emptyList(),
                 )
             }
+            .background(barBackground)
             .drawBehind {
                 // Trailing vertical hairline border
                 drawLine(

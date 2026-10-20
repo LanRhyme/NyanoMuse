@@ -117,7 +117,7 @@ fun FeedTab(
     val days = remember(posts) { posts.groupBy { it.day }.toList() }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(MuseTones.canvas),
+        modifier = Modifier.fillMaxSize().background(ChatColors.background),
         // The last card ends above the floating pill, which overlays the page.
         contentPadding = PaddingValues(bottom = 28.dp + bottomInset),
     ) {

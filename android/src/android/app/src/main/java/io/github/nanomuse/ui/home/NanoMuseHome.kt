@@ -446,8 +446,7 @@ fun NanoMuseHome(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .hazeSource(hazeState),
+                        .fillMaxHeight(),
                 ) {
                     // Chat Tab (Two-Pane with collapsible sidebar)
                     Box(
@@ -514,7 +513,6 @@ fun NanoMuseHome(
                                             sidebarCollapsed = sidebarCollapsed,
                                         ),
                                         nmBottomOverlay = 0.dp,
-                                        hazeState = hazeState,
                                     )
                                 }
                             }
@@ -649,7 +647,6 @@ fun NanoMuseHome(
                                     onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
                                     nmHome = NmHomeChrome(isMainChat = isMainChat, onOpenDrawer = { openDrawer() }),
                                     nmBottomOverlay = bottom,
-                                    hazeState = hazeState,
                                 )
                             }
                         }
