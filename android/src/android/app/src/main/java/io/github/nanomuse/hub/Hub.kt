@@ -105,6 +105,10 @@ object Hub {
         val app = context.applicationContext
         val key = NanoMuseCloud.apiKey(app) ?: return
         val base = NanoMuseCloud.baseUrl(app).trimEnd('/')
+        if (base.isBlank()) {
+            AppLogger.info(TAG, "Hub.start aborted: no baseUrl configured")
+            return
+        }
         val url = base.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://") + "/v1/hub"
         appContext = app
         val c = HubClient(

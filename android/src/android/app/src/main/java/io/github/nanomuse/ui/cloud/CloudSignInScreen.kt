@@ -138,6 +138,11 @@ fun CloudSignInScreen(
                         NanoMuseCloud.setBaseUrl(context, url)
                     }
                 }
+                if (NanoMuseCloud.baseUrl(context).isBlank()) {
+                    error = context.getString(R.string.nm_cloud_server_url) + " 不能为空"
+                    verifying = false
+                    return@launch
+                }
                 NanoMuseCloud.login(context, identifier.trim(), password)
                 onSignedIn()
             } catch (e: CancellationException) {

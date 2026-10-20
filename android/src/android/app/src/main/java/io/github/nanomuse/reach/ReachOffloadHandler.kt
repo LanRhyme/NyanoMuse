@@ -168,7 +168,7 @@ class ReachOffloadHandler(private val context: Context) : NativeOffloadHandler {
         val dir = attachmentsDir(sessionId) ?: return failed("get", c, "cannot write to /var/minis/attachments")
         val dest = File(dir, name)
         val bytes = Computers.getFile(c, remote, dest)
-        val body = JSONObject().put("ok", true).put("computer", c.name).put("path", "/var/minis/attachments/$name").put("bytes", bytes)
+        val body = JSONObject().put("ok", true).put("computer", c.name).put("path", dest.absolutePath).put("minis_path", "/var/minis/attachments/$name").put("bytes", bytes)
         if (Regex("(?i)\\.(png|jpe?g|gif|webp)$").containsMatchIn(name)) body.put("markdown", "![${name}](minis://attachments/$name)")
         return ok(body)
     }
@@ -202,9 +202,12 @@ class ReachOffloadHandler(private val context: Context) : NativeOffloadHandler {
         val name = "pc-screen-" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".$ext"
         val dir = attachmentsDir(sessionId) ?: return failed("screen", c, "cannot write to /var/minis/attachments")
         dir.mkdirs()
-        File(dir, name).writeBytes(shot.first)
+        val dest = File(dir, name)
+        dest.writeBytes(shot.first)
         return ok(
-            JSONObject().put("ok", true).put("computer", c.name).put("path", "/var/minis/attachments/$name")
+            JSONObject().put("ok", true).put("computer", c.name)
+                .put("path", dest.absolutePath)
+                .put("minis_path", "/var/minis/attachments/$name")
                 .put("markdown", "![${c.name}](minis://attachments/$name)").put("bytes", shot.first.size),
         )
     }

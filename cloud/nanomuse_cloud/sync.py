@@ -406,6 +406,7 @@ class SyncStore:
                     rejected.append({"cid": cid, "reason": "bad_kind"})
                     continue
                 title = str(conv.get("title") or "")[:200]
+                deleted = bool(conv.get("deleted"))
                 if not deleted and (title.startswith("动态 · ") or title.startswith("Feed · ") or title in ("动态", "Feed")):
                     continue
                 created_at = _ts(conv.get("created_at"), t)
@@ -413,7 +414,6 @@ class SyncStore:
                 # conversation's birth; before, a chat older than a week could never be
                 # renamed, since its `updated_at` fell back to `created_at` and lost
                 updated_at = max(created_at, _ts(conv.get("updated_at"), created_at, ceiling=t))
-                deleted = bool(conv.get("deleted"))
                 row = c.execute("SELECT * FROM sync_conversations WHERE account_id=? AND cid=?", (account_id, cid)).fetchone()
                 if row is None:
                     if kind == "side" and not deleted and self._live_conversations(c, account_id) >= LIMITS["conversations"]:
