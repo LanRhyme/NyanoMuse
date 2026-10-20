@@ -656,6 +656,7 @@
     <string name="nm_welcome_skip">Pomiń na razie</string>
     <string name="nm_welcome_hands_fine_print">Wszystko inne działa bez nich. Znajdziesz je w Ustawienia → Ręce, kiedy zechcesz.</string>
     <string name="nm_welcome_meet_fine_print">Przed wszystkim, czego nie da się cofnąć (usuwaniem, wysyłaniem, płaceniem) zatrzymuje się i najpierw pyta ciebie.</string>
+    <string name="nm_cloud_title">Własny serwer relay</string>
     <string name="nm_cloud_signin_title">Zacznij z nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">Kod na telefon lub skrzynkę, albo hasło, gdy już je ustawisz.</string>
     <string name="nm_cloud_mode_code">Kodem</string>

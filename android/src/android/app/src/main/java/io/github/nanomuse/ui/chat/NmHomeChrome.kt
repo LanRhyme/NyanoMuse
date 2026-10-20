@@ -3,6 +3,7 @@ package io.github.nanomuse.ui.chat
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -91,12 +92,13 @@ fun NmAssistantBubble(
         content()
         return
     }
-    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), contentAlignment = Alignment.TopStart) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), contentAlignment = Alignment.TopStart) {
+        val maxBubbleWidth = minOf(760.dp, this.maxWidth * 0.88f)
         androidx.compose.material3.Surface(
             shape = RoundedCornerShape(20.dp),
             color = ChatColors.assistantBubble,
             contentColor = ChatColors.primaryText,
-            modifier = Modifier.widthIn(max = 340.dp),
+            modifier = Modifier.widthIn(max = maxBubbleWidth),
         ) {
             Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
                 content()

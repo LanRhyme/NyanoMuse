@@ -647,6 +647,7 @@
     <string name="nm_welcome_skip">Langkau buat masa ini</string>
     <string name="nm_welcome_hands_fine_print">Semua yang lain berfungsi tanpa ini. Ia ada di bawah Tetapan → Tangan bila-bila anda mahu.</string>
     <string name="nm_welcome_meet_fine_print">Sebelum apa-apa yang tidak boleh ditarik balik (memadam, menghantar, membayar) ia berhenti dan bertanya kepada anda dahulu.</string>
+    <string name="nm_cloud_title">Relay Dihoskan Sendiri</string>
     <string name="nm_cloud_signin_title">Mulakan dengan nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">Kod ke telefon atau peti masuk anda, atau kata laluan anda, setelah anda menetapkannya.</string>
     <string name="nm_cloud_mode_code">Dengan kod</string>

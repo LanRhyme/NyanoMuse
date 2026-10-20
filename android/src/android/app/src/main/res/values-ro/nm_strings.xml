@@ -653,6 +653,7 @@
     <string name="nm_welcome_skip">Sari peste deocamdată</string>
     <string name="nm_welcome_hands_fine_print">Tot restul merge și fără ele. Le găsești sub Setări → Mâini oricând le vrei.</string>
     <string name="nm_welcome_meet_fine_print">Înainte de orice nu poate fi anulat (ștergere, trimitere, plată) se oprește și te întreabă mai întâi.</string>
+    <string name="nm_cloud_title">Releu auto-găzduit</string>
     <string name="nm_cloud_signin_title">Începe cu nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">Un cod pe telefon sau în inbox, sau parola ta, odată ce ai setat una.</string>
     <string name="nm_cloud_mode_code">Cu un cod</string>

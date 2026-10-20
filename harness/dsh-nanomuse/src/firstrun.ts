@@ -269,9 +269,9 @@ export function boundTo(state: FirstRunState, sessionId: string | null): boolean
   return sessionId !== null && state.sessionId === sessionId && state.phase !== 'none'
 }
 
-/** The intro and the card belong in `sessionId`'s transcript: it started there, or it is still there. */
+/** The intro and the card belong in `sessionId`'s transcript: disabled in NyanoMuse. */
 export function showsIntro(state: FirstRunState, sessionId: string | null): boolean {
-  return boundTo(state, sessionId)
+  return false
 }
 
 /** The ritual counts as over for the purposes of the feed's first day and the star counter. */

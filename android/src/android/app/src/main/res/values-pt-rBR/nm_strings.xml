@@ -651,6 +651,7 @@
     <string name="nm_welcome_skip">Pular por enquanto</string>
     <string name="nm_welcome_hands_fine_print">Todo o resto funciona sem isso. Elas ficam em Configurações → Mãos quando você quiser.</string>
     <string name="nm_welcome_meet_fine_print">Antes de qualquer coisa que não dê para desfazer (excluir, enviar, pagar) ele para e pergunta a você primeiro.</string>
+    <string name="nm_cloud_title">Relay auto-hospedado</string>
     <string name="nm_cloud_signin_title">Comece com o nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">Um código no seu celular ou e-mail, ou sua senha, depois de definir uma.</string>
     <string name="nm_cloud_mode_code">Com um código</string>

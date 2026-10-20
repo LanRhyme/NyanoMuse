@@ -44,27 +44,38 @@ object Hub {
     fun remoteControl(context: Context): Boolean = prefs(context).getBoolean(KEY_REMOTE_CONTROL, true)
     fun setRemoteControl(context: Context, on: Boolean) = prefs(context).edit().putBoolean(KEY_REMOTE_CONTROL, on).apply()
 
+    fun isTablet(context: Context): Boolean =
+        context.resources.configuration.smallestScreenWidthDp >= 600
+
     fun deviceId(context: Context): String {
         val p = prefs(context)
         p.getString(KEY_DEVICE_ID, null)?.let { return it }
-        val id = "phone-" + UUID.randomUUID().toString().replace("-", "").take(12)
+        val prefix = if (isTablet(context)) "tablet-" else "phone-"
+        val id = prefix + UUID.randomUUID().toString().replace("-", "").take(12)
         p.edit().putString(KEY_DEVICE_ID, id).apply()
         return id
     }
 
-    fun name(context: Context): String = prefs(context).getString(KEY_NAME, null)?.takeIf { it.isNotBlank() } ?: defaultName()
+    fun name(context: Context): String = prefs(context).getString(KEY_NAME, null)?.takeIf { it.isNotBlank() } ?: defaultName(context)
 
     fun setName(context: Context, name: String) {
         prefs(context).edit().putString(KEY_NAME, name.trim().take(60)).apply()
         client?.rename(name(context))
     }
 
-    /** "Xiaomi 2211133C", "OnePlus PJZ110", "Samsung SM-S9180": the maker's name capitalised, the model as it is. */
-    fun defaultName(): String {
+    /** "Xiaomi 2211133C", "OnePlus OPD2413 (Tablet)": the maker's name capitalised, the model as it is. */
+    fun defaultName(context: Context? = null): String {
         val maker = Build.MANUFACTURER.orEmpty().trim().replaceFirstChar { it.uppercase() }
         val model = Build.MODEL.orEmpty().trim()
+        val isTab = context?.let { isTablet(it) } ?: false
         val raw = if (model.startsWith(maker, ignoreCase = true)) model else "$maker $model"
-        return raw.trim().ifBlank { "Phone" }.take(60)
+        val fallback = if (isTab) "Tablet" else "Phone"
+        val base = raw.trim().ifBlank { fallback }
+        return if (isTab && !base.contains("pad", ignoreCase = true) && !base.contains("tablet", ignoreCase = true)) {
+            "$base (Tablet)".take(60)
+        } else {
+            base.take(60)
+        }
     }
 
     fun webConsoleUrl(context: Context): String = NanoMuseCloud.baseUrl(context).trimEnd('/') + "/app/"

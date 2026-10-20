@@ -491,7 +491,7 @@ object NanoMuseCloud {
         val body = JSONObject()
             .put("identifier", identifier.trim())
             .put("code", code.trim())
-            .put("device", deviceName())
+            .put("device", deviceName(context))
         // a friend's code counts for a new account only; the relay ignores it otherwise
         if (invite.isNotBlank()) body.put("invite", invite.trim())
         adopt(context, call(context, "POST", "/v1/auth/verify", body, token = null))
@@ -501,7 +501,7 @@ object NanoMuseCloud {
         val body = JSONObject()
             .put("identifier", identifier.trim())
             .put("password", password)
-            .put("device", deviceName())
+            .put("device", deviceName(context))
         val acc = adopt(context, call(context, "POST", "/v1/auth/login", body, token = null))
         ConfigSync.setEncryptionPassword(context, password, acc.accountId)
         acc
@@ -575,7 +575,12 @@ object NanoMuseCloud {
         forgetLocally(context, keep = false)
     }
 
-    private fun deviceName(): String = "${Build.MANUFACTURER} ${Build.MODEL}".trim().take(80)
+    private fun deviceName(context: Context? = null): String {
+        val base = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+        val isTablet = context?.resources?.configuration?.smallestScreenWidthDp?.let { it >= 600 } ?: false
+        val suffix = if (isTablet && !base.contains("pad", ignoreCase = true) && !base.contains("tablet", ignoreCase = true)) " (Tablet)" else ""
+        return (base + suffix).take(80)
+    }
 
     /**
      * The phone forgets the account: the hub stops, the account's data leaves the fixed paths

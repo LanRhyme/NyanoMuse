@@ -650,6 +650,7 @@
     <string name="nm_welcome_skip">Saltar por ahora</string>
     <string name="nm_welcome_hands_fine_print">Todo lo demás funciona sin esto. Lo encuentras en Ajustes → Manos cuando lo quieras.</string>
     <string name="nm_welcome_meet_fine_print">Antes de cualquier cosa que no pueda deshacer (eliminar, enviar, pagar) se detiene y te pregunta primero.</string>
+    <string name="nm_cloud_title">Servidor propio</string>
     <string name="nm_cloud_signin_title">Empieza con nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">Un código a tu teléfono o a tu correo, o tu contraseña, una vez que la hayas creado.</string>
     <string name="nm_cloud_mode_code">Con un código</string>

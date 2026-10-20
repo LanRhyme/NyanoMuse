@@ -627,6 +627,7 @@
     <string name="nm_welcome_skip">暫時跳過</string>
     <string name="nm_welcome_hands_fine_print">不開也不影響其他功能。之後隨時可以在「設定 → Hands」裡開啟。</string>
     <string name="nm_welcome_meet_fine_print">凡是無法撤回的事（刪除、傳送、付款）它都會先停下來問你。</string>
+    <string name="nm_cloud_title">自建伺服器與多端同步</string>
     <string name="nm_cloud_signin_title">用 nanoMuse Cloud 開始</string>
     <string name="nm_cloud_signin_subtitle">手機號或信箱收一個驗證碼；設過密碼的話也可以直接用密碼。</string>
     <string name="nm_cloud_mode_code">驗證碼登入</string>

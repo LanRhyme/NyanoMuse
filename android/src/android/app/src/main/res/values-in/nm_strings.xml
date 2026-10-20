@@ -647,6 +647,7 @@
     <string name="nm_welcome_skip">Lewati dulu</string>
     <string name="nm_welcome_hands_fine_print">Yang lain tetap berfungsi tanpa ini. Keduanya ada di Pengaturan → Tangan kapan pun kamu mau.</string>
     <string name="nm_welcome_meet_fine_print">Sebelum hal yang tidak bisa ditarik kembali (menghapus, mengirim, membayar) ia berhenti dan bertanya dulu padamu.</string>
+    <string name="nm_cloud_title">Relay Host Mandiri</string>
     <string name="nm_cloud_signin_title">Mulai dengan nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">Kode ke ponsel atau kotak masukmu, atau kata sandimu, setelah kamu mengaturnya.</string>
     <string name="nm_cloud_mode_code">Dengan kode</string>

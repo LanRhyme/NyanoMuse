@@ -40,7 +40,7 @@
 
     <!-- 第一次对话：开场白 -->
     <string name="nm_intro_hello">你好，我是 nanoMuse，住在你手机里的私人助理。让我替你分担几件事。</string>
-    <string name="nm_intro_how_i_work">先说说我怎么工作：\n\n- 我有自己的电脑，一个 Linux 沙盒和一个浏览器，能跑命令、打开网页、填表单。\n- 你挂载给我的文件和相册，我能读、能整理；提醒和定时任务也可以交给我。\n- 关键的一步之前，我会先问你。\n- 一切都在这台手机上跑。对话发给你自己配置的模型；登录 nanoMuse Cloud 后，这段对话也会同步到你的其他设备，可以在「数据控制」里关掉。</string>
+    <string name="nm_intro_how_i_work">先说说我怎么工作：\n\n- 我有自己的电脑，一个 Linux 沙盒和一个浏览器，能跑命令、打开网页、填表单。\n- 你挂载给我的文件和相册，我能读、能整理；提醒和定时任务也可以交给我。\n- 关键的一步之前，我会先问你。\n- 一切都在这台设备上跑。对话发给你自己配置的模型；登录自建中继后，这段对话也会同步到你的其他设备，可以在「数据控制」里关掉。</string>
     <string name="nm_intro_ask_name">开始之前，我该怎么称呼你？</string>
 
     <!-- 第一次对话：起名卡 -->
@@ -346,7 +346,7 @@
     <string name="nm_own_clip_title">你自己的视频</string>
     <string name="nm_own_clip_body">一段你自己的短视频会作为待机时的形象播放，其他状态也沿用它。MP4 或 MOV，H.264 视频，最长 15 秒、最大 30 MB；静音循环播放。</string>
     <string name="nm_own_clip_on">你的视频已启用，所有状态都播放它；需要静态图的地方仍用画好的图片。「默认形象」可移除它。</string>
-    <string name="nm_own_clip_local">视频只保存在这台手机上，不会上传到 nanoMuse Cloud，也不会同步到你的其他设备。</string>
+    <string name="nm_own_clip_local">视频只保存在这台设备上，不会上传到自建中继，也不会同步到你的其他设备。</string>
     <string name="nm_own_clip_choose">选择视频</string>
     <string name="nm_own_clip_replace">更换视频</string>
     <string name="nm_own_clip_default">默认形象</string>
@@ -526,7 +526,7 @@
     <string name="nm_hands_why_default">你自己 key 下的动手默认模型</string>
     <string name="nm_hands_why_chat">你选的对话模型</string>
     <string name="nm_hands_why_group">默认模型组里第一个能看图的</string>
-    <string name="nm_hands_why_menu">nanoMuse Cloud 的看屏模型</string>
+    <string name="nm_hands_why_menu">自建服务的看屏模型</string>
     <string name="nm_hands_why_vision_group">你的视觉模型组</string>
     <string name="nm_hands_why_any">唯一一个启用了、又能看图的模型</string>
     <string name="nm_hands_section_rules">它会怎么做</string>
@@ -587,34 +587,34 @@
     <string name="nm_pc_last_seen">上次 %1$s</string>
     <string name="nm_pc_offline">离线</string>
     <string name="nm_pc_online">在线</string>
-    <string name="nm_pc_account_none">这台手机还没登录 nanoMuse Cloud；先登录，电脑上再登同一个账号。</string>
-    <string name="nm_pc_account_hint">这台手机登录的是 %1$s，电脑上要登同一个账号。</string>
+    <string name="nm_pc_account_none">这台设备还没登录自建服务；先登录，电脑上再登同一个账号。</string>
+    <string name="nm_pc_account_hint">这台设备登录的是 %1$s，电脑上要登同一个账号。</string>
     <string name="nm_pc_checking">正在检查…</string>
     <string name="nm_pc_answering">%1$s 在线</string>
-    <string name="nm_pc_not_answering">%1$s 没有响应。电脑上的 nanoMuse 桌面版还开着吗？</string>
+    <string name="nm_pc_not_answering">%1$s 没有响应。电脑上的 NyanoMuse 桌面版还开着吗？</string>
     <!-- the approval card -->
-    <string name="nm_risk_desc_on_computer">在电脑「%1$s」上，不是在这台手机上。</string>
+    <string name="nm_risk_desc_on_computer">在电脑「%1$s」上，不是在这台设备上。</string>
     <string name="nm_risk_preview_computer">电脑上的命令</string>
-    <string name="nm_risk_title_device">允许「%1$s」操作这台手机吗？</string>
-    <string name="nm_risk_desc_device">「%1$s」是你账号下的另一台设备，想在这台手机上 %2$s。具体内容见下方。选「始终」后，那台设备以后在这里做这类事不再询问；可在「权限」里收回。</string>
+    <string name="nm_risk_title_device">允许「%1$s」操作这台设备吗？</string>
+    <string name="nm_risk_desc_device">「%1$s」是你账号下的另一台设备，想在这台设备上 %2$s。具体内容见下方。选「始终」后，那台设备以后在这里做这类事不再询问；可在「权限」里收回。</string>
     <string name="nm_risk_preview_device">那台设备的请求</string>
     <string name="nm_risk_preview_show_all">全部显示（%1$d 行）</string>
     <string name="nm_risk_preview_show_less">收起</string>
     <string name="nm_risk_class_remote">远程控制</string>
-    <string name="nm_hub_remote_reason">%1$s 可以操作这台手机</string>
+    <string name="nm_hub_remote_reason">%1$s 可以操作这台设备</string>
 
-    <!-- nanoMuse Cloud：手机号/邮箱验证码登录，赠送体验额度 -->
+    <!-- 自建服务与多端同步 -->
     <string name="nm_setup_own_key">我有自己的 API key</string>
     <!-- nanoMuse: the first-run pages -->
     <string name="nm_welcome_tagline">一个开源的个人智能体，装在你的每一台设备上。</string>
     <string name="nm_welcome_email">连接自建服务</string>
-    <string name="nm_welcome_fine_print">一个账号连起你的几台设备，也承载免费的模型额度；不收费。登录之后随时可以改用自己的 API key。</string>
+    <string name="nm_welcome_fine_print">一个账号连起你的几台设备，不收费。登录之后随时可以改用自己的 API key。</string>
     <string name="nm_setup_source_title">让哪个模型来回答？</string>
     <string name="nm_setup_source_sub">你的账号已经自带了一个。也可以加上自己的 API key，随时切换。</string>
-    <string name="nm_setup_source_cloud">用 nanoMuse Cloud 的模型</string>
-    <string name="nm_setup_source_cloud_sub">对话用 DeepSeek，动手用 Qwen；每个账号都有一份由开发者承担的免费额度，不用配置。</string>
-    <string name="nm_setup_source_own_sub">OpenAI、Anthropic、DeepSeek、百炼等兼容 OpenAI 接口的服务。key 只留在这台手机上。</string>
-    <string name="nm_setup_source_fine_print">两种方式不冲突：Cloud 模型始终可用，每个模型组各选各的。</string>
+    <string name="nm_setup_source_cloud">用自建服务的模型</string>
+    <string name="nm_setup_source_cloud_sub">对话与动手模型由自建中继统一提供，不用单独在每台设备重复配置。</string>
+    <string name="nm_setup_source_own_sub">OpenAI、Anthropic、DeepSeek、百炼等兼容 OpenAI 接口的服务。key 只留在这台设备上。</string>
+    <string name="nm_setup_source_fine_print">两种方式不冲突：自建服务模型始终可用，每个模型组各选各的。</string>
     <string name="nm_setup_password_title">设一个密码</string>
     <string name="nm_setup_password_sub">账号已登录。设了密码，电脑和其他手机就能直接登录，不用再等验证码。</string>
     <string name="nm_setup_password_set">设置密码</string>
@@ -631,6 +631,7 @@
     <string name="nm_welcome_hands_turn_on">去开启</string>
     <string name="nm_welcome_skip">暂时跳过</string>
     <string name="nm_welcome_hands_fine_print">不开也不影响其他功能。之后随时可以在「设置 → Hands」里开启。</string>
+    <string name="nm_welcome_meet_fine_print">凡是无法撤回的事（删除、发送、付款）它都会先停下来问你。</string>
     <string name="nm_cloud_title">自建服务与多端同步</string>
     <string name="nm_cloud_signin_title">连接自建中继服务</string>
     <string name="nm_cloud_signin_subtitle">输入自建服务器地址、用户名和密码连接多端同步</string>
@@ -676,32 +677,32 @@
     <string name="nm_cloud_used_today_open">今天已用 %1$s</string>
     <string name="nm_cloud_refresh">刷新余额</string>
     <string name="nm_cloud_refreshing">正在刷新…</string>
-    <string name="nm_cloud_how_it_works">nanoMuse Cloud 在这个应用里就是一个普通的服务商：它的模型列在「服务商」里，也可以和你自己的模型放进同一个模型组。</string>
+    <string name="nm_cloud_how_it_works">自建中继在这个应用里就是一个普通的服务商：它的模型列在「服务商」里，也可以和你自己的模型放进同一个模型组。</string>
     <string name="nm_cloud_open_provider">服务商设置</string>
     <string name="nm_cloud_sign_out">退出登录</string>
-    <string name="nm_cloud_sign_out_sub">作废这台手机的 key 并移除这个服务商；额度跟着账号，下次登录还在。</string>
-    <string name="nm_cloud_sign_out_confirm">会从这台手机上移除 nanoMuse Cloud 这个服务商和它的模型。</string>
+    <string name="nm_cloud_sign_out_sub">作废这台设备的 key 并移除这个服务商；多端数据跟着账号，下次登录还在。</string>
+    <string name="nm_cloud_sign_out_confirm">会从这台设备上移除自建服务这个服务商和它的模型。</string>
     <string name="nm_cloud_row_remaining">剩余 %1$s</string>
     <string name="nm_cloud_row_sign_in">登录</string>
-    <string name="nm_cloud_err_bad_identifier">这看起来不是邮箱地址。</string>
+    <string name="nm_cloud_err_bad_identifier">这看起来不是邮箱或用户名。</string>
     <string name="nm_cloud_err_code_wrong">验证码不对。</string>
     <string name="nm_cloud_err_code_expired">验证码已过期，请重新发送。</string>
     <string name="nm_cloud_err_code_too_often">发送太频繁了，请过几分钟再试。</string>
-    <string name="nm_cloud_err_not_invited">这是一台私人中继，这个邮箱不在名单上。</string>
+    <string name="nm_cloud_err_not_invited">这是一台私人中继，这个账号不在名单上。</string>
     <string name="nm_cloud_err_send_failed">验证码没发出去，请稍后再试。</string>
     <string name="nm_cloud_err_disabled">这个账号已停用。</string>
-    <string name="nm_cloud_err_bad_key">服务器已不认识这台手机，请重新登录。</string>
+    <string name="nm_cloud_err_bad_key">服务器已不认识这台设备，请重新登录。</string>
     <string name="nm_cloud_err_account_deleted">这个账号已删除。重新登录会建立一个新账号。</string>
     <string name="nm_cloud_err_out_of_tokens">额度用完了。</string>
     <string name="nm_cloud_err_daily_cap">今天的 token 配额用完了，明天恢复。</string>
-    <string name="nm_cloud_err_allowance">免费额度已用完。邀请一位新用户（你和对方各 +¥%1$s），或在 设置 → 服务商 里添加自己的 key，推荐阿里云百炼。</string>
-    <string name="nm_cloud_err_allowance_abroad">免费额度已用完。邀请一位新用户（你和对方各 +¥%1$s），或在 设置 → 服务商 里添加自己的 key，海外推荐 OpenRouter：一个账号一把 key，按量付费。</string>
-    <string name="nm_cloud_warn_line">免费额度快用完了：还剩 ¥%1$s（共 ¥%2$s）。邀请一位新用户（你和对方各 +¥%3$s），或换成自己的 key，都在「账号」里。</string>
+    <string name="nm_cloud_err_allowance">免费额度已用完。邀请一位新用户（你和对方各 +¥%1$s），或在 设置 → 服务商 里添加自己的 key，推荐阿里云百炼或硅基流动。</string>
+    <string name="nm_cloud_err_allowance_abroad">免费额度已用完。邀请一位新用户（你和对方各 +¥%1$s），或在 设置 → 服务商 里添加自己的 key，海外推荐 OpenRouter。</string>
+    <string name="nm_cloud_warn_line">免费额度快用完了：还剩 ¥%1$s（共 ¥%2$s）。邀请一位新用户（你和对方各 +¥%3$s），或换成自己的 key，都在「设置」里。</string>
     <string name="nm_cloud_err_rate_limited">请求太快了，稍等一下。</string>
-    <string name="nm_cloud_err_unreachable">连不上 nanoMuse Cloud，请检查网络。</string>
+    <string name="nm_cloud_err_unreachable">连不上自建服务，请检查网络与中继地址。</string>
     <string name="nm_cloud_err_generic">出了点问题。</string>
-    <string name="nm_cloud_err_bad_credentials">邮箱或密码不对。</string>
-    <string name="nm_cloud_err_no_password">这个账号还没有设置密码。先用验证码登录，再到「账号」里设置。</string>
+    <string name="nm_cloud_err_bad_credentials">账号或密码不对。</string>
+    <string name="nm_cloud_err_no_password">这个账号还没有设置密码。先用验证码登录，再到「设置」里设置。</string>
     <string name="nm_cloud_err_locked">错误次数太多，请过几分钟再试。</string>
     <string name="nm_cloud_err_password_wrong">当前密码不对。</string>
     <string name="nm_cloud_err_password_required">请先输入当前密码。</string>
@@ -709,15 +710,15 @@
     <string name="nm_cloud_err_password_weak">这个密码太好猜了。</string>
     <string name="nm_cloud_err_signup_closed">这台中继暂时关闭了注册。已有的账号仍可登录。</string>
     <string name="nm_cloud_err_domain_limited">这个域名的邮箱今天在这台中继上的注册名额已经用完。明天再试，或者换一个地址。</string>
-    <string name="nm_cloud_err_channel_unsupported">这台中继不会给这类地址发送验证码。换另一类地址（邮箱或手机号），或者用密码登录。</string>
+    <string name="nm_cloud_err_channel_unsupported">这台中继不会给这类地址发送验证码。换另一类地址，或者用密码登录。</string>
     <string name="nm_cloud_err_too_large">这条消息对模型来说太长了。缩短一些、去掉几个附件，或者新开一个对话。</string>
     <string name="nm_cloud_err_content_rejected">模型服务商的内容审核没有放行这次请求。换个说法试试；如果反复出现，就新开一个对话，被拦下的可能是对话里更早的内容。</string>
     <string name="nm_cloud_err_provider_busy">模型服务商现在很忙，稍后再试。</string>
     <string name="nm_cloud_err_provider_busy_wait">模型服务商现在很忙，请在 %1$s 后再试。</string>
-    <string name="nm_cloud_err_model_not_offered">nanoMuse Cloud 不再提供这个模型。到「设置 → nanoMuse Cloud」换一个。</string>
-    <string name="nm_cloud_err_relay_down">nanoMuse Cloud 没有响应，稍后再试。</string>
-    <string name="nm_cloud_err_allowance_paused">这台中继暂时停发了免费额度，不是用完了。到「设置 → nanoMuse Cloud」添加自己的密钥，或用已付费的订阅登录。登录、多设备和剩余额度都原样保留。</string>
-    <string name="nm_cloud_err_service_paused">nanoMuse Cloud 被运营者暂停了，登录和数据都保留着。稍后再试。</string>
+    <string name="nm_cloud_err_model_not_offered">自建服务不再提供这个模型。到「设置 → 自建服务与多端同步」换一个。</string>
+    <string name="nm_cloud_err_relay_down">自建服务没有响应，稍后再试。</string>
+    <string name="nm_cloud_err_allowance_paused">这台中继暂时不可用。到「设置 → 自建服务与多端同步」检查连接与密钥配置。</string>
+    <string name="nm_cloud_err_service_paused">自建服务已暂停，登录和数据都保留着。稍后再试。</string>
     <string name="nm_cloud_err_sync_paused">这台中继暂时停了对话同步，已存的内容保留，各设备可以各自继续用。</string>
     <string name="nm_cloud_err_hub_paused">这台中继暂时停了设备互联，各设备可以各自继续用。</string>
     <string name="nm_refusal_relay_says">中继说：%1$s</string>
@@ -782,8 +783,8 @@
     <string name="nm_cloud_ev_contribute_deleted">数据控制：已删除保存的对话</string>
     <string name="nm_cloud_ev_contribute_default">数据控制：新账号默认开启</string>
     <string name="nm_data_title">数据控制</string>
-    <string name="nm_data_improve">帮助改进 nanoMuse 的 AI 模型</string>
-    <string name="nm_data_why">开启后，你与 nanoMuse Cloud 模型对话的文字（你写的、它回答的，以及它选择调用的工具）会保存在中继上，用来训练社区自己的开源模型。不保存你的记忆和 SOUL（系统提示）、工具返回的内容和图片，也不和你的身份放在一起。用自己的 API key 时，对话不经过中继。</string>
+    <string name="nm_data_improve">帮助改进 NyanoMuse 的 AI 模型</string>
+    <string name="nm_data_why">开启后，你与自建服务模型对话的文字（你写的、它回答的，以及它选择调用的工具）会保存在中继上，用于多端同步与历史记录。不保存你的记忆和 SOUL（系统提示）、工具返回的内容和图片。用自己的 API key 时，对话不经过中继。</string>
     <string name="nm_data_default_on">新账号默认开启。</string>
     <string name="nm_data_default_off">新账号默认关闭。</string>
     <string name="nm_data_kept">已保存 %1$d 轮对话。</string>
@@ -793,7 +794,7 @@
     <string name="nm_data_delete_sub">删除这个账号已保存的全部对话，不管开关现在是开是关。只关掉开关不会删除已保存的内容，要在这里删。</string>
     <string name="nm_data_delete_confirm">已保存的对话会从服务器上删除，不可恢复。</string>
     <string name="nm_data_deleted">已删除 %1$d 轮。</string>
-    <string name="nm_data_sign_in">登录 nanoMuse Cloud 后可用。</string>
+    <string name="nm_data_sign_in">登录自建服务后可用。</string>
     <string name="nm_data_privacy">隐私政策</string>
     <string name="nm_data_status_on">开</string>
     <string name="nm_data_status_off">关</string>
@@ -878,7 +879,7 @@
     <string name="nm_hub_channel">来自你其他设备的消息</string>
     <string name="nm_hub_service_channel">与你的设备保持连接</string>
     <string name="nm_hub_service_title">nanoMuse · 你的其他设备可以找到这台手机</string>
-    <string name="nm_hub_service_connecting">正在连接 nanoMuse Cloud…</string>
+    <string name="nm_hub_service_connecting">正在连接自建中继…</string>
     <string name="nm_hub_service_alone">目前没有其他设备在线</string>
     <plurals name="nm_hub_service_devices">
         <item quantity="other">%d 台设备在线</item>
@@ -977,13 +978,13 @@
 
     <!-- 账号各设备之间的对话同步（契约 C7） -->
     <string name="nm_sync_title">在我的设备之间同步对话</string>
-    <string name="nm_sync_caption">对话文字会保存在 nanoMuse Cloud，让每台设备看到同样的对话。文件和图片只留在产生它们的设备上。</string>
+    <string name="nm_sync_caption">对话文字会保存在自建中继，让每台设备看到同样的对话。文件和图片只留在产生它们的设备上。</string>
     <string name="nm_sync_sign_in">登录后可同步</string>
-    <string name="nm_sync_on_toast">已开启。正在发送这台手机上的对话。</string>
-    <string name="nm_sync_off_toast">已关闭。云端保存的内容已删除。</string>
+    <string name="nm_sync_on_toast">已开启。正在发送这台设备上的对话。</string>
+    <string name="nm_sync_off_toast">已关闭。中继保存的内容已删除。</string>
     <string name="nm_sync_delete">删除已同步的对话</string>
-    <string name="nm_sync_delete_sub">从 nanoMuse Cloud 删除对话文字。各设备上已有的对话保留，同步保持开启。</string>
-    <string name="nm_sync_delete_confirm">保存在 nanoMuse Cloud 的对话会被删除。各设备上的聊天保持原样。</string>
+    <string name="nm_sync_delete_sub">从自建中继删除对话文字。各设备上已有的对话保留，同步保持开启。</string>
+    <string name="nm_sync_delete_confirm">保存在自建中继的对话会被删除。各设备上的聊天保持原样。</string>
     <string name="nm_sync_deleted">已删除同步的对话。</string>
     <string name="nm_sync_from">来自 %1$s</string>
     <string name="nm_sync_attachment_note">[附件 %1$s，只留在产生它的设备上]</string>
@@ -1059,18 +1060,18 @@
     <string name="nm_network_test_fail">通过代理连不上 %1$s：%2$s</string>
     <string name="nm_network_test_status">HTTP %1$d</string>
     <string name="nm_network_invalid">请填写主机和 1 到 65535 之间的端口。</string>
-    <string name="nm_network_proxy_caption">只有发往你用自己 key 添加的提供方和 ChatGPT 套餐的请求走代理。nanoMuse Cloud、你的电脑和局域网从不经过它。只保存在这台手机上。</string>
+    <string name="nm_network_proxy_caption">只有发往你用自己 key 添加的提供方和 ChatGPT 套餐的请求走代理。自建中继、你的电脑和局域网从不经过它。只保存在这台设备上。</string>
     <string name="nm_network_hosts_caption">走代理的主机：%1$s</string>
     <string name="nm_ways_title_day">今天这份免费额度已用完。</string>
     <string name="nm_ways_day_sub">新的一天会恢复；下面这些办法现在就能用。</string>
     <string name="nm_ways_local_title">自己的模型</string>
-    <string name="nm_ways_local_body">在你自己的电脑上运行 %1$s，填入地址添加即可。这台手机要能连到那台电脑（同一网络，或一条隧道）。</string>
+    <string name="nm_ways_local_body">在你自己的电脑上运行 %1$s，填入地址添加即可。这台设备要能连到那台电脑（同一网络，或一条隧道）。</string>
     <string name="nm_ways_computer_title">你的电脑</string>
     <string name="nm_ways_computer_body">在对话里输入 @ 和电脑的名字，这一轮就在那台电脑上、用它配置好的提供方完成。</string>
     <string name="nm_ways_devices">设备</string>
     <!-- 0.1.41 Choice: Settings → Models, the "Use it for" card, one turn on the Cloud -->
     <string name="nm_models_title">模型</string>
-    <string name="nm_models_intro">哪个模型做哪件事。每一行都会打开一个选择页；nanoMuse Cloud 和你添加的服务商会连同合适的模型一起列在那里。</string>
+    <string name="nm_models_intro">哪个模型做哪件事。每一行都会打开一个选择页；自建服务和你添加的服务商会连同合适的模型一起列在那里。</string>
     <string name="nm_models_chat_title">对话</string>
     <string name="nm_models_chat_sub">和你说话的模型。</string>
     <string name="nm_models_hands_title">操作屏幕</string>
@@ -1082,20 +1083,20 @@
     <string name="nm_models_chat_applies">对主要聊天和新对话生效；旁聊保留自己的模型。</string>
     <string name="nm_models_media_more">更多图片和视频选项</string>
     <string name="nm_models_media_more_sub">手动输入模型名、查看缺了哪个模型会停下什么，或重新检查一把 key 能用哪些视频模型。</string>
-    <string name="nm_models_cloud_switch">使用 nanoMuse Cloud 模型</string>
-    <string name="nm_models_cloud_on_sub">nanoMuse Cloud 是下面各项的来源之一，在它上面运行的内容计入你的额度。</string>
-    <string name="nm_models_cloud_off_sub">关闭后，除非你点「这次改用 nanoMuse Cloud」，否则不会有任何内容在 nanoMuse Cloud 上运行。账号保持登录，用于同步和你的设备。</string>
-    <string name="nm_models_cloud_off_refused">先添加一个自己的服务商；关掉 nanoMuse Cloud 后没有别的模型能回答。</string>
+    <string name="nm_models_cloud_switch">使用自建服务模型</string>
+    <string name="nm_models_cloud_on_sub">自建服务是下面各项的来源之一，在它上面运行的内容由自建中继提供。</string>
+    <string name="nm_models_cloud_off_sub">关闭后，除非你点「这次改用自建服务」，否则不会有任何内容在自建服务上运行。账号保持登录，用于同步和你的设备。</string>
+    <string name="nm_models_cloud_off_refused">先添加一个自己的服务商；关掉自建服务后没有别的模型能回答。</string>
     <string name="nm_chat_no_model">现在没有能回答的模型。请在「设置 › 模型」里选一个。</string>
-    <string name="nm_cloud_provider_no_delete">这个服务商就是你的 nanoMuse Cloud 账号。要停用它的模型，请在上面关闭开关；要退出登录，请打开「设置 › nanoMuse Cloud」。</string>
+    <string name="nm_cloud_provider_no_delete">这个服务商就是你的自建服务账号。要停用它的模型，请在上面关闭开关；要退出登录，请打开「设置 › 自建服务与多端同步」。</string>
     <string name="nm_welcome_own_key">改用自己的 API key</string>
     <string name="nm_useit_title">用它来做什么</string>
-    <string name="nm_useit_body">选这把 key 负责哪些事，其余仍由 nanoMuse Cloud 负责。</string>
+    <string name="nm_useit_body">选这把 key 负责哪些事，其余仍由自建服务负责。</string>
     <string name="nm_useit_body_signed_out">选这把 key 负责哪些事。</string>
     <string name="nm_useit_use">就这样</string>
     <string name="nm_useit_not_now">暂不</string>
     <string name="nm_useit_footnote">以后可以在 设置 › 模型 里改。</string>
-    <string name="nm_retry_on_cloud">这次改用 nanoMuse Cloud</string>
+    <string name="nm_retry_on_cloud">这次改用自建服务</string>
     <string name="nm_hands_why_chat_provider">你对话服务商的动手默认模型</string>
     <string name="nm_models_auto">自动</string>
     <string name="nm_models_auto_currently">当前为 %1$s</string>

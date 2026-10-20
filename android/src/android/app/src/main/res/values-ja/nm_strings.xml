@@ -647,6 +647,7 @@
     <string name="nm_welcome_skip">今はスキップ</string>
     <string name="nm_welcome_hands_fine_print">これらがなくてもほかの機能はすべて使えます。必要になったら設定 → ハンズにあります。</string>
     <string name="nm_welcome_meet_fine_print">取り消せない操作（削除、送信、支払い）の前には、立ち止まってまずあなたに確認します。</string>
+    <string name="nm_cloud_title">セルフホストリレー</string>
     <string name="nm_cloud_signin_title">nanoMuse Cloud で始める</string>
     <string name="nm_cloud_signin_subtitle">スマートフォンかメールにコードを送ります。パスワードを設定済みならそれでも。</string>
     <string name="nm_cloud_mode_code">コードで</string>

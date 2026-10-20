@@ -656,6 +656,7 @@
     <string name="nm_welcome_skip">Пока пропустить</string>
     <string name="nm_welcome_hands_fine_print">Всё остальное работает и без них. Они находятся в Настройки → Руки, когда понадобятся.</string>
     <string name="nm_welcome_meet_fine_print">Перед всем, что нельзя отменить (удалить, отправить, заплатить,) он останавливается и сначала спрашивает вас.</string>
+    <string name="nm_cloud_title">Собственный сервер</string>
     <string name="nm_cloud_signin_title">Начните с nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">Код на телефон или почту, или ваш пароль, когда вы его зададите.</string>
     <string name="nm_cloud_mode_code">По коду</string>

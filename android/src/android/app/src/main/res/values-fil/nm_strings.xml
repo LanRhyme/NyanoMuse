@@ -650,6 +650,7 @@
     <string name="nm_welcome_skip">Laktawan muna</string>
     <string name="nm_welcome_hands_fine_print">Gumagana ang lahat ng iba pa kahit wala ang mga ito. Nasa Mga setting → Mga kamay ang mga ito kapag gusto mo.</string>
     <string name="nm_welcome_meet_fine_print">Bago ang anumang hindi na nito mababawi (pagbura, pagpapadala, pagbabayad) humihinto ito at nagtatanong muna sa iyo.</string>
+    <string name="nm_cloud_title">Self-Hosted Relay</string>
     <string name="nm_cloud_signin_title">Magsimula sa nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">Isang code sa telepono o inbox mo, o ang password mo, kapag nakapagtakda ka na.</string>
     <string name="nm_cloud_mode_code">Gamit ang code</string>

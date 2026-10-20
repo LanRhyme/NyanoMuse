@@ -6796,6 +6796,8 @@ class ChatViewModel(
     private val nmNamingCardId = "nm_naming_card"
 
     private suspend fun nmSeedFirstConversation() {
+        // NyanoMuse: ensure any virtual onboarding intro messages or naming cards are removed
+        _messages.value = _messages.value.filterNot { it.id.startsWith("nm_intro_") || it.id == nmNamingCardId }
         val fc = nmFirstConversation
         val hasSessions = runCatching { chatRepository.observeSessions().first().isNotEmpty() }.getOrDefault(true)
         if (!fc.shouldShowIntro(sessionId, hasOtherSessions = hasSessions)) return

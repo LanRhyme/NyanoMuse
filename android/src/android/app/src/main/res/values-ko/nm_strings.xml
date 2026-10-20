@@ -647,6 +647,7 @@
     <string name="nm_welcome_skip">지금은 건너뛰기</string>
     <string name="nm_welcome_hands_fine_print">나머지는 이것 없이도 모두 작동합니다. 원할 때 설정 → 손에서 켤 수 있습니다.</string>
     <string name="nm_welcome_meet_fine_print">되돌릴 수 없는 일(삭제, 전송, 결제) 앞에서는 멈추고 먼저 묻습니다.</string>
+    <string name="nm_cloud_title">셀프 호스팅 릴레이</string>
     <string name="nm_cloud_signin_title">nanoMuse Cloud로 시작</string>
     <string name="nm_cloud_signin_subtitle">휴대전화나 받은 편지함으로 코드를 받거나, 설정해 둔 비밀번호로.</string>
     <string name="nm_cloud_mode_code">코드로</string>

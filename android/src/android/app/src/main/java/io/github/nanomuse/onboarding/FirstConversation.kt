@@ -64,7 +64,7 @@ class FirstConversation(
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     var phase: Phase
-        get() = prefs.getString(KEY_PHASE, null)?.let { runCatching { Phase.valueOf(it) }.getOrNull() } ?: Phase.NONE
+        get() = prefs.getString(KEY_PHASE, null)?.let { runCatching { Phase.valueOf(it) }.getOrNull() } ?: Phase.DONE
         private set(value) {
             prefs.edit().putString(KEY_PHASE, value.name).apply()
         }
@@ -79,22 +79,13 @@ class FirstConversation(
     private val _namingCard = MutableStateFlow<NamingCardState?>(null)
     val namingCard: StateFlow<NamingCardState?> = _namingCard.asStateFlow()
 
-    /** Whether the intro belongs in [sessionId]'s transcript — either it starts here or it already did. */
-    fun shouldShowIntro(currentSessionId: String, hasOtherSessions: Boolean): Boolean {
-        val bound = sessionId
-        if (bound != null && phase != Phase.NONE) {
-            // A dead draft (left before the first message) re-seeds in the next draft.
-            return bound == currentSessionId ||
-                (phase == Phase.ASK_USER_NAME && bound.startsWith("__new__") && currentSessionId.startsWith("__new__"))
-        }
-        return phase == Phase.NONE && !hasOtherSessions && SoulStore.load(context)?.metadata?.name == SoulMetadata.DEFAULT.name
-    }
+    /** Whether the intro belongs in [sessionId]'s transcript — disabled in NyanoMuse. */
+    fun shouldShowIntro(currentSessionId: String, hasOtherSessions: Boolean): Boolean = false
 
-    /** Bind to [currentSessionId] and step into [Phase.ASK_USER_NAME] if this is the start. */
+    /** Bind to [currentSessionId] */
     fun start(currentSessionId: String) {
         sessionId = currentSessionId
-        if (phase == Phase.NONE) phase = Phase.ASK_USER_NAME
-        if (phase == Phase.ASK_AGENT_NAME) _namingCard.value = NamingCardState(currentSuggestions())
+        phase = Phase.DONE
     }
 
     /** The draft became a real session: keep following it. */
@@ -102,46 +93,15 @@ class FirstConversation(
         if (sessionId == fromDraft) sessionId = toReal
     }
 
-    fun isBoundTo(currentSessionId: String): Boolean = sessionId == currentSessionId && phase != Phase.NONE
+    fun isBoundTo(currentSessionId: String): Boolean = false
 
-    /** The three opening paragraphs, in the device language. */
-    fun intro(): List<String> = listOf(
-        context.getString(R.string.nm_intro_hello),
-        context.getString(R.string.nm_intro_how_i_work),
-        context.getString(R.string.nm_intro_ask_name),
-    )
+    /** The three opening paragraphs, in the device language — disabled in NyanoMuse. */
+    fun intro(): List<String> = emptyList()
 
     /**
-     * The model's reply just finished. Reads its `nanomuse-naming` block, if any, and moves the
-     * phase; a reply without one leaves the phase alone (the user talked about something else,
-     * and the model steered back). Returns true when the chooser should be (re)shown under this
-     * reply.
+     * The model's reply just finished.
      */
-    fun afterTurn(assistantText: String?): Boolean {
-        val block = parseBlock(assistantText)
-        when (phase) {
-            Phase.ASK_USER_NAME -> {
-                if (block == null || !block.addressGiven) return false
-                block.userAddress?.let { saveAddress(it) }
-                if (block.suggestions.isNotEmpty()) saveSuggestions(block.suggestions)
-                phase = Phase.ASK_AGENT_NAME
-                _namingCard.value = NamingCardState(currentSuggestions())
-                return true
-            }
-            Phase.ASK_AGENT_NAME -> {
-                val name = block?.agentName
-                if (name != null) {
-                    // The model already replied as itself in this turn, so the ritual is over.
-                    applyName(name)
-                    phase = Phase.DONE
-                    return false
-                }
-                return true
-            }
-            Phase.NAMED -> { phase = Phase.DONE; return false }
-            else -> return false
-        }
-    }
+    fun afterTurn(assistantText: String?): Boolean = false
 
     /** A chip was tapped: the name is saved at once; the model's next reply is its first as itself. */
     fun pick(name: String) {
@@ -164,52 +124,8 @@ class FirstConversation(
         _namingCard.value = (_namingCard.value ?: NamingCardState(currentSuggestions())).copy(chosen = name)
     }
 
-    /** The system-prompt addendum for the current phase; null once it is over. */
-    fun promptAddendum(): String? {
-        val address = prefs.getString(KEY_ADDRESS, null)
-        val addressLine = if (address != null) " The user goes by \"$address\" — address them that way." else ""
-        return when (phase) {
-            Phase.ASK_USER_NAME -> buildString {
-                append("First conversation. The app already showed the user this opening on your behalf:\n")
-                intro().forEach { append("  > ").append(it.replace("\n", "\n  > ")).append('\n') }
-                append("They are now replying to the last line (what should I call you?). Decide from their message what they meant:\n")
-                append("(a) If it says how to address them — a name, a nickname, \"just call me boss\" — confirm it in one short sentence, ")
-                append("ask in one sentence what they would like to call you, and end the reply with exactly this fenced block:\n")
-                append("```$BLOCK\n{\"user_address\": \"<how to address them>\", \"suggest\": [\"<name 1>\", \"<name 2>\"]}\n```\n")
-                append("`suggest` holds two names for yourself the user could pick, in the language they write: two-character Chinese names ")
-                append("in the spirit of 豆丁 or 小满 (warm, a little playful, easy to say) when they write Chinese; short English names like Pip or Wren otherwise. ")
-                append("Never suggest the name of an existing assistant or product ($TAKEN_NAMES), nor the user's own name. ")
-                append("The app renders the block as a chooser under your reply, so do not list the names in your text.\n")
-                append("(b) If they say they would rather not be called anything in particular, do the same with \"user_address\": null.\n")
-                append("(c) If the message is about something else — a question, a task, small talk — help with it first, in full, ")
-                append("and end with one light sentence bringing the question back (what should I call you?). No block in that case; the app keeps waiting.\n")
-                append("Reply in the user's language; keep it short.")
-            }
-            Phase.ASK_AGENT_NAME -> buildString {
-                val chips = currentSuggestions()
-                append("First conversation. You asked what the user would like to call you; the app is showing a chooser under that question with ")
-                append(chips.joinToString(", ") { "\"$it\"" }).append(" and \"something else\". Decide from their message:\n")
-                append("(a) If it gives you a name — typed on its own, \"call you 豆丁\", \"the first one\" (meaning \"").append(chips.firstOrNull().orEmpty()).append("\") — ")
-                append("that is your name from now on. Reply as yourself: one short line about the name, then three bullets with the most useful things you can do ")
-                append("for them right now on this phone (choose from: running commands in your Linux sandbox, browsing websites and filling forms, ")
-                append("reading and organising files and photos they mount, setting reminders and scheduled tasks, searching the web), one concrete line each, no emoji; ")
-                append("end by asking what they want to try first. Then end the reply with exactly this fenced block:\n")
-                append("```$BLOCK\n{\"agent_name\": \"<the name>\"}\n```\n")
-                append("The app saves the name to SOUL.md from the block — do not call minis-config for it.\n")
-                append("(b) If the message is about something else, help with it first, in full, and end with one light sentence bringing the naming back; ")
-                append("no block, the chooser stays.\n")
-                append("Reply in the user's language.").append(addressLine)
-            }
-            Phase.NAMED -> {
-                val name = SoulStore.load(context)?.metadata?.name ?: SoulMetadata.DEFAULT.name
-                "First conversation. The user just named you \"$name\" — the app already saved it to SOUL.md, so it is your name now; do not call minis-config for it. " +
-                    "Reply in the user's language: one short line about the name, then three bullets with the most useful things you can do for them right now on this phone " +
-                    "(choose from: running commands in your Linux sandbox, browsing websites and filling forms, reading and organising files and photos they mount, " +
-                    "setting reminders and scheduled tasks, searching the web). One concrete line each, no emoji. End by asking what they want to try first." + addressLine
-            }
-            Phase.NONE, Phase.DONE -> null
-        }
-    }
+    /** The system-prompt addendum for the current phase; disabled in NyanoMuse. */
+    fun promptAddendum(): String? = null
 
     private fun saveAddress(address: String) {
         prefs.edit().putString(KEY_ADDRESS, address).apply()
@@ -254,12 +170,7 @@ class FirstConversation(
          * conversation sync, which has no row for it. Null when [sessionId] is not the first
          * conversation (or it never started).
          */
-        fun introOf(context: Context, sessionId: String): String? {
-            val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            if (p.getString(KEY_SESSION, null) != sessionId) return null
-            if (p.getString(KEY_PHASE, null).let { it == null || it == Phase.NONE.name }) return null
-            return FirstConversation(context, null).intro().joinToString("\n\n")
-        }
+        fun introOf(context: Context, sessionId: String): String? = null
 
         private val blockRegex = Regex("```$BLOCK[ \\t]*\\r?\\n([\\s\\S]*?)```")
         private val QUOTES = Regex("^[\\s\"'“”‘’「」『』]+|[\\s\"'“”‘’「」『』。，、！!？?.]+$")

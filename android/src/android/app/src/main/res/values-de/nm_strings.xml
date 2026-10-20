@@ -650,6 +650,7 @@
     <string name="nm_welcome_skip">Vorerst überspringen</string>
     <string name="nm_welcome_hands_fine_print">Alles andere funktioniert auch ohne. Sie stehen unter Einstellungen → Hände, wann immer du sie willst.</string>
     <string name="nm_welcome_meet_fine_print">Vor allem, was er nicht rückgängig machen kann (Löschen, Senden, Bezahlen) hält er an und fragt dich zuerst.</string>
+    <string name="nm_cloud_title">Selbst gehosteter Relay</string>
     <string name="nm_cloud_signin_title">Mit nanoMuse Cloud beginnen</string>
     <string name="nm_cloud_signin_subtitle">Ein Code an dein Telefon oder Postfach, oder dein Passwort, sobald du eins festgelegt hast.</string>
     <string name="nm_cloud_mode_code">Mit einem Code</string>

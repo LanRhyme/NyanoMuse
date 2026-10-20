@@ -650,6 +650,7 @@
     <string name="nm_welcome_skip">Şimdilik atla</string>
     <string name="nm_welcome_hands_fine_print">Geri kalan her şey bunlar olmadan da çalışır. İstediğinde Ayarlar → Eller altındalar.</string>
     <string name="nm_welcome_meet_fine_print">Geri alamayacağı her şeyden önce (silme, gönderme, ödeme) durur ve önce sana sorar.</string>
+    <string name="nm_cloud_title">Kendi Sunucusu</string>
     <string name="nm_cloud_signin_title">nanoMuse Cloud ile başla</string>
     <string name="nm_cloud_signin_subtitle">Telefonuna ya da e-postana bir kod, ya da belirlediysen parolan.</string>
     <string name="nm_cloud_mode_code">Kodla</string>

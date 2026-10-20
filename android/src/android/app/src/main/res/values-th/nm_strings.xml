@@ -647,6 +647,7 @@
     <string name="nm_welcome_skip">ข้ามไปก่อน</string>
     <string name="nm_welcome_hands_fine_print">อย่างอื่นทั้งหมดทำงานได้โดยไม่ต้องใช้สิทธิ์เหล่านี้ อยู่ใต้ การตั้งค่า → มือ เมื่อคุณต้องการ</string>
     <string name="nm_welcome_meet_fine_print">ก่อนทำสิ่งที่ย้อนกลับไม่ได้ (ลบ ส่ง ชำระเงิน) มันจะหยุดและถามคุณก่อน</string>
+    <string name="nm_cloud_title">เซิร์ฟเวอร์ส่วนตัว</string>
     <string name="nm_cloud_signin_title">เริ่มต้นกับ nanoMuse Cloud</string>
     <string name="nm_cloud_signin_subtitle">รหัสส่งไปที่โทรศัพท์หรืออีเมลของคุณ หรือใช้รหัสผ่าน เมื่อคุณตั้งไว้แล้ว</string>
     <string name="nm_cloud_mode_code">ด้วยรหัส</string>
