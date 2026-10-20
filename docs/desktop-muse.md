@@ -46,38 +46,47 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   conversations stay on this computer, hidden from the column and the search until that
   account signs in again, and are never pushed under a different account; a change of
   account starts the pull over from the beginning. Signed out, everything local is shown.
-- Above the conversation, in the harness's `conversation.header.leading` seat, the face
-  and name are pinned at the top centre with the status chip: *connected* / *not signed
-  in* / *thinking…* / *Hands · step N · what it is doing* / *Reach · step N · on Laptop
-  B: …* / *waiting for you*; a *Stop* button beside it while a turn runs. The chip tints
-  while the agent works and while it waits for an answer. Clicking the face opens the
-  profile panel. At the top right, *Invite* (with an account), then the harness's
-  right-sidebar toggle; the harness's own title row, tabs (*Conversation* / *Trace*)
-  and session actions are hidden: the chat rows carry rename, pin and archive.
-- The conversation is monochrome, as on the phone: your messages are ink pills on the
-  right (black with white text in the light theme, white with black text in the dark
-  one), the agent's are large-radius grey pills a step off the canvas on the left,
-  timestamps and the per-message actions on hover only; a link inside your pill keeps
-  the pill's text colour, underlined. The header is a scrim over the conversation rather
-  than a bar: messages scroll under the face and dissolve into the canvas, and no line
-  runs under it. An empty chat has no greeting and no workspace or preset chips: the
-  composer waits at the bottom and opens the workspace picker itself when a
-  workspace is needed.
+- Above the conversation, in the harness's `conversation.header.leading` seat, a 56 px bar
+  runs the width of the chat column, the way the phone's top bar does: the face (30 px),
+  the name and the balance capsule sit centred as one row, the way back on the left and
+  the background button at the right. While there is something to say, a second line under
+  the name reads *connected* / *not signed in* / *thinking…* / *Hands · step N · what it is
+  doing* / *Reach · step N · on Laptop B: …* / *waiting for you* and tints while the agent
+  works and while it waits; idle, the bar is the phone's single line. The thread starts a
+  breath below the bar, so no message is drawn behind the face, and the bar has no rule
+  under it: the phone lets the chat dissolve into it. Clicking the face opens the profile
+  panel. The harness's own title row, tabs (*Conversation* / *Trace*) and session actions
+  are hidden: the chat rows carry rename, pin and archive.
+- The conversation keeps the phone's shapes: your messages are pills on the right in the
+  Morandi sage (`#4e5e59` with white ink in the light, `#384541` with `#e4e4e6` in the
+  dark), the agent's replies are cards on the left at `#faf9f6` and `#292d32`, a step off
+  the canvas and as wide as the column, and timestamps and the per-message actions appear
+  on hover only; a link inside your pill keeps the pill's text colour, underlined. An empty chat has no greeting and no
+  workspace or preset chips: the composer waits at the bottom and opens the workspace
+  picker itself when a workspace is needed.
 - The composer is one pill: *+* (attach), *Message*, the send disc (the stop square
-  while a turn runs); the send disc and the harness's scroll-to-latest disc are the same
-  ink as your pills, with the glyph in the opposite colour. In an active chat it keeps
-  the same clear gap above the window edge that the harness dock normally provides,
-  even though the dock itself stays hidden. The harness's model picker, permission mode and plan toggle are
+  while a turn runs); the send disc and the harness's scroll-to-latest disc take the sage
+  in the light and the ink in the dark, with the glyph inverted on them. It is docked at
+  the foot of the window: a short thread pushes it down, a long one scrolls under it with
+  a fade, and the pill keeps a 14 px gap above the edge in both cases. The harness's model picker, permission mode and plan toggle are
   hidden from it (the models live in Settings → Models, dsh's own Models page is under
   Advanced, and the default permission mode in General) and come back with
   *Show DeepSeek Harness controls* under General. The microphone appears when the harness's voice input is switched on in
   Plugins (Settings → Dictation says how).
-- Theme: the harness's light and dark palettes are overridden to the app's own tones (`#f9f9f9`
-  surfaces with a plain white chat canvas, `#000000` user pills and `#f2f2f7` agent pills
-  in the light; `#171717` with `#ffffff` user pills, `#242424` agent pills and `#2b2b2b`
-  fields in the dark) and the accent follows the face's colour on the account, so a face
-  coloured on the phone colours the desktop's lights and links too. The desktop shell paints the
-  window in the same base colour, so a resize never flashes white in the dark.
+- Theme: the harness's light and dark palettes are overridden to the phone's Morandi
+  palette (`ThemePalette.kt`): warm paper `#f3f1ec` with cards at `#faf9f6` and the sage
+  `#6a7f7a` for links and the send disc in the light; `#1e2124` with cards and the
+  composer at `#292d32`, the raised step `#34393f` and the sage `#9eaba7` in the dark.
+  The accent follows the face's colour on the account, so a face coloured on the phone
+  colours the desktop's lights and links too. The desktop shell paints the window in the
+  same base colour, so a resize never flashes white in the dark.
+- Wallpaper: the button at the right of the bar opens *Personal background and
+  wallpaper*: the system picture (Noctalia on a Linux desktop) or one of your own, with
+  a blur and a dim slider. The choice lives in `~/.nyanomuse/desktop/wallpaper.json` and
+  the picture is served over the host's `/nanomuse/cloud/wallpaper/image`. With a picture
+  on, the rail, the chats column and the conversation show it through panes of the theme
+  colour, your pills and the composer included, while Settings and the other pages keep
+  their solid surfaces.
 
 ## The first run
 

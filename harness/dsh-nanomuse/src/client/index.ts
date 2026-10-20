@@ -58,6 +58,8 @@ import { makeChannelsSection, makeComputerSection, makeHelpSection, makeLegalSec
 import { makeMediaSection } from './MediaSection.tsx'
 import { makeModelsSection, MODELS_SECTION } from './ModelsSection.tsx'
 import { ensureStyles, setAccent, setMuseMode } from './styles.ts'
+import { initWallpaper } from './wallpaper.ts'
+import { WallpaperModal } from './WallpaperModal.tsx'
 import { useWin, win } from './win.ts'
 
 export const name = 'nanomuse-client'
@@ -638,6 +640,11 @@ export function apply(ctx: ClientContext): void {
   const AvatarStudio = makeAvatarStudio({ t })
   slots.inject('shell.overlay', () =>
     slots.register({ name: 'shell.overlay', id: 'nanomuse.studio' }, AvatarStudio))
+
+  // Wallpaper and background modal
+  slots.inject('shell.overlay', () =>
+    slots.register({ name: 'shell.overlay', id: 'nanomuse.wallpaper' }, () => h(WallpaperModal, { t })))
+  initWallpaper()
 
   // The trajectory of a hands run, as a card in the chat (0.1.40; the picture-in-picture Live stage is gone).
   ctx.effect(() => renderTrajectory(t, stop), 'nanomuse: trajectory')

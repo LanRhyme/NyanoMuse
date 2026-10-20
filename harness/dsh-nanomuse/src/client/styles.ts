@@ -42,78 +42,93 @@ export function setMuseMode(on: boolean, placeholder?: string, steps = false): v
 const CSS = `
 html[data-nanomuse] {
   --nm-accent: #c8743a;
-  --nm-blue: #2f6fd0;
-  --nm-blue-hover: #2a63ba;
+  --nm-blue: #6a7f7a;
+  --nm-blue-hover: #5a6e69;
+  --nm-on-accent: #ffffff;
+  --nm-primary: #6a7f7a;
   --nm-rail: 66px;
-  --nm-header-h: 68px;
+  --nm-header-h: 56px;
+  --nm-header-top: 0px;
   --nm-radius: 14px;
   --nm-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
 }
-/* Light: paper, white fields; the conversation monochrome as on the phone (ChatColors.kt): the
-   chat's canvas plain white, your pill the ink (black, white text), the agent's a grey a step
-   off the canvas, the send button and the scroll-to-latest disc the same ink with the glyph in
-   the opposite colour. The paper stays under the rail, the columns and the pages. */
+/* Light: the phone's Morandi palette (ThemePalette.kt, MorandiLightColorScheme and
+   MorandiLightChatPalette): warm paper #f3f1ec, cards a shade lighter, the sage primary for
+   links and the send disc, your pill the deep sage #4e5e59 with white ink, the agent's a card
+   a step off the canvas. The paper stays under the rail, the columns and the pages. */
 html[data-nanomuse] body {
-  --nm-base: #f9f9f9;
-  --nm-canvas: #ffffff;
+  --nm-base: #f3f1ec;
+  --nm-canvas: #f3f1ec;
   --nm-field: #ffffff;
-  --nm-field-border: #e3e4e6;
-  --nm-card: #ffffff;
-  --nm-selected: #f0f0f1;
-  --nm-hover: #f1f1f2;
-  --nm-divider: #ececec;
-  --nm-agent-bubble: #f2f2f7;
-  --nm-user-bubble: #000000;
+  --nm-field-border: #d5d2ca;
+  --nm-card: #faf9f6;
+  --nm-selected: #e8e5dd;
+  --nm-hover: #eeebe4;
+  --nm-divider: #d9d6ce;
+  --nm-agent-bubble: #faf9f6;
+  --nm-user-bubble: #4e5e59;
   --nm-user-bubble-fg: #ffffff;
   --nm-user-bubble-selection: rgb(255 255 255 / 0.3);
-  --nm-ink: #000000;
+  --nm-ink: #2c2b29;
   --nm-ink-fg: #ffffff;
-  --nm-send: var(--nm-ink);
-  --nm-send-idle: #c9c9cc;
-  --dsw-alias-bg-base: #f9f9f9;
-  --dsw-alias-bg-layer-1: #f2f2f2;
-  --dsw-alias-bg-layer-2: #ececec;
-  --dsw-alias-bg-layer-3: #e3e4e6;
-  --dsw-specific-sidebar-fill: #f9f9f9;
-  --dsw-specific-bubble: #e9e9eb;
-  --dsw-specific-bubble-highlight: #dedfe2;
+  --nm-send: var(--nm-primary);
+  --nm-send-idle: #cfccc4;
+  --dsw-alias-bg-base: #f3f1ec;
+  --dsw-alias-bg-layer-1: #faf9f6;
+  --dsw-alias-bg-layer-2: #f0ede6;
+  --dsw-alias-bg-layer-3: #e4e0d8;
+  --dsw-specific-sidebar-fill: #f3f1ec;
+  --dsw-specific-bubble: #faf9f6;
+  --dsw-specific-bubble-highlight: #f0ede6;
   --dsw-specific-input-major: #ffffff;
-  --dsw-alias-brand-primary: #1d1d1f;
+  --dsw-alias-brand-primary: #22302d;
+  /* Menus and the select popovers draw their fill on a layer behind the surface, at 45 percent
+     with a 40 px backdrop blur. Inside the chat that blur resolves against an ancestor that has
+     one of its own, and the pane came out see-through: the thread read straight through the
+     list. The Muse look gives the menu one solid tone instead, as the phone's menu does. */
+  --dsw-menu-surface-fill: #ffffff;
+  --dsw-menu-backdrop-filter: none;
 }
-/* Dark: one near-black, fields and cards a step lighter; the ink inverted: your pill white with
-   black text, the agent's the quiet grey a step off the near-black (the step the phone's #1c1c1e
-   is off pure black), the send button and the scroll-to-latest disc white with a black glyph. */
+/* Dark: the phone's Morandi night (MorandiDarkColorScheme): the canvas #1e2124, cards and the
+   composer #292d32, the raised step #34393f, the outline #454b52, the sage accent #9eaba7. Your
+   pill is #384541 with #e4e4e6 ink, the agent's a card. */
 html[data-nanomuse] body[data-ds-dark-theme] {
-  --nm-base: #171717;
-  --nm-canvas: #171717;
-  --nm-field: #2b2b2b;
-  --nm-field-border: #2b2b2b;
-  --nm-card: #2d2d2d;
-  --nm-selected: #262626;
-  --nm-hover: #222222;
-  --nm-divider: #242424;
-  --nm-agent-bubble: #242424;
-  --nm-user-bubble: #ffffff;
-  --nm-user-bubble-fg: #000000;
-  --nm-user-bubble-selection: rgb(0 0 0 / 0.3);
-  --nm-ink: #ffffff;
-  --nm-ink-fg: #000000;
-  --nm-send: var(--nm-ink);
-  --nm-send-idle: #3a3a3a;
-  --dsw-alias-bg-base: #171717;
-  --dsw-alias-bg-layer-1: #1d1d1d;
-  --dsw-alias-bg-layer-2: #232323;
-  --dsw-alias-bg-layer-3: #2d2d2d;
-  --dsw-specific-sidebar-fill: #171717;
-  --dsw-specific-bubble: #242424;
-  --dsw-specific-bubble-highlight: #2f2f2f;
-  --dsw-specific-input-major: #2b2b2b;
-  --dsw-alias-brand-primary: #f2f2f4;
+  --nm-blue: #9eaba7;
+  --nm-blue-hover: #b3bfbb;
+  --nm-on-accent: #1e2124;
+  --nm-primary: #9eaba7;
+  --nm-base: #1e2124;
+  --nm-canvas: #1e2124;
+  --nm-field: #292d32;
+  --nm-field-border: #454b52;
+  --nm-card: #292d32;
+  --nm-selected: #34393f;
+  --nm-hover: #2e3339;
+  --nm-divider: #3a4046;
+  --nm-agent-bubble: #292d32;
+  --nm-user-bubble: #384541;
+  --nm-user-bubble-fg: #e4e4e6;
+  --nm-user-bubble-selection: rgb(158 171 167 / 0.35);
+  --nm-ink: #e4e4e6;
+  --nm-ink-fg: #1e2124;
+  --nm-send: #e4e4e6;
+  --nm-send-idle: #454b52;
+  --dsw-alias-bg-base: #1e2124;
+  --dsw-alias-bg-layer-1: #23262a;
+  --dsw-alias-bg-layer-2: #292d32;
+  --dsw-alias-bg-layer-3: #34393f;
+  --dsw-specific-sidebar-fill: #1e2124;
+  --dsw-specific-bubble: #292d32;
+  --dsw-specific-bubble-highlight: #34393f;
+  --dsw-specific-input-major: #292d32;
+  --dsw-alias-brand-primary: #e4e4e6;
+  --dsw-menu-surface-fill: #2c3036;
+  --dsw-menu-backdrop-filter: none;
 }
 html[data-nanomuse] body { font-family: var(--nm-font); }
 
 /* ---- shared controls --------------------------------------------------- */
-.nm-pill { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 22px; border: 0; border-radius: 999px; background: var(--nm-blue); color: #fff; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 120ms, opacity 120ms; }
+.nm-pill { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 22px; border: 0; border-radius: 999px; background: var(--nm-blue); color: var(--nm-on-accent); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 120ms, opacity 120ms; }
 .nm-pill:hover:not(:disabled) { background: var(--nm-blue-hover); }
 .nm-pill:disabled { opacity: 0.45; cursor: default; }
 .nm-pill:focus-visible { outline: 2px solid var(--nm-blue); outline-offset: 2px; }
@@ -153,16 +168,14 @@ html:is([data-nm-platform='darwin'], [data-nm-platform='win32']) :is([data-windo
    which is what kept failing for the face on macOS. The face also sits below the macOS title
    bar band (traffic lights at y 18 → ~36px), which the system handles before the page. */
 html:is([data-nm-platform='darwin'], [data-nm-platform='win32']) header[data-window-drag]:has(.nm-header), html:is([data-nm-platform='darwin'], [data-nm-platform='win32']) [data-conversation-header-leading] { -webkit-app-region: initial; }
-.nm-header-drag { position: absolute; left: 0; right: 0; top: 0; height: 10px; z-index: 1; }
-html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-header-drag { height: 36px; }
-html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-header { top: 40px; }
-html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-header-back { top: 42px; }
-html[data-nm-platform='darwin']:not([data-nm-fullscreen]) { --nm-header-h: 136px; }
+.nm-header-drag { position: absolute; left: 0; right: 0; top: 0; height: var(--nm-header-top, 0px); z-index: 1; }
+/* macOS keeps its traffic lights in a 36px band above the bar; Windows its caption buttons in a
+   26px one. The bar keeps its own 56px height on every platform, and the thread clears the sum —
+   the same bar the phone draws, only pushed down out of the window chrome. */
+html[data-nm-platform='darwin']:not([data-nm-fullscreen]) { --nm-header-top: 36px; }
 html[data-nm-platform='win32']:not([data-nm-fullscreen]) .nm-rail-top { height: 24px; }
-html[data-nm-platform='win32']:not([data-nm-fullscreen]) .nm-header-drag { height: 22px; right: 150px; }
-html[data-nm-platform='win32']:not([data-nm-fullscreen]) .nm-header { top: 26px; }
-html[data-nm-platform='win32']:not([data-nm-fullscreen]) .nm-header-back { top: 28px; }
-html[data-nm-platform='win32']:not([data-nm-fullscreen]) { --nm-header-h: 122px; }
+html[data-nm-platform='win32']:not([data-nm-fullscreen]) { --nm-header-top: 26px; }
+html[data-nm-platform='win32']:not([data-nm-fullscreen]) .nm-header { padding-right: calc(12px + var(--nm-caption-inset, 0px)); }
 html[data-nm-platform='win32']:not([data-nm-fullscreen]) [data-slot="conversation.session.header"] > :first-child { padding-right: 150px; min-height: 40px; }
 html[data-nm-platform='win32']:not([data-nm-fullscreen]) .nm-ob-pager { top: 48px; }
 /* Windows, out of full screen: the caption buttons cover the top right corner, so each top bar
@@ -243,6 +256,8 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 .nm-remote-bubble { max-width: 100%; padding: 10px 16px; border-radius: var(--dsw-radius-xl, 16px); font-size: var(--dsh-content-font-size, 14px); line-height: calc(22px + var(--dsh-content-font-delta, 0px)); white-space: pre-wrap; word-break: break-word; color: var(--dsw-alias-label-primary); }
 .nm-remote-user .nm-remote-bubble { background: var(--dsw-specific-bubble, var(--nm-hover)); }
 .nm-remote-assistant .nm-remote-bubble { padding-left: 0; padding-right: 0; }
+/* the same card for a reply that came from another device */
+html[data-nm-muse] .nm-remote-assistant .nm-remote-bubble { width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 20px; background: var(--nm-agent-bubble); }
 .nm-remote-from { font-size: 11px; color: var(--dsw-alias-label-tertiary); padding: 0 4px; }
 /* the other device is working on its last prompt (C9): a quiet line with a slow dot */
 .nm-remote-working { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dsw-alias-label-tertiary); padding: 0 4px; }
@@ -263,29 +278,33 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 
 /* ---- the pinned agent header over the conversation -------------------- */
 header[data-window-drag]:has(.nm-header) { position: relative; min-height: var(--nm-header-h); }
-/* In the Muse look the header is a scrim rather than a bar: it lies over the conversation, which scrolls
-   under it and dissolves into the canvas (the canvas at 80 percent at the top edge, 35 percent past the
-   middle, clear at the bottom, as the phone draws it), and no line runs under it. The thread keeps the
-   header's height clear at its top, so the first message starts under the face rather than behind it.
-   The wheel over the empty parts of the scrim reaches the thread; the controls take their own clicks,
-   and the drag strip stays a drag strip. The chat's canvas is white in the light theme, the paper
-   staying under the rail, the columns and the pages; the harness's base token follows inside the
-   conversation so the composer's own fade matches. (The header sits in its slot's display:contents
-   anchor, so the thread is the anchor's sibling, not the header's.) */
-html[data-nm-muse] header[data-window-drag]:has(.nm-header) { position: absolute; top: 0; left: 0; right: 0; z-index: 6; border-bottom: 0; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--nm-canvas) 85%, transparent) 0%, color-mix(in srgb, var(--nm-canvas) 20%, transparent) 60%, transparent 100%); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+/* The phone's TopAppBar, on the desktop: one 56px row across the chat column, the face at the
+   left, the name with the balance capsule and the status line under it, the actions at the far
+   right, and a hairline under the whole bar. The thread starts below the bar (padding-top on the
+   scroll body), so nothing is ever drawn behind the face. The bar is a pane of the canvas, not a
+   floating sticker: it takes the canvas colour at 82 percent over whatever is behind it, so a
+   wallpaper still reads through it without the text losing its ground. */
+html[data-nm-muse] header[data-window-drag]:has(.nm-header) { position: absolute; top: var(--nm-header-top, 0px); left: 0; right: 0; z-index: 6; height: var(--nm-header-h); box-sizing: border-box; border-bottom: 0; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--nm-canvas) 72%, transparent) 0%, color-mix(in srgb, var(--nm-canvas) 34%, transparent) 62%, transparent 100%); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 html[data-nm-muse] header[data-window-drag]:has(.nm-header) :is(button, a, input, [role="tab"], [role="dialog"], [role="menu"], .nm-header, .nm-header-drag) { pointer-events: auto; }
 html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] { background: var(--nm-canvas); --dsw-alias-bg-base: var(--nm-canvas); }
-html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] > [data-conversation-scroll] { padding-top: var(--nm-header-h); }
-/* Centred with auto margins, not translateX(-50%): the window's drag-region map is built from
-   untransformed boxes, and a transformed, pointer-events:none box over a drag region left the
-   face unclickable on macOS. The header block itself is the no-drag island (see desk-a below). */
-.nm-header { position: absolute; left: 0; right: 0; top: 6px; width: fit-content; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 2; max-width: min(60%, 520px); }
-.nm-header-face { position: relative; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 2px transparent; transition: box-shadow 300ms; }
-.nm-header-face.nm-live { box-shadow: 0 0 0 2px var(--nm-accent); }
-.nm-header-face.nm-wait { box-shadow: 0 0 0 2px var(--dsw-alias-state-warn-primary, #d98c1f); }
+html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] > [data-conversation-scroll] { padding-top: calc(var(--nm-header-top, 0px) + var(--nm-header-h) + 8px); }
+/* The bar itself: a row, not a stack. Auto margins on nothing, so the window's drag-region map
+   and the click targets agree (a transformed, pointer-events:none box over a drag region left the
+   face unclickable on macOS in an earlier shape). */
+/* Three columns, the middle one centred: the phone's bar keeps the face, the name and the
+   capsule in the middle whatever the ends carry. */
+.nm-header { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 0 12px; box-sizing: border-box; z-index: 2; pointer-events: auto; }
+.nm-header-group { grid-column: 2; justify-self: center; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.nm-header-back { grid-column: 1; justify-self: start; }
+.nm-header-face { position: relative; width: 30px; height: 30px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 300ms; }
+.nm-header-face.nm-live { box-shadow: 0 0 0 1.5px var(--nm-accent); }
+.nm-header-face.nm-wait { box-shadow: 0 0 0 1.5px var(--dsw-alias-state-warn-primary, #d98c1f); }
 .nm-header-face:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: 2px; }
-.nm-header-name { font-size: 14px; font-weight: 600; line-height: 1.2; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.nm-header-status { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.2; color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.nm-header-titles { display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.nm-header-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.nm-header-name { font-size: 15px; font-weight: 600; line-height: 17px; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.nm-header-actions { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px; flex: none; }
+.nm-header-status { display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 13px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .nm-header-status.nm-live { color: var(--dsw-alias-label-secondary); }
 .nm-header-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 999px; background: var(--dsw-alias-bg-layer-2); }
 .nm-header-chip.nm-live { background: color-mix(in srgb, var(--nm-blue) 28%, var(--dsw-alias-bg-layer-2)); }
@@ -308,15 +327,29 @@ html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-con
 
 /* ---- the Muse conversation: the harness's DOM, Muse's shapes ----------- */
 /* The composer card becomes one pill: + | the text | send. */
-html[data-nm-muse] [data-composer-card] { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: flex-end; gap: 2px 4px; padding: 5px 5px 5px 6px !important; border-radius: 26px !important; background: var(--nm-field) !important; box-shadow: 0 0 0 1px var(--nm-field-border), 0 6px 24px rgba(0,0,0,0.10) !important; }
+/* No backdrop-filter on the card: Chromium makes a filtered element the containing block for
+   its fixed descendants, and the composer hosts the "+" list and the overlay anchor. With a
+   filter here those popovers were laid out against the 712 px card instead of the window, so the
+   list opened full width over the pill instead of under the "+". The card's own fill carries the
+   look; the blur belongs to elements that hold no popovers. */
+html[data-nm-muse] [data-composer-card] { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: flex-end; gap: 2px 4px; padding: 6px 8px 6px 10px !important; border-radius: 26px !important; background: var(--nm-field) !important; box-shadow: 0 0 0 1px var(--nm-field-border), 0 8px 28px rgba(0,0,0,0.18) !important; transition: box-shadow 180ms ease, border-color 180ms ease; }
+html[data-nm-muse] [data-composer-card]:focus-within { box-shadow: 0 0 0 1.5px var(--nm-blue), 0 10px 32px rgba(0,0,0,0.22) !important; }
 html[data-nm-muse] [data-composer-card] > [data-input-scroll] { flex: 1 1 120px; min-width: 0; order: 0; margin: 0 !important; }
 html[data-nm-muse] [data-composer-card] > [data-input-scroll] [contenteditable] { min-height: 34px !important; padding: 5px 6px 5px 8px !important; }
 html[data-nm-muse] [data-composer-card] [data-composer-placeholder] { inset: 5px 6px auto 8px !important; color: transparent !important; }
 html[data-nm-muse] [data-composer-card] [data-composer-placeholder]::before { content: var(--nm-placeholder, "Message"); position: absolute; inset: 0 auto auto 0; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
-/* The hidden harness dock normally gives an active chat 26px below the card; keep that
-   breathing room without adding it to the hero composer, which has its own 32px padding. */
-html[data-nm-muse] [data-conversation-content][data-content-phase="active"] [data-composer-card] { margin-bottom: 26px !important; }
+/* The composer is the phone's dock: it lives at the foot of the window however short the
+   thread is. The seat is the last child of the scrolling body, so margin-top: auto pushes it
+   down when the messages are shorter than the window, and position: sticky at bottom 0 keeps it
+   there once they are longer, with the thread scrolling under it. The seat keeps its layout
+   space, so the last message still scrolls clear above the pill; its own bottom padding is the
+   breathing room the hidden harness dock used to provide (#494). */
+html[data-nm-muse] [class*="_composerSeat"] { position: sticky; bottom: 0; margin-top: auto; z-index: 3; }
+html[data-nm-muse] [class*="_composerStack"] { position: relative; padding-bottom: 14px !important; }
+html[data-nm-muse] [class*="_composerStack"]::before { content: ''; position: absolute; left: -999px; right: -999px; top: -64px; bottom: -8px; pointer-events: none; background: linear-gradient(to top, color-mix(in srgb, var(--nm-canvas) 92%, transparent) 0%, color-mix(in srgb, var(--nm-canvas) 60%, transparent) 45%, transparent 100%); }
 /* An empty chat: no greeting, the composer sits at the bottom like Muse's. */
+/* the thread starts a breath under the bar, however the harness mounts its scroll body */
+html[data-nm-muse] [class*="_scrollBody"] { padding-top: 10px; }
 html[data-nm-muse] [data-conversation-scroll]:has([class*="_composerHero"]) { justify-content: flex-end; }
 html[data-nm-muse] [class*="_composerHero"] > [class*="_root"]:first-child { display: none; }
 /* no workspace/preset chips over an empty chat: the inert composer itself opens the workspace picker when one is needed */
@@ -332,9 +365,10 @@ html[data-nm-muse] [data-composer-card] [class*="_standardControls"] { gap: 2px 
 html[data-nm-muse] [data-composer-card] [data-slot="conversation.input.model"] { display: none !important; }
 html[data-nm-muse] [data-composer-card] [class*="_activity"] { display: none !important; }
 html[data-nm-muse] [data-composer-card] [class*="_add"] { width: 34px; height: 34px; border-radius: 50%; color: var(--dsw-alias-label-secondary); }
-/* the send disc is the ink (black in the light, white in the dark) with the arrow in the opposite colour */
-html[data-nm-muse] [data-composer-card] [class*="_primary"] { width: 34px; height: 34px; transform: none !important; background: var(--nm-send) !important; color: var(--nm-ink-fg) !important; }
-html[data-nm-muse] [data-composer-card] [class*="_primary"]:disabled { background: var(--nm-send-idle) !important; opacity: 1 !important; color: var(--nm-canvas) !important; }
+/* the send disc takes the phone's sendButton with the ink inverted on it (dark disc, white
+   glyph in the light; light disc, dark glyph in the dark) */
+html[data-nm-muse] [data-composer-card] [class*="_primary"] { width: 34px; height: 34px; transform: none !important; background: var(--nm-send) !important; color: var(--nm-ink-fg) !important; border-radius: 50% !important; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+html[data-nm-muse] [data-composer-card] [class*="_primary"]:disabled { background: var(--nm-send-idle) !important; opacity: 0.6 !important; color: var(--nm-ink-fg) !important; box-shadow: none; }
 /* the harness's scroll-to-latest disc, floating over the thread, reads the same ink */
 html[data-nm-muse] [data-conversation-scroll] [class*="_toBottomSlot"] > button[class*="_toBottom"] { background: var(--nm-send); color: var(--nm-ink-fg); box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
 html[data-nm-muse] [data-conversation-scroll] [class*="_toBottomSlot"] > button[class*="_toBottom"]:hover { background: var(--nm-send); opacity: 0.88; }
@@ -374,12 +408,14 @@ html[data-nm-muse] [data-chat-flow-kind="turn-tail"] [class*="_timeEnd"] { font-
 /* The user's words: the ink pill on the right (black with white text in the light, white with black
    in the dark). The agent's: a quiet grey one a step off the canvas. A link inside your pill keeps the
    pill's text colour, underlined, and a selection on it is a translucent wash of that colour. */
-html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] { background: var(--nm-user-bubble) !important; color: var(--nm-user-bubble-fg); border-radius: 18px !important; padding: 9px 14px !important; }
+html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] { background: var(--nm-user-bubble) !important; color: var(--nm-user-bubble-fg) !important; border-radius: 18px !important; padding: 8px 14px !important; font-size: 16px !important; line-height: 1.5 !important; box-shadow: none; }
 html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] a { color: inherit; text-decoration: underline; }
 html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] ::selection { background: var(--nm-user-bubble-selection); color: var(--nm-user-bubble-fg); }
-html[data-nm-muse] .nm-remote-user .nm-remote-bubble { background: var(--nm-user-bubble); color: var(--nm-user-bubble-fg); }
+html[data-nm-muse] .nm-remote-user .nm-remote-bubble { background: var(--nm-user-bubble); color: var(--nm-user-bubble-fg); border-radius: 18px; padding: 8px 14px; font-size: 16px; line-height: 1.5; }
 html[data-nm-muse] .nm-remote-user .nm-remote-bubble ::selection { background: var(--nm-user-bubble-selection); color: var(--nm-user-bubble-fg); }
-html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] { width: fit-content; max-width: 100%; box-sizing: border-box; background: var(--nm-agent-bubble); border-radius: 20px; padding: 10px 16px; }
+/* The agent's words are a card on the left, the phone's shape: a large-radius pane of the
+   card colour, a step off the canvas, as wide as the column so long replies read as one block. */
+html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] { width: 100%; max-width: 100%; box-sizing: border-box; background: var(--nm-agent-bubble); border-radius: 20px; padding: 12px 16px; box-shadow: none; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"]:empty { display: none; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] > :first-child { margin-top: 0; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] > :last-child { margin-bottom: 0; }
@@ -408,8 +444,10 @@ html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-
 html[data-nm-muse] [data-slot="conversation.session.header.utilities"] > *:not(:has(.nm-invite)) { display: none; }
 html[data-nm-muse] [data-turn-process-inline] { display: none !important; }
 html[data-nm-muse] [data-slot="conversation.session.header.corner"] [data-sidebar-right-expand] { display: none; }
-.nm-header-back { position: absolute; left: 14px; top: 14px; z-index: 3; width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
-.nm-header-back:hover { background: var(--dsw-alias-bg-layer-3); }
+/* the navigation seat of the bar: flat, 28px, the way the phone draws its menu icon; it only
+   shows the tint when hovered or focused */
+.nm-header-back { flex: none; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.nm-header-back:hover { background: var(--nm-hover); color: var(--dsw-alias-label-primary); }
 .nm-header-toast { color: var(--dsw-alias-state-success-primary, #2f9e5f); }
 .nm-header-status.nm-done { color: var(--dsw-alias-label-secondary); }
 .nm-header-status.nm-wait { color: var(--dsw-alias-state-warn-primary, #d98c1f); }
@@ -428,7 +466,6 @@ html[data-nm-muse] [data-slot="conversation.session.header.corner"] [data-sideba
 html[data-nm-split] { --nm-split-w: clamp(420px, 62vw, 1200px); }
 .nm-split { position: fixed; top: 0; right: 0; bottom: 0; width: var(--nm-split-w, 62vw); z-index: 50; display: flex; flex-direction: column; background: var(--nm-base); border-left: 1px solid var(--nm-divider); animation: nm-slide-in 180ms ease-out; }
 html[data-nm-split] [class*="_centerCol"] { min-width: 0; padding-right: var(--nm-split-w, 62vw); box-sizing: border-box; }
-html[data-nm-split] .nm-header-back { left: 10px; }
 .nm-header-chats { width: auto; padding: 0 10px 0 8px; gap: 6px; border-radius: 8px; font-size: 13px; font-weight: 600; }
 .nm-split .nm-room-head, .nm-split .nm-room-inner { padding-left: 24px; padding-right: 24px; }
 .nm-split .nm-room-title { font-size: 22px; }
@@ -550,7 +587,7 @@ html[data-nanomuse] [data-approval-key] > div > :first-child::before { content: 
 html[data-nanomuse] [data-approval-key] [data-approval-scroll] > :first-child { font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--dsw-alias-label-primary); }
 html[data-nanomuse] [data-approval-key] > div > :last-child { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 html[data-nanomuse] [data-approval-key] > div > :last-child button { border-radius: 999px !important; min-height: 36px; padding: 0 20px !important; font-weight: 500; border: 0 !important; box-shadow: none !important; }
-html[data-nanomuse] [data-approval-key] > div > :last-child button:last-child { background: var(--nm-blue) !important; color: #fff !important; }
+html[data-nanomuse] [data-approval-key] > div > :last-child button:last-child { background: var(--nm-blue) !important; color: var(--nm-on-accent) !important; }
 html[data-nanomuse] [data-approval-key] > div > :last-child button:last-child:hover { filter: brightness(1.08); }
 html[data-nanomuse] [data-approval-key] > div > :last-child button:not(:last-child) { background: var(--nm-field) !important; color: var(--dsw-alias-label-primary) !important; }
 
@@ -565,7 +602,7 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-pf-top { padding-t
 .nm-pf-face-btn { display: block; border: 0; padding: 0; background: transparent; border-radius: 50%; cursor: pointer; }
 .nm-pf-face-btn:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: 3px; }
 .nm-pf-pen { position: absolute; right: -2px; bottom: 0; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--nm-base); background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
-.nm-pf-pen:hover { background: var(--nm-blue); color: #fff; }
+.nm-pf-pen:hover { background: var(--nm-blue); color: var(--nm-on-accent); }
 .nm-menu.nm-pf-menu { position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); min-width: 160px; }
 .nm-pf-name { font-size: 18px; font-weight: 600; margin-top: 4px; }
 .nm-pf-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dsw-alias-label-secondary); }
@@ -618,6 +655,16 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-pf-top { padding-t
 
 /* ---- settings dialog -------------------------------------------------- */
 .nm-settings-overlay { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; }
+/* A card asked for over the chat dims what is behind it, as the phone's sheets do. The harness's
+   dialog root and our settings overlay both draw no fill of their own, so the thread stayed at
+   full brightness next to the card and read as if the card were floating in the message flow. */
+html[data-nanomuse] [class*="_root"]:has(> [class*="_dialog"]),
+html[data-nanomuse] .nm-settings-overlay { background: rgba(0, 0, 0, 0.35); }
+/* A card asked for over the chat dims what is behind it, as the phone's sheets do. The harness's
+   dialog root and our settings overlay both draw no fill of their own, so the thread stayed at
+   full brightness next to the card and read as if the card were floating in the message flow. */
+html[data-nanomuse] [class*="_root"]:has(> [class*="_dialog"]),
+html[data-nanomuse] .nm-settings-overlay { background: rgba(0, 0, 0, 0.35); }
 .nm-settings-mask { position: absolute; inset: 0; background: var(--dsw-alias-bg-mask-1, rgba(0,0,0,0.3)); }
 .nm-settings { position: relative; width: min(900px, calc(100vw - 48px)); height: min(620px, calc(100vh - 48px)); display: flex; border-radius: 18px; overflow: hidden; background: var(--nm-base); color: var(--dsw-alias-label-primary); box-shadow: 0 24px 80px rgba(0,0,0,0.35), 0 0 0 1px var(--nm-divider); outline: none; }
 .nm-settings-nav { width: 212px; flex: none; display: flex; flex-direction: column; background: var(--nm-base); border-right: 1px solid var(--nm-divider); padding: 18px 10px 12px; box-sizing: border-box; overflow: auto; }
@@ -698,7 +745,7 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-pf-top { padding-t
 .nm-cn-main:hover .nm-row-title { color: var(--nm-accent); }
 .nm-cn-connect { flex: none; border: 0; background: none; color: var(--nm-blue); font: inherit; font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
 .nm-cn-connect:hover { background: var(--nm-hover); }
-.nm-cn-connect-big { background: var(--nm-blue); color: #fff; padding: 7px 16px; border-radius: 999px; }
+.nm-cn-connect-big { background: var(--nm-blue); color: var(--nm-on-accent); padding: 7px 16px; border-radius: 999px; }
 .nm-cn-connect-big:hover { background: var(--nm-blue-hover); }
 .nm-cn-back { align-self: flex-start; display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 13px; padding: 4px 8px 4px 2px; border-radius: 8px; cursor: pointer; margin-bottom: -6px; }
 .nm-cn-back:hover { background: var(--nm-hover); color: var(--dsw-alias-label-primary); }
@@ -1324,7 +1371,7 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-fr-top { height: 6
 .nm-cd-input:focus { outline: 2px solid var(--nm-blue); outline-offset: -1px; }
 .nm-cd-input:disabled { opacity: 0.6; }
 .nm-cd-input-tall { min-height: 96px; width: 100%; box-sizing: border-box; }
-.nm-cd-send { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--nm-blue); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.nm-cd-send { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--nm-blue); color: var(--nm-on-accent); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .nm-cd-send:disabled { opacity: 0.4; cursor: default; }
 .nm-cd-stop { background: var(--dsw-alias-state-error-primary, #d2453d); }
 .nm-cd-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dsw-alias-label-tertiary); }
@@ -1606,32 +1653,147 @@ html[data-nm-muse] [data-conversation-scroll]:has(> .nm-intro-host) [class*="_co
   flex: 1;
 }
 
-/* Header DeepSeek Balance Capsule */
+/* The balance capsule sits beside the name, as the phone's DeepSeek chip does: a dot and the
+   figure on the secondary background, not a tinted outline of its own. */
 .nm-header-balance-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 9px;
+  gap: 4px;
+  padding: 1px 7px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 12%, transparent);
-  border: 0.8px solid color-mix(in srgb, var(--nm-blue, #58a6ff) 28%, transparent);
-  font-size: 11.5px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-size: 10.5px;
   font-weight: 500;
-  color: var(--nm-blue, #58a6ff);
+  color: var(--dsw-alias-label-primary);
   cursor: default;
   user-select: none;
-  transition: all 180ms ease;
   flex: none;
-  line-height: 1.3;
-}
-.nm-header-balance-pill:hover {
-  background: color-mix(in srgb, var(--nm-blue, #58a6ff) 18%, transparent);
+  line-height: 14px;
+  opacity: 0.9;
 }
 .nm-balance-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #007aff;
+  flex: none;
+}
+
+/* The bar's action seat: a round 30px button, the phone's "•••" disc */
+.nm-header-icon-btn {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.nm-header-icon-btn:hover {
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* ---- Wallpaper & Morandi Acrylic Glassmorphism ---- */
+#nm-wallpaper-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  display: none;
+}
+#nm-wallpaper-img {
+  position: absolute;
+  inset: -24px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.06);
+  will-change: filter, transform;
+}
+#nm-wallpaper-dim {
+  position: absolute;
+  inset: 0;
+  will-change: background;
+}
+/* The wallpaper is the room, the interface is glass over it (the phone's ChatWallpaperManager
+   draws the picture behind the chat and lets the Scaffold go transparent). Two things had kept it
+   invisible here: the document and the shell painted their own opaque fills over the fixed
+   picture, and every surface inside the chat carried the canvas again. So the document, the
+   shell's frame, its two columns and the conversation all drop their fills, and the pieces that
+   must stay readable (the bar, your pill, the composer) become panes of the theme colour with a
+   blur behind them, the way the phone's Haze material does it. */
+html[data-nm-wallpaper],
+html[data-nm-wallpaper] body,
+html[data-nm-wallpaper] #root,
+html[data-nm-wallpaper] [class*="_frame"],
+html[data-nm-wallpaper] [class*="_centerCol"],
+html[data-nm-wallpaper] [class*="_sidebarCol"],
+html[data-nm-wallpaper] .nm-sidebar,
+html[data-nm-wallpaper] .nm-chats,
+html[data-nm-wallpaper] .nm-rail,
+html[data-nm-wallpaper] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content],
+html[data-nm-wallpaper] [data-conversation-content],
+html[data-nm-wallpaper] [data-conversation-scroll],
+html[data-nm-wallpaper] [data-chat-flow-container],
+html[data-nm-wallpaper] [class*="_root"]:has([data-slot="conversation.header"]) {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+/* The rail and the chats column keep a pane of their own: the picture shows, the list stays
+   readable, and it reads as a sidebar material rather than a hole.
+   A pane, not a filter: the chats column hosts the row menus and the column menu, and those are
+   position: fixed. A backdrop-filter on the column became their containing block and threw them
+   to the column's corner, a 31 px strip. The fill alone carries the material. */
+html[data-nm-wallpaper] .nm-sidebar,
+html[data-nm-wallpaper] .nm-chats,
+html[data-nm-wallpaper] .nm-rail {
+  background-color: color-mix(in srgb, var(--nm-canvas) 86%, transparent) !important;
+}
+/* the bar over a picture: a pane, not a scrim, so the status line keeps its ground */
+html[data-nm-wallpaper] header[data-window-drag]:has(.nm-header) {
+  background: color-mix(in srgb, var(--nm-canvas) 72%, transparent) !important;
+  border-bottom-color: color-mix(in srgb, var(--dsw-alias-label-primary) 10%, transparent);
+}
+/* your pill: the theme's own user colour at 86 percent, blurred behind, no hard edge */
+html[data-nm-wallpaper] [data-chat-flow-kind="user"] [class*="_bubble"],
+html[data-nm-wallpaper] .nm-remote-user .nm-remote-bubble {
+  background: color-mix(in srgb, var(--nm-user-bubble) 86%, transparent) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nm-user-bubble-fg) 10%, transparent);
+}
+/* the composer floats on the picture as a pane of the field colour */
+html[data-nm-wallpaper] [data-composer-card] {
+  background: color-mix(in srgb, var(--nm-field) 82%, transparent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nm-field-border) 80%, transparent), 0 10px 34px rgba(0, 0, 0, 0.24) !important;
+}
+/* the agent's reply keeps the picture behind it: a soft wash under the text only, no card */
+html[data-nm-wallpaper] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] {
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--nm-canvas) 55%, transparent);
+}
+
+/* Slim modern Morandi scrollbars */
+html[data-nanomuse] ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
+}
+html[data-nanomuse] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+html[data-nanomuse] ::-webkit-scrollbar-thumb {
+  background: rgba(130, 134, 148, 0.25);
+  border-radius: 999px;
+}
+html[data-nanomuse] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(130, 134, 148, 0.45);
 }
 
 /* DeepSeek Harness Native Question Card Morandi overrides */

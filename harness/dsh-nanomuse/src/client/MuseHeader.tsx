@@ -12,12 +12,13 @@ import { dismissStar, markStarred, nudgeText, openStar } from './AccountPage.tsx
 import { call, type Translate } from './api.ts'
 import { Avatar, motionStatus, type Mood } from './Avatar.tsx'
 import { describeCall } from './Capsule.tsx'
-import { IconCheck, IconChevronLeft, IconHeart, IconMenu, IconSpinner } from './icons.tsx'
+import { IconCheck, IconChevronLeft, IconHeart, IconMenu, IconPalette, IconSpinner } from './icons.tsx'
 import { useLive } from './live.ts'
 import { mainChatId } from './MuseChats.tsx'
 import { usePrefs } from './prefs.ts'
 import { statusWords } from './ProfileDrawer.tsx'
 import { activityOf, nav, useRooms } from './rooms.ts'
+import { wallpaperBus } from './wallpaper.ts'
 import { useWin } from './win.ts'
 
 /** "Done" stays this long after a turn ends; the approvals toast this long. */
@@ -152,32 +153,48 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
   }, [])
 
   // a side chat carries a way back to the main chat at its top left; beside a room
-  // (the split) the chat column is headed "≡ 聊天" instead, which brings the chats back
+  // (the split) the chat column is headed "≡ 聊天" instead, which brings the chats back.
+  // The back control is the bar's navigation seat, as the phone puts its menu there.
   const main = mainChatId()
   const side = current !== null && main !== undefined && main !== current
+  const lead = split !== null
+    ? h('button', { type: 'button', className: 'nm-header-back nm-header-chats', 'aria-label': t('railChats'), title: t('splitClose'), onClick: () => nav.split(null) }, h(IconMenu, { size: 18 }), h('span', null, t('railChats')))
+    : side ? h('button', { type: 'button', className: 'nm-header-back', 'aria-label': t('chMain'), title: t('chMain'), onClick: () => nav.openSession(main) }, h(IconChevronLeft, { size: 18 })) : null
+  // The phone's bar: the face, the name and the balance capsule centred as one row, the back
+  // control on the left and the background button on the right. A second line under the name
+  // carries the status only while there is something to say, so an idle bar is exactly the
+  // phone's single line. The thread starts below the bar, so nothing runs behind the face.
   return h(Fragment, null,
-    // The only drag handle over the chat (macOS/Windows): an empty strip above the face.
-    // Nothing draggable lies under the face itself, so a click there is always a click.
+    // The only drag handle over the chat (macOS/Windows): an empty strip above the bar.
     h('div', { className: 'nm-header-drag', 'data-window-drag': true, 'aria-hidden': 'true' }),
-    split !== null
-      ? h('button', { type: 'button', className: 'nm-header-back nm-header-chats', 'aria-label': t('railChats'), title: t('splitClose'), onClick: () => nav.split(null) }, h(IconMenu, { size: 18 }), h('span', null, t('railChats')))
-      : side ? h('button', { type: 'button', className: 'nm-header-back', 'aria-label': t('chMain'), title: t('chMain'), onClick: () => nav.openSession(main) }, h(IconChevronLeft, { size: 18 })) : null,
     h('div', { className: 'nm-header', role: 'status', 'aria-live': 'polite' },
-      h('button', { type: 'button', className: `nm-header-face${running ? ' nm-live' : waiting ? ' nm-wait' : ''}`, 'aria-label': live.profile.name || t('brand'), title: t('railProfile'), onClick: openProfile },
-        h(Avatar, { size: 44, profile: live.profile, mood })),
-      h('div', { className: 'nm-header-name' }, live.profile.name || t('brand')),
-      balance ? h('div', { className: 'nm-header-balance-pill', title: 'DeepSeek 官方账户余额' },
-        h('span', { className: 'nm-balance-dot' }),
-        h('span', null, `余额: ¥${balance}`),
-      ) : null,
-      toast
-        ? h('div', { className: 'nm-header-status nm-header-toast' }, h(IconCheck, { size: 13 }), t('statusApproved', { n: toast.n }))
-        : starAsk
-          ? h('div', { className: 'nm-header-status nm-header-star' }, h(IconHeart, { size: 13 }), h('span', { className: 'nm-header-line' }, nudgeText(t, starAsk)),
-              h('button', { type: 'button', className: 'nm-ob-link nm-inline', onClick: () => openStar() }, t('starAction')),
-              h('button', { type: 'button', className: 'nm-ob-link nm-inline', onClick: () => dismissStar() }, t('starLater')),
-              h('button', { type: 'button', className: 'nm-ob-link nm-inline', onClick: () => markStarred() }, t('starDone')))
-        : line
-          ? h('div', { className: `nm-header-status ${tone}`.trim() }, running || waiting ? h(IconSpinner, { size: 13 }) : null, h('span', { className: 'nm-header-line' }, line))
-          : null))
+      lead,
+      h('div', { className: 'nm-header-group' },
+        h('button', { type: 'button', className: `nm-header-face${running ? ' nm-live' : waiting ? ' nm-wait' : ''}`, 'aria-label': live.profile.name || t('brand'), title: t('railProfile'), onClick: openProfile },
+          h(Avatar, { size: 30, profile: live.profile, mood })),
+        h('div', { className: 'nm-header-titles' },
+          h('div', { className: 'nm-header-name-row' },
+            h('span', { className: 'nm-header-name' }, live.profile.name || t('brand')),
+            balance ? h('span', { className: 'nm-header-balance-pill', title: 'DeepSeek 官方账户余额' },
+              h('span', { className: 'nm-balance-dot' }),
+              h('span', null, `余额: ¥${balance}`),
+            ) : null),
+        toast
+          ? h('div', { className: 'nm-header-status nm-header-toast' }, h(IconCheck, { size: 12 }), h('span', { className: 'nm-header-line' }, t('statusApproved', { n: toast.n })))
+          : starAsk
+            ? h('div', { className: 'nm-header-status nm-header-star' }, h(IconHeart, { size: 12 }), h('span', { className: 'nm-header-line' }, nudgeText(t, starAsk)),
+                h('button', { type: 'button', className: 'nm-ob-link nm-inline', onClick: () => openStar() }, t('starAction')),
+                h('button', { type: 'button', className: 'nm-ob-link nm-inline', onClick: () => dismissStar() }, t('starLater')),
+                h('button', { type: 'button', className: 'nm-ob-link nm-inline', onClick: () => markStarred() }, t('starDone')))
+            : line
+              ? h('div', { className: `nm-header-status ${tone}`.trim() }, running || waiting ? h(IconSpinner, { size: 12 }) : null, h('span', { className: 'nm-header-line' }, line))
+              : null)),
+      h('div', { className: 'nm-header-actions' },
+        h('button', {
+          type: 'button',
+          className: 'nm-header-icon-btn',
+          title: '个性化聊天背景与壁纸设置',
+          'aria-label': '个性化聊天背景与壁纸设置',
+          onClick: () => wallpaperBus.open(),
+        }, h(IconPalette, { size: 17 })))))
 }

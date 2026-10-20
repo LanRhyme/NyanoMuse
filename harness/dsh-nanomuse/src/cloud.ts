@@ -25,11 +25,13 @@
  * (`/events`) carrying the live state — registered when the web server is
  * present; the headless and SDK profiles get the service without routes.
  */
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { execSync } from 'node:child_process'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { ApprovalDesk, appOf, checkForUpdate, compareVersions, DEVICE_GRANT_PREFIX, HoldDesk, modelFor, pickChatModel, pickHandsModel, REMOTE_CONTROL_GRANT_ID, sharedConnectors, standingGrants, takesImages, UPDATE_RETRY_MS, updateCacheFresh, type Grant, type Hold, type HoldTool, type PendingApproval, type StandingGrant, type UpdateInfo } from './desk.ts'
 import { arch, homedir, hostname, release, type, userInfo } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, extname, join } from 'node:path'
 import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
@@ -3400,6 +3402,79 @@ export default class NanomuseCloud extends Service {
     }
   }
 
+  private wallpaperPath(): string {
+    return join(homedir(), '.nyanomuse/desktop/wallpaper.json')
+  }
+
+  private wallpaperImgPath(): string {
+    return join(homedir(), '.nyanomuse/desktop/wallpaper.img')
+  }
+
+  private getSystemWallpaperPath(): string {
+    let p = ''
+    try {
+      p = execSync('noctalia msg wallpaper-get 2>/dev/null', { encoding: 'utf-8' }).trim()
+    } catch {}
+    if (p && existsSync(p)) return p
+    const candidate = join(homedir(), '图片/WallPapers/kita.png')
+    if (existsSync(candidate)) return candidate
+    return ''
+  }
+
+  private async getWallpaperConfig(): Promise<{ enabled: boolean; useSystem: boolean; blur: number; dim: number; hasCustom: boolean; systemPath: string }> {
+    const sysPath = this.getSystemWallpaperPath()
+    const customImg = existsSync(this.wallpaperImgPath())
+    try {
+      const data = await readFile(this.wallpaperPath(), 'utf-8')
+      const json = JSON.parse(data)
+      return {
+        enabled: Boolean(json.enabled),
+        useSystem: json.useSystem !== false,
+        blur: typeof json.blur === 'number' ? json.blur : 12,
+        dim: typeof json.dim === 'number' ? json.dim : 35,
+        hasCustom: customImg,
+        systemPath: sysPath,
+      }
+    } catch {
+      return {
+        enabled: Boolean(sysPath),
+        useSystem: true,
+        blur: 12,
+        dim: 35,
+        hasCustom: customImg,
+        systemPath: sysPath,
+      }
+    }
+  }
+
+  private async serveWallpaperImage(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const conf = await this.getWallpaperConfig()
+    let filePath = ''
+    if (!conf.useSystem && conf.hasCustom) {
+      filePath = this.wallpaperImgPath()
+    } else if (conf.systemPath && existsSync(conf.systemPath)) {
+      filePath = conf.systemPath
+    } else if (conf.hasCustom) {
+      filePath = this.wallpaperImgPath()
+    }
+    if (!filePath || !existsSync(filePath)) {
+      return send(res, 404, { error: { code: 'no_wallpaper', message: 'No wallpaper image' } })
+    }
+    try {
+      const buf = await readFile(filePath)
+      const ext = extname(filePath).toLowerCase()
+      const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'
+      res.writeHead(200, {
+        'content-type': mime,
+        'content-length': buf.length,
+        'cache-control': 'no-cache',
+      })
+      res.end(buf)
+    } catch (e) {
+      send(res, 500, { error: { code: 'io_error', message: String(e) } })
+    }
+  }
+
   private readonly handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     const route = url.pathname.slice(API_PREFIX.length) || '/'
@@ -3407,6 +3482,35 @@ export default class NanomuseCloud extends Service {
     try {
       if (req.method === 'GET' && route === '/status') return send(res, 200, await this.status())
       if (req.method === 'GET' && route === '/balance') return send(res, 200, await this.deepSeekBalance())
+      if (req.method === 'GET' && route === '/wallpaper') return send(res, 200, await this.getWallpaperConfig())
+      if (req.method === 'GET' && route === '/wallpaper/image') return this.serveWallpaperImage(req, res)
+      if (req.method === 'POST' && route === '/wallpaper') {
+        const body = (await json(req)) as { enabled?: boolean; useSystem?: boolean; blur?: number; dim?: number; imageData?: string }
+        const conf = await this.getWallpaperConfig()
+        if (typeof body.enabled === 'boolean') conf.enabled = body.enabled
+        if (typeof body.useSystem === 'boolean') conf.useSystem = body.useSystem
+        if (typeof body.blur === 'number') conf.blur = body.blur
+        if (typeof body.dim === 'number') conf.dim = body.dim
+        if (typeof body.imageData === 'string' && body.imageData.startsWith('data:image/')) {
+          const base64Data = body.imageData.split(',')[1]
+          if (base64Data) {
+            await mkdir(dirname(this.wallpaperImgPath()), { recursive: true })
+            await writeFile(this.wallpaperImgPath(), Buffer.from(base64Data, 'base64'))
+            conf.hasCustom = true
+            conf.useSystem = false
+          }
+        }
+        await mkdir(dirname(this.wallpaperPath()), { recursive: true })
+        await writeFile(this.wallpaperPath(), JSON.stringify(conf, null, 2))
+        return send(res, 200, conf)
+      }
+      if (req.method === 'DELETE' && route === '/wallpaper') {
+        try { await rm(this.wallpaperImgPath()) } catch {}
+        const conf = { enabled: false, useSystem: true, blur: 12, dim: 35, hasCustom: false, systemPath: this.getSystemWallpaperPath() }
+        await mkdir(dirname(this.wallpaperPath()), { recursive: true })
+        await writeFile(this.wallpaperPath(), JSON.stringify(conf, null, 2))
+        return send(res, 200, conf)
+      }
       if (req.method === 'GET' && route === '/events') return this.stream(req, res)
       if (req.method === 'GET' && route === '/live') return send(res, 200, this.live())
       // the desktop shell's protected exit (src/work.ts): the aggregate a real quit would end,

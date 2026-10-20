@@ -19,14 +19,18 @@ function rule(selector) {
   return line.slice(prefix.length)
 }
 
-test('the header block is centred without a transform and without pointer-events tricks', () => {
+test('the header fills its bar as a row, without a transform', () => {
   const header = rule('.nm-header')
   assert.doesNotMatch(header, /transform\s*:/)
-  assert.doesNotMatch(header, /pointer-events\s*:/)
-  assert.match(header, /left:\s*0;/)
-  assert.match(header, /right:\s*0;/)
-  assert.match(header, /margin:\s*0 auto/)
-  assert.match(header, /width:\s*fit-content/)
+  // the bar is the phone's row: the block takes the bar's whole box, start to end, and its three
+  // columns keep the face, the name and the capsule centred whatever the ends carry
+  assert.match(header, /inset:\s*0/)
+  assert.match(header, /display:\s*grid/)
+  assert.match(header, /grid-template-columns:\s*1fr auto 1fr/)
+  assert.match(rule('.nm-header-group'), /grid-column:\s*2/)
+  assert.match(rule('.nm-header-actions'), /grid-column:\s*3/)
+  // and its controls take their clicks while the bar around them does not
+  assert.match(header, /pointer-events:\s*auto/)
   // the old escape hatch is gone with the wrapper's pointer-events:none
   assert.doesNotMatch(css, /^\.nm-header > \* \{ pointer-events: auto; \}/m)
 })
@@ -92,7 +96,9 @@ test('the lights breathe: nothing runs round, sweeps across or flows in the styl
   assert.match(rule('html[data-nm-muse] [data-chat-running]::after'), /nm-breathe-light 4\.8s ease-in-out infinite/)
   // no marquee, no shimmer, no running border, no flowing gradient
   assert.doesNotMatch(css, /conic-gradient/)
-  assert.doesNotMatch(css, /background-position/)
+  // a still background-position is fine (the wallpaper is centred, not drifting); one inside a
+  // keyframe would be a sweep
+  for (const m of css.matchAll(/@keyframes[\s\S]*?\n\}/g)) assert.doesNotMatch(m[0], /background-position/)
   assert.doesNotMatch(css, /@keyframes nm-(dots|ripple|stage-pulse|flow|sweep|shimmer|marquee)\b/)
   assert.doesNotMatch(css, /\.nm-stage/)
   // the breathing keyframes go between a dim and a full light, no travel
@@ -115,13 +121,15 @@ test('a thread from other devices in the hero layout is bottom-aligned by an aut
   assert.doesNotMatch(css, /\.nm-remote:first-child \{ margin-top: 16px/)
 })
 
-test('an active chat keeps the hidden composer dock space without moving the hero composer (#494)', () => {
-  const active = 'html[data-nm-muse] [data-conversation-content][data-content-phase="active"] [data-composer-card]'
-  assert.match(rule(active), /margin-bottom:\s*26px !important/)
-  for (const line of css.split('\n').filter((l) => l.includes('margin-bottom: 26px'))) {
-    assert.ok(line.includes('[data-content-phase="active"]'), line)
-    assert.ok(!line.includes('[data-content-phase="hero"]'), line)
-  }
+test('the composer is docked at the foot of the window and the thread scrolls under it (#494)', () => {
+  const seat = rule('html[data-nm-muse] [class*="_composerSeat"]')
+  assert.match(seat, /position:\s*sticky/)
+  assert.match(seat, /bottom:\s*0/)
+  // short threads push it down, long ones keep it there
+  assert.match(seat, /margin-top:\s*auto/)
+  // the breathing room under the pill lives on the stack, in both the empty and the active chat
+  assert.match(rule('html[data-nm-muse] [class*="_composerStack"]'), /padding-bottom:\s*14px !important/)
+  assert.doesNotMatch(css, /data-content-phase="active"\] \[data-composer-card\] \{ margin-bottom/)
 })
 
 test('under prefers-reduced-motion every breathing light is steady', () => {
@@ -145,20 +153,28 @@ test('in the Muse look the chat is monochrome: ink pills, grey agent pills, the 
   const tokens = (block) => Object.fromEntries([...block.matchAll(/--(nm-[a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]))
   const l = tokens(light)
   const d = tokens(dark)
-  assert.equal(l['nm-user-bubble'], '#000000')
+  // the phone's Morandi palette (ThemePalette.kt): warm paper and the deep sage pill in the
+  // light, the same cards the phone draws in the dark
+  assert.equal(l['nm-user-bubble'], '#4e5e59')
   assert.equal(l['nm-user-bubble-fg'], '#ffffff')
-  assert.equal(l['nm-agent-bubble'], '#f2f2f7')
-  assert.equal(l['nm-canvas'], '#ffffff')
-  assert.equal(l['nm-ink'], '#000000')
+  assert.equal(l['nm-agent-bubble'], '#faf9f6')
+  assert.equal(l['nm-canvas'], '#f3f1ec')
+  assert.equal(l['nm-ink'], '#2c2b29')
   assert.equal(l['nm-ink-fg'], '#ffffff')
-  assert.equal(d['nm-user-bubble'], '#ffffff')
-  assert.equal(d['nm-user-bubble-fg'], '#000000')
-  assert.equal(d['nm-ink'], '#ffffff')
-  assert.equal(d['nm-ink-fg'], '#000000')
-  // the agent's dark pill keeps the same step off the near-black as the phone's off pure black
-  assert.equal(d['nm-agent-bubble'], '#242424')
+  assert.equal(d['nm-user-bubble'], '#384541')
+  assert.equal(d['nm-user-bubble-fg'], '#e4e4e6')
+  assert.equal(d['nm-ink'], '#e4e4e6')
+  assert.equal(d['nm-ink-fg'], '#1e2124')
+  // the agent's dark tone is the phone's card, one step off the canvas
+  assert.equal(d['nm-agent-bubble'], '#292d32')
   assert.equal(d['nm-canvas'], d['nm-base'])
-  for (const t of [l, d]) assert.equal(t['nm-send'], 'var(--nm-ink)')
+  // the send disc is the sage in the light and the ink in the dark, the glyph inverted on it
+  assert.equal(l['nm-send'], 'var(--nm-primary)')
+  assert.equal(d['nm-send'], '#e4e4e6')
+  // the agent's reply is a card on both paths: the harness's own step and a reply from another
+  // device of the account
+  assert.match(rule('html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"]'), /background:\s*var\(--nm-agent-bubble\)/)
+  assert.match(rule('html[data-nm-muse] .nm-remote-assistant .nm-remote-bubble'), /background:\s*var\(--nm-agent-bubble\)/)
   // the user's pill carries its own text colour, and so do the remote and coding copies of it
   for (const sel of [
     'html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"]',
@@ -176,24 +192,27 @@ test('in the Muse look the chat is monochrome: ink pills, grey agent pills, the 
   assert.match(toBottom, /color:\s*var\(--nm-ink-fg\)/)
 })
 
-test('in the Muse look the header is a scrim over the thread, not a bar with a line under it', () => {
+test('in the Muse look the header is the phone\'s bar, and the thread starts under it', () => {
   const header = 'html[data-nm-muse] header[data-window-drag]:has(.nm-header)'
-  const scrim = rule(header)
-  assert.match(scrim, /position:\s*absolute/)
-  assert.match(scrim, /border-bottom:\s*0/)
-  assert.match(scrim, /pointer-events:\s*none/)
-  assert.match(scrim, /linear-gradient\(to bottom, color-mix\(in srgb, var\(--nm-canvas\) 80%, transparent\) 0%, color-mix\(in srgb, var\(--nm-canvas\) 35%, transparent\) 55%, transparent 100%\)/)
+  const bar = rule(header)
+  assert.match(bar, /position:\s*absolute/)
+  assert.match(bar, /height:\s*var\(--nm-header-h\)/)
+  // the phone draws no rule under its bar: a short scrim that clears before the thread starts
+  assert.match(bar, /border-bottom:\s*0/)
+  assert.match(bar, /linear-gradient\(to bottom, color-mix\(in srgb, var\(--nm-canvas\) 72%, transparent\) 0%, color-mix\(in srgb, var\(--nm-canvas\) 34%, transparent\) 62%, transparent 100%\)/)
+  assert.match(bar, /pointer-events:\s*none/)
   // the controls in it still take clicks, and the drag strip still drags
   const controls = css.split('\n').find((l) => l.startsWith(`${header} :is(`) && l.includes('pointer-events: auto'))
   assert.ok(controls, 'the header controls take their clicks back')
   for (const sel of ['button', 'a', '.nm-header', '.nm-header-drag', '[role="tab"]']) assert.ok(controls.includes(sel), sel)
-  // the thread keeps the header's height clear, one variable per platform
+  // the thread clears the bar and the window chrome above it
   const thread = 'html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content]'
-  assert.match(rule(`${thread} > [data-conversation-scroll]`), /padding-top:\s*var\(--nm-header-h\)/)
+  assert.match(rule(`${thread} > [data-conversation-scroll]`), /padding-top:\s*calc\(var\(--nm-header-top, 0px\) \+ var\(--nm-header-h\) \+ 8px\)/)
   assert.match(rule('header[data-window-drag]:has(.nm-header)'), /min-height:\s*var\(--nm-header-h\)/)
-  assert.match(rule("html[data-nm-platform='darwin']:not([data-nm-fullscreen])"), /--nm-header-h:\s*136px/)
-  assert.match(rule("html[data-nm-platform='win32']:not([data-nm-fullscreen])"), /--nm-header-h:\s*122px/)
-  // the chat's canvas: white in the light, and the harness's own base token follows it there
+  // each platform pushes the bar below its title bar; the bar's own height never changes
+  assert.match(rule("html[data-nm-platform='darwin']:not([data-nm-fullscreen])"), /--nm-header-top:\s*36px/)
+  assert.match(rule("html[data-nm-platform='win32']:not([data-nm-fullscreen])"), /--nm-header-top:\s*26px/)
+  // the chat's canvas, and the harness's own base token following it there
   const content = rule(thread)
   assert.match(content, /background:\s*var\(--nm-canvas\)/)
   assert.match(content, /--dsw-alias-bg-base:\s*var\(--nm-canvas\)/)

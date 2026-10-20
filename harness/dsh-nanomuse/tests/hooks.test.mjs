@@ -20,6 +20,7 @@ const scoped = join(here, '..', 'node_modules', '@deepseek-ai')
 /** Hooks of the web app's own DOM (the chat flow, the task manager page, the right sidebar), not in any package installed here. */
 const WEB_APP_ONLY = [
   'data-approval-scroll',
+  'data-chat-flow-container',
   'data-chat-running',
   'data-clock',
   'data-detail-tab',
@@ -34,6 +35,7 @@ const WEB_APP_ONLY = [
   'task-manager-page',
   '_bubble',
   '_centerCol',
+  '_dialog',
   '_endInfo',
   '_frame',
   '_handle',
@@ -41,6 +43,7 @@ const WEB_APP_ONLY = [
   '_pageHeading',
   '_runningContent',
   '_runningDivider',
+  '_sidebarCol',
   '_timeEnd',
   '_timeStart',
   '_toBottom',
