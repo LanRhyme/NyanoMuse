@@ -255,7 +255,8 @@ fixed preset row: a change under *Operating the screen* disposes the client and 
 `nanomuse mcp` again with the new environment, so it takes effect without a restart (a
 hands call in flight finishes first). The file is removed when nothing is configured;
 `nanomuse/rooms.json` keeps the rooms (feed, goals with their steps and progress, which
-ideas were tried, the library index, memory).
+ideas were tried, the library index) and a copy of the newest memories; the memory store
+itself is `nanomuse/memory.db`.
 
 ## Models
 

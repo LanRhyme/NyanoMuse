@@ -167,11 +167,12 @@ sessions and the hub's notices, *Today* and *Earlier*), **Approvals** (the per-a
 then what you allowed or rejected on the approval cards, with when; kept on this
 computer), **Daily** (the routines; *Manage routines* opens the harness's schedules
 panel), **Soul & memory** (what the agent remembers about you, one line each): a
-field to add one, × to forget one, *Import memory* (a sheet: paste what another
+field to add one, a search field that also reaches the older memories kept out
+of the list, × to forget one, *Import memory* (a sheet: paste what another
 assistant knew, one line per memory), and the agent's description when the account has
 one. The agent writes memory itself with the `remember` tool when you tell it something
-you will expect it to know next time, and every chat's prompt carries the list back
-(`rooms.json`, this computer only). *Change look* has the dragon, an emoji on a colour,
+you will expect it to know next time, and every chat's prompt carries the newest ones
+(`memory.db` here, with the account's other devices when one is signed in). *Change look* has the dragon, an emoji on a colour,
 and **Draw one**, the avatar studio: describe the character, pick a style (the 3D
 toy look by default), see what it costs against today's allowance, *Draw four*,
 and the four candidates come up in a 2×2 grid with *Option 1–4*; *This one* draws the
@@ -552,7 +553,8 @@ rather than a messenger.
 The four rooms are on the rail (Chats, Search,
 Feed, Ideas, Goals, Library, Devices), each one `main` panel of the harness's layout,
 so the chat column stays where it is and a room opens in its place. One host service
-(`nanomuse-rooms`, `src/rooms.ts`) keeps them in `$DSH_HOME/nanomuse/rooms.json`,
+(`nanomuse-rooms`, `src/rooms.ts`) keeps them in `$DSH_HOME/nanomuse/rooms.json` (with a
+copy of the newest memories; the store they come from is `memory.db`),
 serves `/nanomuse/rooms/*` and streams changes to the browser half:
 
 - **Feed**, posts the agent writes for you in a hidden chat, from your *feed

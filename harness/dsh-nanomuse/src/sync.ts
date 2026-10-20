@@ -49,6 +49,8 @@ import { readFileSync } from 'node:fs'
 import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { RELAY_TIMEOUT_MS, RelayError, type TimedFetch, withTimeout } from './relay.ts'
+import type { MemoryOp } from './memory-store.ts'
+import type { MemorySync } from './memory-sync.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -192,6 +194,45 @@ export class SyncRelay {
       accepted: Number(body.accepted ?? 0),
       rejected: Array.isArray(body.rejected) ? (body.rejected as PushResult['rejected']) : [],
     }
+  }
+
+  /** Memory changes (C15): the queued ops go up, the relay gives each an account-wide seq. */
+  async pushMemory(apiKey: string, device: string, ops: MemoryOp[]): Promise<{ accepted: number; assigned: Array<{ op_id: string; seq: number }> }> {
+    const res = await this.fetchImpl(`${this.origin}/v1/sync/memory/push`, {
+      method: 'POST',
+      headers: { ...this.auth(apiKey), ...JSON_HEADERS },
+      body: JSON.stringify({
+        device,
+        ops: ops.map((op) => ({ op_id: op.op_id, op_type: op.op_type, client_time: op.client_time, payload: op.payload })),
+      }),
+    })
+    if (!res.ok) await fail(res)
+    const body = (await res.json()) as Record<string, unknown>
+    return {
+      accepted: Number(body.accepted ?? 0),
+      assigned: Array.isArray(body.assigned)
+        ? (body.assigned as Array<Record<string, unknown>>)
+            .map((a) => ({ op_id: String(a.op_id ?? ''), seq: Number(a.seq ?? 0) }))
+            .filter((a) => a.op_id.length > 0)
+        : [],
+    }
+  }
+
+  /** The account's memory changes since `since`, in seq order (C15). */
+  async pullMemory(apiKey: string, since: number, limit = PAGE): Promise<{ cursor: number; more: boolean; ops: MemoryOp[] }> {
+    const res = await this.fetchImpl(`${this.origin}/v1/sync/memory/pull?since=${since}&limit=${limit}`, { headers: this.auth(apiKey) })
+    if (!res.ok) await fail(res)
+    const body = (await res.json()) as Record<string, unknown>
+    const ops = Array.isArray(body.ops)
+      ? (body.ops as Array<Record<string, unknown>>).map((o) => ({
+          op_id: String(o.op_id ?? ''),
+          seq: Number(o.seq ?? 0),
+          op_type: String(o.op_type ?? 'upsert_memory') as MemoryOp['op_type'],
+          payload: (o.payload ?? {}) as MemoryOp['payload'],
+          client_time: Number(o.client_time ?? 0),
+        }))
+      : []
+    return { cursor: Number(body.cursor ?? since), more: body.more === true, ops: ops.filter((o) => o.op_id.length > 0) }
   }
 
   async deleteConversation(apiKey: string, cid: string, device: string): Promise<void> {
@@ -523,6 +564,8 @@ export interface SyncEngineOptions {
   isTaskSession?(sessionId: string): boolean
   load(): SyncState | undefined
   save(state: SyncState): Promise<void>
+  /** The memory store's oplog (C15), once the rooms service has one; read lazily, it starts after this. */
+  memory?(): MemorySync | undefined
   /** The view changed: tell the browser half. */
   onChange?(): void
   log?(level: 'info' | 'warn' | 'debug', text: string): void
@@ -648,9 +691,13 @@ export class SyncEngine {
 
   start(): void {
     this.signedIn = true
-    this.pullTimer ??= setInterval(() => void this.pullQuietly(), this.options.pullEveryMs ?? PULL_EVERY_MS)
+    this.pullTimer ??= setInterval(() => {
+      void this.pullQuietly()
+      void this.syncMemory()
+    }, this.options.pullEveryMs ?? PULL_EVERY_MS)
     // pull first: the relay's history reaches the sessions here before ours goes up
     void this.pullQuietly().then(() => this.pushAllSoon())
+    void this.syncMemory()
   }
 
   stop(): void {
@@ -1074,6 +1121,8 @@ export class SyncEngine {
     }
     // our rows come back on the next pull (known by device, no change) and the cursor catches up
     void this.pullQuietly()
+    // a turn often ends with a memory written (`remember`): it travels on the same beat
+    void this.syncMemory()
   }
 
   private cidFor(sessionId: string): string {
@@ -1091,6 +1140,24 @@ export class SyncEngine {
   /** A pull that joins the one in flight, and tells nobody when it fails (rule 7). */
   private pullQuietly(): Promise<number> {
     return (this.pulling ?? this.pull()).catch(() => 0)
+  }
+
+  /**
+   * Memory changes (C15): what this device queued goes up, the account's new ones come
+   * down. Best effort on the same beat as a pull, and never on the turn's path; the store
+   * is read lazily because the rooms service starts after this engine.
+   */
+  private async syncMemory(): Promise<void> {
+    try {
+      if (!(await this.active())) return
+      const memory = this.options.memory?.()
+      if (!memory) return
+      const token = await this.options.token()
+      if (!token) return
+      await memory.run(this.options.relay, token, this.options.deviceId())
+    } catch (error) {
+      this.options.log?.('debug', `memory sync: ${String(error)}`)
+    }
   }
 
   /** What the other devices pushed since our cursor, applied in order; how many rows. One at a time. */

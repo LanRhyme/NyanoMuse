@@ -237,7 +237,20 @@ POST   /v1/sync/changes {device, conversations[], messages[]}   → {cursor, acc
 POST   /v1/sync/working {cid, working, device?}   → 204; the hub tells the other devices   404 no_conversation
 DELETE /v1/sync/changes                 → the state, counts at zero     everything stored, switch unchanged
 DELETE /v1/sync/conversations/{cid}     → {cursor, deleted: true}      a tombstone the other devices apply; 404 no_conversation
+GET    /v1/sync/memory/pull ?since=0&limit=200   → {cursor, more, ops[{seq, op_id, op_type, payload{}, client_time}]}
+POST   /v1/sync/memory/push {device, ops[{op_id, op_type, payload{}}]}   → {cursor, accepted, assigned[{op_id, seq}]}
 ```
+
+Memory travels as operations of its own. A write on any device becomes one
+operation with an id it makes up itself (`op_id`); the relay gives it an
+account-wide `seq` and hands it to the other devices on their next pull, which
+apply the operations in `seq` order and keep the newest one per memory. Only the
+text and the flags move: the line, its category, whether it is pinned or
+archived, and whether it was deleted. Every device builds its own search index
+from that text, so no vector and no tokenised column crosses the wire. Pushing
+the same `op_id` twice changes nothing, so a device that retries after a
+dropped connection does not write twice. It follows the account's sync switch:
+off, nothing is pushed or pulled and the queued changes wait on the device.
 
 `scope` (relay 0.20) is `all` unless said; `main` returns only the main
 conversation and its messages, and an account with no main yet gets an empty

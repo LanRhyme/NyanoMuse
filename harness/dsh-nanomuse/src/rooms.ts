@@ -30,6 +30,7 @@ import { FENCE_FEED, FENCE_GOAL, FENCE_GOAL_UPDATE, findFences, goalCategory, go
 import { afterTurn, boundTo, currentSuggestions, dismissChooser, FIRST_RUN_EMPTY, pickName, promptAddendum, readFirstRun, startConversation, type FirstRunState } from './firstrun.ts'
 import { DEFAULT_NUDGES, dueAsk, LEDGER_EMPTY, NUDGES_EVERY_MS, NUDGES_ORIGIN, NUDGES_TIMEOUT_MS, readLedger, readNudges, recordAsk, recordDay, recordStarred, recordTask, type Ask, type Moment, type NudgeLedger, type NudgesPolicy, type NudgesView } from './nudges.ts'
 import { MemoryStore, type MemoryRecord } from './memory-store.ts'
+import { MemorySync } from './memory-sync.ts'
 import type { ScoredMatch } from './memory-search.ts'
 import { packageAssetsDir } from './profile.ts'
 import { randomBytes } from 'node:crypto'
@@ -245,6 +246,8 @@ interface Store {
 /** What the browser mirrors. */
 export interface RoomsView extends Omit<Store, 'activity'> {
   busy: { feed: boolean; ideas: boolean }
+  /** Memories moved to the cold store: not in the list, still searchable with `/memory/search`. */
+  memoryArchived: number
   /** The chats of the batches running right now (the feed's): the chats column leaves them out. */
   batches: string[]
   automations: Record<string, GoalAutomation[]>
@@ -372,6 +375,8 @@ export default class NanomuseRooms extends Service {
   private writingNudges: Promise<void> = Promise.resolve()
   private fetchingNudges = false
   private memoryStore: MemoryStore | null = null
+  /** Memory changes with the account (C15); the sync engine calls it, this service owns the store. */
+  memorySync: MemorySync | null = null
 
   constructor(ctx: Context) {
     super(ctx, 'nanomuseRooms')
@@ -387,6 +392,7 @@ export default class NanomuseRooms extends Service {
       const dbDir = join(dshHome(), 'nanomuse')
       await mkdir(dbDir, { recursive: true }).catch(() => undefined)
       this.memoryStore = new MemoryStore(join(dbDir, 'memory.db'))
+      this.memorySync = new MemorySync(this.memoryStore, (level, text) => this.ctx.logger[level](text))
       if (this.store.memory.length > 0) {
         this.memoryStore.importLegacy(this.store.memory)
       }
@@ -437,6 +443,7 @@ export default class NanomuseRooms extends Service {
       ideas: { ...this.store.ideas, items: this.ideaItems() },
       activity,
       busy: { ...this.busy },
+      memoryArchived: this.memoryStore?.archivedCount() ?? 0,
       batches: [...this.runs.keys()],
       automations: this.automations,
       ready: this.ready,
@@ -1072,12 +1079,14 @@ export default class NanomuseRooms extends Service {
       this.memoryStore.close()
       this.memoryStore = null
     }
+    this.memorySync = null
     const dbDir = join(dshHome(), 'nanomuse')
     await rm(join(dbDir, 'memory.db'), { force: true }).catch(() => undefined)
     await rm(join(dbDir, 'memory.db-wal'), { force: true }).catch(() => undefined)
     await rm(join(dbDir, 'memory.db-shm'), { force: true }).catch(() => undefined)
     try {
       this.memoryStore = new MemoryStore(join(dbDir, 'memory.db'))
+      this.memorySync = new MemorySync(this.memoryStore, (level, text) => this.ctx.logger[level](text))
       this.refreshMemoryStore()
     } catch (err: unknown) {
       this.warn('memory store reset', err)
@@ -2102,6 +2111,7 @@ export default class NanomuseRooms extends Service {
               category: m.item.category,
               score: m.score,
               is_pinned: m.item.is_pinned,
+              is_archived: m.item.is_archived,
               updated_at: m.item.updated_at,
             })),
           })

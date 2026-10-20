@@ -841,6 +841,7 @@ export default class NanomuseCloud extends Service {
           },
         },
         token: () => this.token(),
+        memory: () => ctx.get('nanomuseRooms')?.memorySync ?? undefined,
         deviceId: () => this.state.deviceId ?? '',
         isTaskSession: (sessionId) => {
           if (Object.values(this.state.taskSessions ?? {}).includes(sessionId)) return true

@@ -6,18 +6,54 @@
  * resets the agent.
  */
 import { failureText } from './api.ts'
-import { createElement as h, Fragment, useState, type FormEvent, type ReactNode } from 'react'
+import { createElement as h, Fragment, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { Translate } from './api.ts'
 import { IconBrain, IconClose } from './icons.tsx'
 import { roomsCall, useRooms, type MemoryItem } from './rooms.ts'
 import { ago, Sheet } from './ui.tsx'
 
-/** The memory list with an add field and the import button — the drawer's Memory tab. */
+/** One row of `/memory/search`, which reaches the archived memories the list leaves out. */
+interface MemoryHit {
+  id: string
+  content: string
+  category: string
+  score: number
+  is_pinned: number
+  is_archived: number
+  updated_at: number
+}
+
+/** The memory list with an add field, a search field and the import button — the drawer's Memory tab. */
 export function MemoryList({ t, onImport }: { t: Translate; onImport(): void }): ReactNode {
   const rooms = useRooms()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [query, setQuery] = useState('')
+  const [hits, setHits] = useState<MemoryHit[] | null>(null)
+  const [searching, setSearching] = useState(false)
   const items = [...rooms.memory].sort((a, b) => b.at - a.at)
+  const inSearch = Boolean(query.trim())
+
+  // The list holds the hot memories only; a search reaches the cold ones too, which is
+  // the point: a fact moved out of the list for age is still findable and forgettable.
+  useEffect(() => {
+    const q = query.trim()
+    if (!q) {
+      setHits(null)
+      setSearching(false)
+      return
+    }
+    let live = true
+    setSearching(true)
+    const timer = setTimeout(() => {
+      roomsCall<{ results: MemoryHit[] }>('memory/search', { query: q, limit: 50, includeArchived: true })
+        .then((r) => { if (live) setHits(r.results) })
+        .catch(() => { if (live) setHits([]) })
+        .finally(() => { if (live) setSearching(false) })
+    }, 220)
+    return () => { live = false; clearTimeout(timer) }
+  }, [query])
+
   const add = (event: FormEvent) => {
     event.preventDefault()
     const line = text.trim()
@@ -25,15 +61,38 @@ export function MemoryList({ t, onImport }: { t: Translate; onImport(): void }):
     setBusy(true)
     roomsCall('memory/add', { text: line }).then(() => setText('')).catch(() => undefined).finally(() => setBusy(false))
   }
+  const forgetHit = (id: string) => {
+    setHits((prev) => (prev ? prev.filter((m) => m.id !== id) : prev))
+    void roomsCall('memory/delete', { id }).catch(() => undefined)
+  }
   return h(Fragment, null,
     h('form', { className: 'nm-mem-add', onSubmit: add },
       h('input', { className: 'nm-mem-input', value: text, placeholder: t('memAddPlaceholder'), maxLength: 400, onChange: (e: FormEvent<HTMLInputElement>) => setText(e.currentTarget.value) }),
       h('button', { type: 'submit', className: 'nm-pill nm-pill-sm', disabled: busy || !text.trim() }, t('memAdd'))),
-    items.length
-      ? h('div', { className: 'nm-pf-rows' }, items.map((item) => h(MemoryRow, { key: item.id, t, item })))
-      : h('p', { className: 'nm-pf-empty' }, t('memEmpty')),
+    h('input', { className: 'nm-mem-input', value: query, placeholder: t('memSearch'), maxLength: 200, onChange: (e: FormEvent<HTMLInputElement>) => setQuery(e.currentTarget.value) }),
+    inSearch
+      ? (hits === null || searching
+          ? null
+          : hits.length
+            ? h('div', { className: 'nm-pf-rows' }, hits.map((hit) => h(MemoryHitRow, { key: hit.id, t, hit, onForget: forgetHit })))
+            : h('p', { className: 'nm-pf-empty' }, t('memNoMatch')))
+      : (items.length
+          ? h('div', { className: 'nm-pf-rows' }, items.map((item) => h(MemoryRow, { key: item.id, t, item })))
+          : h('p', { className: 'nm-pf-empty' }, t('memEmpty'))),
+    !inSearch && rooms.memoryArchived > 0
+      ? h('p', { className: 'nm-pf-empty' }, t('memArchivedNote', { n: rooms.memoryArchived }))
+      : null,
     h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
       h('button', { type: 'button', className: 'nm-pill nm-pill-ghost nm-pill-sm', onClick: onImport }, t('memImport'))))
+}
+
+function MemoryHitRow({ t, hit, onForget }: { t: Translate; hit: MemoryHit; onForget(id: string): void }): ReactNode {
+  return h('div', { className: 'nm-pf-row' },
+    h('span', { className: 'nm-pf-row-icon' }, h(IconBrain, { size: 18 })),
+    h('div', { className: 'nm-pf-row-main' },
+      h('div', { className: 'nm-pf-row-title nm-wrap' }, hit.content),
+      h('div', { className: 'nm-pf-row-sub' }, hit.is_archived ? `${t('memArchived')} · ${ago(t, hit.updated_at)}` : ago(t, hit.updated_at))),
+    h('button', { type: 'button', className: 'nm-icon-btn nm-mem-forget', 'aria-label': t('memForget'), title: t('memForget'), onClick: () => onForget(hit.id) }, h(IconClose, { size: 14 })))
 }
 
 function MemoryRow({ t, item }: { t: Translate; item: MemoryItem }): ReactNode {

@@ -186,6 +186,7 @@ export interface Rooms {
   goals: Goal[]
   library: LibraryItem[]
   memory: MemoryItem[]
+  memoryArchived: number
   docs: { identity: string; soul: string; identityAt: number; soulAt: number }
   activity: ActivityRecord[]
   introducedAt: number
@@ -212,6 +213,8 @@ const INITIAL: Rooms = {
   goals: [],
   library: [],
   memory: [],
+  /** Memories in the cold store: not listed, found by search. */
+  memoryArchived: 0,
   docs: { identity: '', soul: '', identityAt: 0, soulAt: 0 },
   activity: [],
   introducedAt: 0,

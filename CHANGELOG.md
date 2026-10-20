@@ -6,6 +6,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Cloud
 
+- **The relay carries memory between the account's devices as operations.** `POST /v1/sync/memory/push` and `GET /v1/sync/memory/pull` take and hand back one change per call, each with an `op_id` the sender made up (a repeated id changes nothing) and a `seq` the relay assigns. Only the text and its flags are stored, so no vector or index crosses the wire, and the account's sync switch governs both.
+
 - **Side chats sync by default, so an account's conversations are the same on every device.** *Also sync side chats* under *Data controls* stays a per-device switch; turned off, only the main conversation travels and that device's side chats stay where they were written. A device upgrading from a version that has no such setting starts with it on, which sends its side chats up on the next push.
 
 - **Gmail dot/plus aliases and disposable mail domains no longer open duplicate free pools, and invite settlement ignores same-IP and tiny probes.** `parse()` now strips `+tag` subaddresses from every e-mail local part and canonicalises `gmail.com` and `googlemail.com` addresses by folding `googlemail.com` to `gmail.com` and removing dots from the local part, while `Database.account_by_hashes` still matches and upgrades existing accounts whose `id_hash` was recorded with dots before canonicalisation. New sign-ups from disposable mail domains (`DEFAULT_SIGNUP_DOMAIN_BLOCK` plus `SIGNUP_DOMAIN_BLOCK`, overridable via `SIGNUP_DOMAIN_ALLOW`) are refused with `429 domain_limited`, and the default `SIGNUP_PER_DOMAIN_DAY` for non-well-known domains is lowered from 20 to 5. Invite bonuses (`settle_invite`) no longer settle when the inviter and invitee share the same non-local `first_ip` or before the invitee either registers a Hub device or spends at least `INVITE_SETTLE_MIN_SPENT_UY` (200 micro-yuan by default).
@@ -31,6 +33,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **Each Feed section showed its own load error and retry.** Posts, activity, Next up and calendar requests kept their last successful content when a refresh failed; retrying one section no longer refetched the others.
 
 ### Desktop
+
+- **Memory reaches the account's other devices, and the Memory panel can search all of it.** Every memory write is queued as one operation with an id of its own and pushed to the relay, which gives it a sequence number the other devices apply in order; only the text and its flags travel, so each device builds its own index, and a change made offline waits for the next sign-in. In the panel a search field looks through the archived memories the list leaves out, each marked *Archived*.
 
 - **Memory is a searchable SQLite store, and the 400-line cap that silently dropped the oldest lines is gone.** Facts live in `memory.db` beside `rooms.json`, each with a pre-tokenised index (CJK bigrams and lowercase words), so a question in Chinese finds the fact that answers it even when the words differ. The prompt carries the pinned and newest memories within a 30-line, 3000-character budget and points at `recall_memory` for the rest. Repeating a fact updates that line instead of adding a second one, and lines past the hot limit move to an archive instead of being deleted. *Download your agent data* includes `memories.json`, and *Reset* deletes the store.
 
