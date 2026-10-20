@@ -328,11 +328,11 @@ start_grace = 4          # seconds the tools/MCP servers/cloud account may take 
 # (the account-wide switch is Data controls → Sync; see docs/every-device.md)
 # ------------------------------------------------------------------------------
 [sync]
-# Off: only the main conversation travels; side chats stay on the device that
-# made them and no other device's arrive. On: this device's side chats go to the
-# account and the other devices' come here. The person's choice in *Data
+# On: this device's side chats go to the account and the other devices' come here, so
+# every conversation travels. Off: only the main conversation travels and side chats
+# stay on the device that made them. The person's choice in *Data
 # controls → Also sync side chats* is kept in sync.json; this is its default.
-side_chats = false
+side_chats = true
 
 # ------------------------------------------------------------------------------
 # nanoMuse Cloud: the relay this runtime signs in to (docs/cloud.md)

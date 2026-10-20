@@ -6,6 +6,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Cloud
 
+- **Side chats sync by default, so an account's conversations are the same on every device.** *Also sync side chats* under *Data controls* stays a per-device switch; turned off, only the main conversation travels and that device's side chats stay where they were written. A device upgrading from a version that has no such setting starts with it on, which sends its side chats up on the next push.
+
 - **Gmail dot/plus aliases and disposable mail domains no longer open duplicate free pools, and invite settlement ignores same-IP and tiny probes.** `parse()` now strips `+tag` subaddresses from every e-mail local part and canonicalises `gmail.com` and `googlemail.com` addresses by folding `googlemail.com` to `gmail.com` and removing dots from the local part, while `Database.account_by_hashes` still matches and upgrades existing accounts whose `id_hash` was recorded with dots before canonicalisation. New sign-ups from disposable mail domains (`DEFAULT_SIGNUP_DOMAIN_BLOCK` plus `SIGNUP_DOMAIN_BLOCK`, overridable via `SIGNUP_DOMAIN_ALLOW`) are refused with `429 domain_limited`, and the default `SIGNUP_PER_DOMAIN_DAY` for non-well-known domains is lowered from 20 to 5. Invite bonuses (`settle_invite`) no longer settle when the inviter and invitee share the same non-local `first_ip` or before the invitee either registers a Hub device or spends at least `INVITE_SETTLE_MIN_SPENT_UY` (200 micro-yuan by default).
 
 ### Runtime
@@ -29,6 +31,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **Each Feed section showed its own load error and retry.** Posts, activity, Next up and calendar requests kept their last successful content when a refresh failed; retrying one section no longer refetched the others.
 
 ### Desktop
+
+- **Memory is a searchable SQLite store, and the 400-line cap that silently dropped the oldest lines is gone.** Facts live in `memory.db` beside `rooms.json`, each with a pre-tokenised index (CJK bigrams and lowercase words), so a question in Chinese finds the fact that answers it even when the words differ. The prompt carries the pinned and newest memories within a 30-line, 3000-character budget and points at `recall_memory` for the rest. Repeating a fact updates that line instead of adding a second one, and lines past the hot limit move to an archive instead of being deleted. *Download your agent data* includes `memories.json`, and *Reset* deletes the store.
 
 - **The chat wears the phone's Morandi look, its bar no longer floats over the text, the composer stays at the foot of the window, and the wallpaper setting finally shows a picture.** The header is the phone's 56 px bar: the face, the name and the balance capsule centred as one row, the way back on the left, the background button on the right, and the thread starting below it instead of running behind it. The tones follow the phone's Morandi palette in both themes, your own messages keep the sage pill, and the agent's replies are cards again. The composer is docked: a short thread pushes it down, a long one scrolls under it. The wallpaper was sent to the window but every surface painted over it; the rail, the chats column, the conversation, your pills and the composer now show it through panes of the theme colour with a blur behind them, and the phone's blur value is scaled to desktop pixels so a setting carried over looks the same.
 
@@ -57,6 +61,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **The bundled runtime kept its library links.** Staging the PyInstaller output preserved relative library aliases and macOS framework links instead of copying their targets into duplicate files and directories.
 
 ### Android
+
+- **Structured memories now reach the agent, and `memory_get` reads them.** `memory_write` also stores the line in a local SQLite table with a bigram index, and the system prompt appends the newest 30 of them, capped at 3000 characters, after `GLOBAL.md`. A keyword lookup returns the table's matches before the file ones, so a fact saved through the tool is found by keyword as well as by exact text.
 
 - **Responses API requests no longer failed on repeated tool-call ids in accumulated or restored history.** Later copies receive deterministic request-unique suffixes while every tool output remains paired with its call. For [#501](https://github.com/nano-muse/nanoMuse/issues/501).
 

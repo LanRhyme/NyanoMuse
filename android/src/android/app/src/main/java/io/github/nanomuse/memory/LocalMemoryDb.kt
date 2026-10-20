@@ -65,28 +65,8 @@ class LocalMemoryDb(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME,
             );
         """.trimIndent())
 
-        db.execSQL("""
-            CREATE TABLE IF NOT EXISTS episodes (
-                id TEXT PRIMARY KEY NOT NULL,
-                thread_id TEXT NOT NULL,
-                start_time INTEGER NOT NULL,
-                end_time INTEGER NOT NULL,
-                summary TEXT NOT NULL,
-                search_text TEXT NOT NULL,
-                updated_at INTEGER NOT NULL
-            );
-        """.trimIndent())
-
-        db.execSQL("""
-            CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts USING fts4(
-                id,
-                search_text
-            );
-        """.trimIndent())
-
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_memories_sync ON memories(updated_at, deleted);")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_memories_hot ON memories(is_archived, is_pinned, updated_at);")
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_episodes_thread ON episodes(thread_id, end_time);")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {

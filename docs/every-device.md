@@ -126,13 +126,14 @@ change, on a phone that wears no face of its own says nothing about the look:
 the relay keeps the face the account has, and only a reset in the avatar
 studio takes it off every device.
 
-Since 0.1.38 it is **main first**. Only the main conversation travels unless a
-device asks for more: side chats stay on the device that made them, and no other
-device's side chats arrive. *Also sync side chats* (同时同步旁聊), under the sync
-switch in *Data controls*, is per device and off by default. *Off: side chats
-stay on this device. On: this device's side chats go to the account and the
-other devices' side chats come here.* Turning it on sends this device's side
-chats up and pulls the others' down once from the start. A fresh sign-in pulls
+Every conversation travels by default. A device pushes its side chats and pulls
+the account's, so the chats in the drawer are the same on every device. *Also
+sync side chats* (同时同步旁聊), under the sync switch in *Data controls*, is per
+device and on by default. *On: this device's side chats go to the account and
+the other devices' side chats come here. Off: side chats stay on this device.*
+Turning it off leaves what the relay already holds alone and stops both
+directions from then on; turning it back on sends this device's side chats up
+and pulls the others' down once from the start. A fresh sign-in pulls
 the newest 300 messages first so a long history is readable at once instead of
 arriving oldest-first. While another device is answering, the chat shows *kwai
 is working…* (kwai 正在处理…) under the last message, a presence note the relay
@@ -161,11 +162,12 @@ to accept a final reply if the cached conversation row has been cleared, before
 the pull cursor moves past that reply. The harness has no delete and a log forgets
 nothing: a message deleted elsewhere is hidden here, a chat deleted elsewhere
 is archived here. Since 0.1.38 the plugin keeps *Also sync side chats* with its
-own state (off by default; off, a side chat here is neither listed nor read for
+own state (on by default; off, a side chat here is neither listed nor read for
 the push, and a side row that still arrives makes no session), asks the relay
-for `scope=main` and, on the first pull and when the side switch goes on, for
-the tail; the other device's *kwai is working…* line is drawn under its last
-bubble from the hub's `working` frame and cleared by its reply, by
+for `scope=all`, or for `scope=main` once the switch is off, and for the tail on
+the first pull and when the side switch goes back on; the other device's *kwai
+is working…* line is drawn under its last bubble from the hub's `working` frame
+and cleared by its reply, by
 `working: false` or after ten minutes; the remote rows are never in the
 session log, so the harness cannot take one for an unfinished turn. The host
 reads a session's log once per change (title, lines and prompt positions are

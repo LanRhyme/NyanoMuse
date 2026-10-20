@@ -43,8 +43,9 @@ import org.json.JSONObject
  * - 409 `sync_off` turns the local switch off; 401 stops everything until the next sign-in;
  *   a network error waits for the next trigger.
  *
- * Contract C9 (0.1.38): side chats stay on the phone unless "Also sync side chats" is on
- * ([sideChats], per device, off by default); the first pull after a sign-in asks for the tail
+ * Contract C9 (0.1.38): every conversation travels, side chats included, unless "Also sync
+ * side chats" is turned off ([sideChats], per device, on by default); the first pull after a
+ * sign-in asks for the tail
  * and is applied off the main thread, in one write, before this phone's own history goes up.
  * Presence: [sent] tells the other devices a turn started here, [turnEnded] that it ended;
  * their `working` frames land in [working], which the chat shows as "kwai is working…" under

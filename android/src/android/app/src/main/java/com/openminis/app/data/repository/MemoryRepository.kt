@@ -25,6 +25,10 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         private const val MAX_SEARCH_LINES = 60
         private const val MAX_LOOKBACK_DAYS = 30
         private const val MAX_RECENT_FILES = 3
+        // structured memories in the prompt: the same cap the desktop uses, so a long
+        // store cannot push the system prompt past a few thousand characters.
+        private const val MAX_INJECTED_MEMORIES = 30
+        private const val MAX_INJECTED_CHARS = 3000
 
         /**
          * [XSessionDiag] Vocabulary that suggests an injected daily log describes
@@ -299,8 +303,18 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         }
         if (hotMemories.isNotEmpty()) {
             sb.append("\nStructured long-term memories:\n")
+            var chars = 0
+            var shown = 0
             for (m in hotMemories) {
+                if (shown >= MAX_INJECTED_MEMORIES || chars >= MAX_INJECTED_CHARS) break
+                if (chars + m.content.length > MAX_INJECTED_CHARS) continue
                 sb.append("- ").append(m.content).append("\n")
+                chars += m.content.length
+                shown++
+            }
+            val left = hotMemories.size - shown
+            if (left > 0) {
+                sb.append("(").append(left).append(" more in the memory store; search them with memory_get.)\n")
             }
         }
         return sb.toString().trim()

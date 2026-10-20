@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from nanomuse.cloud import CloudClient, CloudError
-from nanomuse.config import Settings
+from nanomuse.config import Settings, SyncSettings
 from nanomuse.llm import MockLLM
 from nanomuse.schema import LLMResponse
 from nanomuse.server import create_app
@@ -765,7 +765,12 @@ def test_sync_state_survives_a_restart(settings: Settings, tmp_path: Path) -> No
     assert again.sync.thread_of("abc") is again.threads[MAIN_THREAD]
 
 
-# ----------------------------------------------------------------------------- C9: main first
+# ----------------------------------------------------------------------------- C9: the side-chat switch
+def test_every_conversation_syncs_by_default() -> None:
+    """A device sends its side chats unless the person turns that off."""
+    assert SyncSettings().side_chats is True
+
+
 @pytest.fixture()
 def main_only(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
@@ -781,7 +786,8 @@ def main_only(
         yield client, service, llm, relay
 
 
-def test_side_chats_stay_local_by_default(main_only) -> None:
+def test_side_chats_off_keep_them_local(main_only) -> None:
+    """With the per-device switch off, only the main conversation moves."""
     client, service, llm, relay = main_only
     st = client.get("/api/sync/state").json()
     assert st["enabled"] is True and st["side_chats"] is False and st["working"] == []

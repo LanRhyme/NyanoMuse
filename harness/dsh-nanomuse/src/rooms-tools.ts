@@ -214,7 +214,9 @@ export function apply(ctx: Context): void {
               let charCount = 0
               let injected = 0
               for (const item of memory) {
-                if (injected >= 30 || charCount + item.text.length > 3000) break
+                if (injected >= 30 || charCount >= 3000) break
+                // one long line is skipped, not a reason to drop every shorter one after it
+                if (charCount + item.text.length > 3000) continue
                 lines.push(`- ${item.text}`)
                 charCount += item.text.length
                 injected++

@@ -194,16 +194,17 @@ turning the switch on sends the device's whole eligible history, oldest first,
 rename on any device, including the first conversation's naming, reaches the
 others on the next pull.
 
-**Main first** (0.1.38, relay 0.20). By default only the main conversation
-travels: side chats stay on the device that made them, and a device pulls with
-`scope=main` so other devices' side chats never arrive. *Also sync side chats*
-(a second switch under *Data controls*, off by default, **per device**; the
-relay has no account-wide setting for it) turns that around for the device it is
-flipped on: its side chats go up, the other devices' side chats come down, and
-the first pull after the flip starts over from zero. The first pull of a fresh
-sign-in asks for the **tail**, the newest 300 messages with the conversations
-they belong to, so a long history opens at once instead of paging from the
-start; the older messages it skipped stay on the relay and are not pulled. While a
+**Every conversation travels** (relay 0.20). A device pushes its side chats and
+pulls with `scope=all`, so the account's conversations are the same everywhere.
+*Also sync side chats* (a second switch under *Data controls*, **per device**;
+the relay has no account-wide setting for it) turns that off for the device it
+is flipped on: only the main conversation goes up, the device pulls with
+`scope=main`, and its side chats stay where they were written. Turning it back
+on starts the pull over from zero, so the other devices' side chats arrive. The
+first pull of a fresh sign-in asks for the **tail**, the newest 300 messages with
+the conversations they belong to, so a long history opens at once instead of
+paging from the start; the older messages it skipped stay on the relay and are
+not pulled. While a
 device is answering, the others show *kwai is working…* under the last message:
 a `working` note that goes through the relay's memory and the hub, is never
 stored, and dies after ten minutes if the device never says it is done.

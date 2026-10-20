@@ -571,13 +571,12 @@ class SyncSettings(BaseModel):
     """Conversation sync, what this device sends and takes (contract C9). The account-wide
     switch is ``[cloud] sync``; these are per device."""
 
-    # Off: only the main conversation is pushed and pulled (``scope=main``); side chats stay
-    # on the device that wrote them — they are often device-bound work, a run on this
-    # computer's screen, and most people do not want every one of them on every device.
-    # On: this device's side chats go to the account and the other devices' come here.
+    # On: this device's side chats go to the account and the other devices' come here, so
+    # every conversation travels. Off: only the main conversation is pushed and pulled
+    # (``scope=main``) and side chats stay on the device that wrote them.
     # *Settings → Data controls → Also sync side chats*; the person's switch, once set, is
     # kept in ``sync.json`` and this is only its default.
-    side_chats: bool = False
+    side_chats: bool = True
 
 
 class HubSettings(BaseModel):

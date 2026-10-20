@@ -252,9 +252,9 @@ also carries **who is answering**: a device that starts or ends a turn in a
 synced conversation posts `/v1/sync/working`, and the other sockets get
 `working {cid, from, device_name, working, at}`; the apps show *kwai is
 working…* under the last message until `working: false` arrives, the reply
-itself lands, or ten minutes pass. The relay keeps these in memory only. By
-default only the main conversation is synced; side chats travel only from and to
-devices that turned *Also sync side chats* on. Nothing else is synchronised:
+itself lands, or ten minutes pass. The relay keeps these in memory only. Every
+conversation is synced by default; side chats stay on their device for a device
+that turned *Also sync side chats* off. Nothing else is synchronised:
 keys, providers and settings stay where they were entered, and files and images
 stay on the device that made them. How the apps use it is in
 [every-device.md](every-device.md#the-same-conversations-everywhere).

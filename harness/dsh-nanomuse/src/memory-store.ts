@@ -22,16 +22,6 @@ export interface MemoryRecord extends CandidateMemory {
   deleted: number // 0 or 1
 }
 
-export interface EpisodeRecord {
-  id: string
-  thread_id: string
-  start_time: number
-  end_time: number
-  summary: string
-  search_text: string
-  updated_at: number
-}
-
 export class MemoryStore {
   readonly db: DatabaseSync
 
@@ -64,24 +54,8 @@ export class MemoryStore {
         search_text
       );
 
-      CREATE TABLE IF NOT EXISTS episodes (
-        id TEXT PRIMARY KEY NOT NULL,
-        thread_id TEXT NOT NULL,
-        start_time INTEGER NOT NULL,
-        end_time INTEGER NOT NULL,
-        summary TEXT NOT NULL,
-        search_text TEXT NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-
-      CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts USING fts5(
-        id UNINDEXED,
-        search_text
-      );
-
       CREATE INDEX IF NOT EXISTS idx_memories_sync ON memories(updated_at, deleted);
       CREATE INDEX IF NOT EXISTS idx_memories_hot ON memories(is_archived, is_pinned, updated_at);
-      CREATE INDEX IF NOT EXISTS idx_episodes_thread ON episodes(thread_id, end_time);
     `)
   }
 

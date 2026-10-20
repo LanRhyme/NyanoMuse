@@ -104,7 +104,7 @@ export const en = {
   syncNotReady: 'Sync is not up yet; try again in a moment.',
   // this device's own switch (C9)
   syncSide: 'Also sync side chats',
-  syncSideWhy: "Off: side chats stay on this device. On: this device's side chats go to the account and the other devices' side chats come here.",
+  syncSideWhy: "On: this device's side chats go to the account and the other devices' side chats come here. Off: side chats stay on this device.",
   // under a turn written on another device of the account (C8)
   chFrom: 'From {device}',
   // under the other device's last prompt while it works (C9)
@@ -1549,7 +1549,7 @@ export const zh: typeof en = {
   syncOffConfirm: '关闭后会从自建中继删除已同步的对话。每台设备上的对话保留。',
   syncNotReady: '同步还没就绪，稍后再试。',
   syncSide: '同时同步旁聊',
-  syncSideWhy: '关：旁聊只留在本机。开：本机的旁聊上传到账号，其他设备的旁聊也会同步过来。',
+  syncSideWhy: '开：本机的旁聊上传到账号，其他设备的旁聊也会同步过来。关：旁聊只留在本机。',
   chFrom: '来自 {device}',
   chWorking: '{device} 正在处理…',
   capsuleHands: '操作屏幕',

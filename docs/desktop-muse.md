@@ -522,9 +522,9 @@ page it opened, named for the page you came from; a pick in the sidebar starts f
 - **Data controls**: *We take your privacy seriously* with the privacy policy, *Sync
   conversations between my devices* (the account's switch, with how many chats and
   messages the relay keeps and *Delete synced conversations*) and under it *Also sync
-  side chats* (同时同步旁聊; this computer's own switch, off by default; *Off: side
-  chats stay on this device. On: this device's side chats go to the account and the
-  other devices' side chats come here*; see [every-device.md](every-device.md)), *Help
+  side chats* (同时同步旁聊; this computer's own switch, on by default; *On: this
+  device's side chats go to the account and the other devices' side chats come
+  here. Off: side chats stay on this device*; see [every-device.md](every-device.md)), *Help
   improve nanoMuse's AI models* (the relay's switch, with how many turns it kept and
   *Delete*), as on every other app; then *On this computer*: **Import memory**,
   **Download your agent data** (a zip in Downloads: the account snapshot without the

@@ -26,13 +26,13 @@ addressed to another device (``Thread.device``) and chats another device opened 
 (``Thread.remote_from``) are not synced — the other device has the same conversation as
 its own.
 
-**Main first** (C9, relay 0.20). By default only the main conversation syncs: pushes send
-``kind: main`` alone and pulls ask for ``scope=main``. *Settings → Data controls → Also sync
-side chats* (``side_chats`` here, default from ``[sync] side_chats``) turns the side chats
-on for this device: they are pushed too, pulls ask for ``scope=all``, and the moment it is
-turned on one pull from ``since=0&scope=all&tail=300`` brings the other devices' side chats
-(idempotent by ``mid`` / ``cid``). Off again stops pushing and pulling them; what was synced
-stays where it is. A fresh device's first pull asks for the **tail** — the newest 300
+**Every conversation** (C9, relay 0.20). By default everything syncs: pushes send the main
+and the side chats, and pulls ask for ``scope=all``. *Settings → Data controls → Also sync
+side chats* (``side_chats`` here, default from ``[sync] side_chats``) turns that off for this
+device: pushes send ``kind: main`` alone and pulls ask for ``scope=main``, so its side chats
+stay where they were written and no other device's arrive. Turning it back on does one pull
+from ``since=0&scope=all&tail=300`` for the other devices' side chats (idempotent by ``mid``
+/ ``cid``). A fresh device's first pull asks for the **tail** — the newest 300
 messages and their conversations — so the chat is on screen in seconds; older history stays
 on the devices that wrote it. **Presence**: a turn that starts on a synced conversation
 posts ``working: true`` to the relay right after the person's message went up, and
@@ -182,7 +182,7 @@ class ConversationSync:
 
     @property
     def side_chats(self) -> bool:
-        return bool(self.state.get("side_chats", False))
+        return bool(self.state.get("side_chats", True))
 
     @property
     def scope(self) -> str:
