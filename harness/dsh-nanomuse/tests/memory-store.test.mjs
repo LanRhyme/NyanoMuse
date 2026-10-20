@@ -116,6 +116,19 @@ test('MemoryStore deduplicates records by content when id is omitted', () => {
   store.close()
 })
 
+test('MemoryStore inserts properly when explicit new id is provided even if content matches', () => {
+  const store = new MemoryStore(':memory:')
+  const m1 = store.upsert({ content: '临时脚本放 ~/tmp' })
+  assert.ok(m1, 'First insert should succeed')
+
+  const m2 = store.upsert({ id: 'mem_nonexistent', content: '临时脚本放 ~/tmp' })
+  assert.ok(m2, 'Second insert with explicit id must not return null')
+  assert.equal(m2.id, 'mem_nonexistent')
+  assert.equal(store.activeCount(), 2)
+
+  store.close()
+})
+
 test('MemoryStore end-to-end search achieves 8/8 recall on golden dataset', async () => {
   const { readFileSync } = await import('node:fs')
   const fixtureUrl = new URL('../../../tests/fixtures/memory/memory_eval_dataset.json', import.meta.url)

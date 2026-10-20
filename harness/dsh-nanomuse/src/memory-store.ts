@@ -103,11 +103,16 @@ export class MemoryStore {
   }): MemoryRecord {
     const now = Date.now()
     const content = input.content.trim()
-    let existing = input.id ? this.get(input.id) : null
-    if (!existing) {
+    let existing: MemoryRecord | null = null
+    let memId: string
+
+    if (input.id) {
+      memId = input.id
+      existing = this.get(input.id)
+    } else {
       existing = this.findByContent(content)
+      memId = existing ? existing.id : `mem_${Math.random().toString(36).slice(2, 10)}_${now.toString(36)}`
     }
-    const memId: string = input.id || existing?.id || `mem_${Math.random().toString(36).slice(2, 10)}_${now.toString(36)}`
 
     const search_text = tokenizeForSearch(content)
     const category = input.category ?? existing?.category ?? 'preference'
@@ -217,7 +222,7 @@ export class MemoryStore {
 
     if (ftsQuery) {
       try {
-        const rows = this.db.prepare('SELECT id FROM memories_fts WHERE memories_fts MATCH ?;').all(ftsQuery) as Array<{ id: string }>
+        const rows = this.db.prepare('SELECT id FROM memories_fts WHERE memories_fts MATCH ? LIMIT 500;').all(ftsQuery) as Array<{ id: string }>
         candidateIds = rows.map((r) => r.id)
       } catch {
         // FTS syntax fallback: query returned nothing or syntax issue

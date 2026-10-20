@@ -636,8 +636,14 @@ class SyncStore:
                     importance = max(0.0, min(1.0, float(payload.get("importance") or 0.5)))
                 except (TypeError, ValueError):
                     importance = 0.5
-                client_time = int(op.get("client_time") or t)
-                updated_at = int(payload.get("updated_at") or client_time)
+                try:
+                    client_time = int(op.get("client_time") or t)
+                except (TypeError, ValueError):
+                    client_time = t
+                try:
+                    updated_at = int(payload.get("updated_at") or client_time)
+                except (TypeError, ValueError):
+                    updated_at = client_time
                 deleted = 1 if payload.get("deleted") or op_type == "delete_memory" else 0
 
                 seq = self._next_seq(c, account_id)
