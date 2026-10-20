@@ -838,6 +838,198 @@ internal fun ToolCallPill(
     }
 }
 
+@Composable
+internal fun ToolCallGroup(
+    item: FlatChatItem.AssistantToolGroup,
+    isStreaming: Boolean,
+    onRetry: (() -> Unit)? = null,
+    onStop: (() -> Unit)? = null,
+    onOpenTerminalWithCommand: (String) -> Unit = {},
+    onOpenDetail: (String) -> Unit = {},
+    onRerunFromHere: (() -> Unit)? = null,
+    onCopyDetails: (() -> Unit)? = null,
+) {
+    // Default collapsed, can be toggled by user tap
+    var expanded by remember(item.groupId) { mutableStateOf(false) }
+
+    val anyRunning = item.blocks.any {
+        it.toolStatus == ToolBlockStatus.RUNNING ||
+            it.toolStatus == ToolBlockStatus.STREAMING ||
+            it.toolStatus == ToolBlockStatus.PENDING
+    }
+    val anyFailed = item.blocks.any {
+        it.toolStatus == ToolBlockStatus.FAILED || it.toolStatus == ToolBlockStatus.TIMEOUT
+    }
+    val anyCancelled = item.blocks.any {
+        it.toolStatus == ToolBlockStatus.CANCELLED
+    }
+    val activeBlock = item.blocks.lastOrNull {
+        it.toolStatus == ToolBlockStatus.RUNNING ||
+            it.toolStatus == ToolBlockStatus.STREAMING ||
+            it.toolStatus == ToolBlockStatus.PENDING
+    } ?: item.blocks.lastOrNull()
+
+    val runningIndex = if (activeBlock != null) item.blocks.indexOf(activeBlock) + 1 else item.blocks.size
+
+    val totalDurationMs = item.blocks.sumOf { it.durationMs }
+    val durationText = if (totalDurationMs > 0 && !anyRunning) {
+        val seconds = totalDurationMs / 1000.0
+        if (seconds < 10) String.format("%.1fs", seconds)
+        else String.format("%.0fs", seconds)
+    } else null
+
+    val groupIcon = when {
+        anyFailed -> Icons.Default.Close
+        anyCancelled -> Icons.Default.Block
+        anyRunning -> toolIconFor(activeBlock?.toolName ?: "")
+        else -> toolIconFor(item.blocks.firstOrNull()?.toolName ?: "")
+    }
+
+    val iconTint = when {
+        anyFailed -> ToolErrorColor
+        anyCancelled -> ToolCancelColor
+        anyRunning -> toolAccentColor(activeBlock?.toolName ?: "")
+        else -> ToolCheckColor
+    }
+
+    val headerText = when {
+        anyRunning && activeBlock != null -> {
+            val title = activeBlock.toolTitle.ifEmpty { activeBlock.toolName }
+            if (item.blocks.size == 1) "执行中: $title"
+            else "执行中: $title ($runningIndex/${item.blocks.size})"
+        }
+        anyFailed -> if (item.blocks.size == 1) {
+            val first = item.blocks.first()
+            "执行出错: ${first.toolTitle.ifEmpty { first.toolName }}"
+        } else "执行出错 (${item.blocks.size} 个工具/命令)"
+        anyCancelled -> if (item.blocks.size == 1) "执行已取消" else "执行已取消 (${item.blocks.size} 个工具/命令)"
+        else -> {
+            if (item.blocks.size == 1) {
+                val first = item.blocks.first()
+                val name = first.toolTitle.ifEmpty { first.toolName }
+                if (durationText != null) "已执行 $name · 耗时 $durationText"
+                else "已执行 $name"
+            } else {
+                if (durationText != null) "已执行 ${item.blocks.size} 个工具/命令 · 耗时 $durationText"
+                else "已执行 ${item.blocks.size} 个工具/命令"
+            }
+        }
+    }
+
+    val shimmerTranslate = if (anyRunning) {
+        val transition = rememberInfiniteTransition(label = "toolGroupShimmer")
+        transition.animateFloat(
+            initialValue = -1f,
+            targetValue = 2f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2800, easing = LinearEasing),
+            ),
+            label = "toolGroupShimmerTranslate",
+        )
+    } else null
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+    ) {
+        // Collapsed / Summary capsule
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier.weight(1f, fill = false)) {
+                Row(
+                    modifier = Modifier
+                        .background(ChatColors.toolCapsuleBg, CircleShape)
+                        .border(0.5.dp, ChatColors.toolBorder, CircleShape)
+                        .clip(CircleShape)
+                        .then(
+                            if (shimmerTranslate != null) {
+                                Modifier.drawWithContent {
+                                    drawContent()
+                                    val w = size.width
+                                    val band = w * 0.6f
+                                    val x = shimmerTranslate.value * w
+                                    drawRect(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0f),
+                                                Color.White.copy(alpha = 0.18f),
+                                                Color.White.copy(alpha = 0f),
+                                            ),
+                                            start = Offset(x, 0f),
+                                            end = Offset(x + band, 0f),
+                                        ),
+                                    )
+                                }
+                            } else Modifier,
+                        )
+                        .clickable { expanded = !expanded }
+                        .padding(horizontal = 12.dp)
+                        .height(36.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        groupIcon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(14.dp),
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = headerText,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+
+                    if (anyRunning) {
+                        StreamingDotsText()
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Icon(
+                        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (expanded) "收起" else "展开",
+                        tint = ChatColors.secondaryText,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
+
+        // Expanded items
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded,
+            enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 4.dp, bottom = 2.dp),
+            ) {
+                for (block in item.blocks) {
+                    ToolCallPill(
+                        block = block,
+                        allToolBlocks = item.allToolBlocks,
+                        onRetry = if (item.isLastCancelled && onRetry != null) onRetry else null,
+                        onStop = onStop,
+                        onOpenTerminalWithCommand = onOpenTerminalWithCommand,
+                        onOpenDetail = onOpenDetail,
+                        onRerunFromHere = onRerunFromHere,
+                        onCopyDetails = onCopyDetails,
+                    )
+                }
+            }
+        }
+    }
+}
+
 // iOS-style bouncing dots (3 dots, easeInOut, staggered delay)
 // [T-android-split-chat] BouncingDots / StreamingDotsText / TypingIndicator
 // moved verbatim to ChatIndicators.kt (same package, now `internal`).

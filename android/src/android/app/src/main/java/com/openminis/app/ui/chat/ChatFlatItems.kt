@@ -424,6 +424,17 @@ internal sealed class FlatChatItem {
         override val contentType = "thinking"
     }
 
+    data class AssistantToolGroup(
+        val messageId: String,
+        val groupId: String,
+        val blocks: List<AssistantBlock>,
+        val allToolBlocks: List<AssistantBlock>,
+        val isLastCancelled: Boolean = false,
+    ) : FlatChatItem() {
+        override val key = "toolgroup:$messageId:$groupId"
+        override val contentType = "tool_group"
+    }
+
     data class AssistantToolUse(
         val messageId: String,
         val block: AssistantBlock,
@@ -588,6 +599,7 @@ internal fun buildFlatChatItems(
                 messageMarkdown = item.messageMarkdown,
             )
             is FlatChatItem.AssistantThinking -> item.copy(messageId = "${item.messageId}#$n")
+            is FlatChatItem.AssistantToolGroup -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantToolUse -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantInfo -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.NanoMuseNaming -> item.copy(messageId = "${item.messageId}#$n") // nanoMuse
@@ -605,6 +617,32 @@ internal fun buildFlatChatItems(
             )
         }
     }
+    val pendingToolBlocks = mutableListOf<AssistantBlock>()
+    var currentGroupMessageId: String? = null
+    var currentGroupHasCancelled = false
+
+    fun flushToolGroup() {
+        if (pendingToolBlocks.isEmpty()) return
+        if (!showSteps) {
+            pendingToolBlocks.clear()
+            currentGroupMessageId = null
+            currentGroupHasCancelled = false
+            return
+        }
+        val msgId = currentGroupMessageId ?: messages.firstOrNull()?.id ?: "tool"
+        val toolList = pendingToolBlocks.toList()
+        out.add(dedupe(FlatChatItem.AssistantToolGroup(
+            messageId = msgId,
+            groupId = toolList.first().id,
+            blocks = toolList,
+            allToolBlocks = toolList,
+            isLastCancelled = currentGroupHasCancelled,
+        )))
+        pendingToolBlocks.clear()
+        currentGroupMessageId = null
+        currentGroupHasCancelled = false
+    }
+
     for (idx in fromIndex until messages.size) {
         val message = messages[idx]
         // [T-android-perf-logging] Per-100-message progress breadcrumb.
@@ -619,6 +657,7 @@ internal fun buildFlatChatItems(
             )
         }
         if (message.role == "user") {
+            flushToolGroup()
             // [T-android-candidate-bubble-gap] Flag when the previous message
             // is also a user message so the bubble can add a separating top
             // gap — back-to-back candidate / queued sends otherwise have no
@@ -678,6 +717,7 @@ internal fun buildFlatChatItems(
             when (block.kind) {
                 "text" -> {
                     if (block.content.isNotEmpty()) {
+                        flushToolGroup()
                         val isLastText = index == lastTextIdx
                         // nanoMuse: keep each assistant text block in a single markdown
                         // bubble (matching iOS) so lists, headings, paragraphs, and code
@@ -693,29 +733,55 @@ internal fun buildFlatChatItems(
                         )))
                     }
                 }
-                "thinking" -> if (showSteps) out.add(dedupe(FlatChatItem.AssistantThinking( // nanoMuse: a step
-                    messageId = message.id,
-                    block = block,
-                    isLast = block.id == lastThinkingId,
-                    messageIsStreaming = message.isStreaming,
-                    messageThinkingLevel = message.thinkingLevel,
-                    isLastBlockOverall = block.id == lastBlockId,
-                )))
-                "info" -> out.add(dedupe(FlatChatItem.AssistantInfo(
-                    messageId = message.id,
-                    block = block,
-                )))
-                "nm_naming" -> out.add(dedupe(FlatChatItem.NanoMuseNaming(message.id))) // nanoMuse
-                "nm_avatar_options" -> out.add(dedupe(FlatChatItem.NanoMuseAvatarOptions(message.id))) // nanoMuse
-                "nm_avatar_share" -> out.add(dedupe(FlatChatItem.NanoMuseAvatarShare(message.id, block.content))) // nanoMuse
-                "nm_avatar_confirm" -> out.add(dedupe(FlatChatItem.NanoMuseAvatarConfirm(message.id, block.content))) // nanoMuse
-                "nm_allowance" -> out.add(dedupe(FlatChatItem.NanoMuseAllowance(message.id))) // nanoMuse
-                else -> if (showSteps) out.add(dedupe(FlatChatItem.AssistantToolUse( // nanoMuse: a step
-                    messageId = message.id,
-                    block = block,
-                    allToolBlocks = toolPillBlocks,
-                    isLastCancelled = block.id == lastCancelledToolId,
-                )))
+                "thinking" -> {
+                    if (showSteps && pendingToolBlocks.isEmpty()) {
+                        out.add(dedupe(FlatChatItem.AssistantThinking( // nanoMuse: a step
+                            messageId = message.id,
+                            block = block,
+                            isLast = block.id == lastThinkingId,
+                            messageIsStreaming = message.isStreaming,
+                            messageThinkingLevel = message.thinkingLevel,
+                            isLastBlockOverall = block.id == lastBlockId,
+                        )))
+                    }
+                }
+                "info" -> {
+                    flushToolGroup()
+                    out.add(dedupe(FlatChatItem.AssistantInfo(
+                        messageId = message.id,
+                        block = block,
+                    )))
+                }
+                "nm_naming" -> {
+                    flushToolGroup()
+                    out.add(dedupe(FlatChatItem.NanoMuseNaming(message.id))) // nanoMuse
+                }
+                "nm_avatar_options" -> {
+                    flushToolGroup()
+                    out.add(dedupe(FlatChatItem.NanoMuseAvatarOptions(message.id))) // nanoMuse
+                }
+                "nm_avatar_share" -> {
+                    flushToolGroup()
+                    out.add(dedupe(FlatChatItem.NanoMuseAvatarShare(message.id, block.content))) // nanoMuse
+                }
+                "nm_avatar_confirm" -> {
+                    flushToolGroup()
+                    out.add(dedupe(FlatChatItem.NanoMuseAvatarConfirm(message.id, block.content))) // nanoMuse
+                }
+                "nm_allowance" -> {
+                    flushToolGroup()
+                    out.add(dedupe(FlatChatItem.NanoMuseAllowance(message.id))) // nanoMuse
+                }
+                else -> {
+                    // Tool / command block (tool_use / shell_execute / etc.)
+                    if (currentGroupMessageId == null) {
+                        currentGroupMessageId = message.id
+                    }
+                    if (block.id == lastCancelledToolId) {
+                        currentGroupHasCancelled = true
+                    }
+                    pendingToolBlocks.add(block)
+                }
             }
         }
 
@@ -752,6 +818,7 @@ internal fun buildFlatChatItems(
         // Legacy fallback: pre-migration sessions stored all text in message.content
         // with no text-kind blocks. Render it after blocks in that case only.
         if (!hasAnyTextBlock && message.content.isNotEmpty()) {
+            flushToolGroup()
             out.add(dedupe(FlatChatItem.AssistantLegacyContent(
                 messageId = message.id,
                 content = message.content,
@@ -761,9 +828,11 @@ internal fun buildFlatChatItems(
 
         // Inline error banner
         message.error?.let {
+            flushToolGroup()
             out.add(dedupe(FlatChatItem.AssistantError(message.id, it)))
         }
     }
+    flushToolGroup()
     return out
 }
 
