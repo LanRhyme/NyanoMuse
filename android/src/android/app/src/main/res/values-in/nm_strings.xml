@@ -1201,4 +1201,13 @@
     <string name="nm_companion_quiet_hours_desc">Waktu hening dari %1$02d:00 hingga %2$02d:00</string>
     <string name="nm_companion_cooldown">Interval Minimum</string>
     <string name="nm_companion_daily_limit">Batas Harian</string>
+
+    <string name="nm_companion_scenarios_title">Skenario yang Diizinkan</string>
+    <string name="nm_companion_scenario_morning">Salam Pagi (07:00–09:30)</string>
+    <string name="nm_companion_scenario_evening">Perhatian Malam (21:30–23:00)</string>
+    <string name="nm_companion_scenario_curious">Sapaan Penasaran (4j+ offline)</string>
+    <string name="nm_companion_scenario_longing">Rindu &amp; Menanti (10j+ offline)</string>
+    <string name="nm_companion_scenario_calm">Teman yang Tenang (1j–4j offline)</string>
+    <string name="nm_companion_hours_val">%1$d jam</string>
+    <string name="nm_companion_daily_limit_val">Maks %1$d kali / hari</string>
 </resources>

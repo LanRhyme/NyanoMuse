@@ -1201,4 +1201,13 @@
     <string name="nm_companion_quiet_hours_desc">%1$02d:00 から %2$02d:00 までは通知しません</string>
     <string name="nm_companion_cooldown">最小間隔</string>
     <string name="nm_companion_daily_limit">1日の上限回数</string>
+
+    <string name="nm_companion_scenarios_title">許可するシナリオ</string>
+    <string name="nm_companion_scenario_morning">朝の元気な挨拶 (07:00〜09:30)</string>
+    <string name="nm_companion_scenario_evening">おやすみ前の気遣い (21:30〜23:00)</string>
+    <string name="nm_companion_scenario_curious">気まぐれな様子見 (離線4時間以上)</string>
+    <string name="nm_companion_scenario_longing">会えなくて寂しい時 (離線10時間以上)</string>
+    <string name="nm_companion_scenario_calm">静かな寄り添い (離線1〜4時間)</string>
+    <string name="nm_companion_hours_val">%1$d 時間</string>
+    <string name="nm_companion_daily_limit_val">1日最大 %1$d 回</string>
 </resources>

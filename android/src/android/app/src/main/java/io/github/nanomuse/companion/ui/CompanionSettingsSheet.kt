@@ -154,7 +154,7 @@ fun CompanionSettingsSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "${minInterval}小时",
+                            text = stringResource(R.string.nm_companion_hours_val, minInterval),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -177,7 +177,7 @@ fun CompanionSettingsSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "每天上限 ${dailyMax} 次",
+                            text = stringResource(R.string.nm_companion_daily_limit_val, dailyMax),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -186,7 +186,7 @@ fun CompanionSettingsSheet(
                 }
 
                 MuseGap()
-                MuseSectionLabel("允许的主动场景")
+                MuseSectionLabel(stringResource(R.string.nm_companion_scenarios_title))
                 MuseCard {
                     Column(
                         modifier = Modifier
@@ -195,13 +195,13 @@ fun CompanionSettingsSheet(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         val scenarioItems = listOf(
-                            "morning_greeting" to "晨间元气问候 (07:00~09:30)",
-                            "evening_care" to "晚安温馨关怀 (21:30~23:00)",
-                            "curious_checkin" to "闲置好奇探头 (离线 4h+)",
-                            "longing_miss" to "长久思念挂念 (离线 10h+)",
-                            "calm_companion" to "日间恬静陪伴 (离线 1h~4h)"
+                            "morning_greeting" to R.string.nm_companion_scenario_morning,
+                            "evening_care" to R.string.nm_companion_scenario_evening,
+                            "curious_checkin" to R.string.nm_companion_scenario_curious,
+                            "longing_miss" to R.string.nm_companion_scenario_longing,
+                            "calm_companion" to R.string.nm_companion_scenario_calm
                         )
-                        scenarioItems.forEachIndexed { index, (tag, label) ->
+                        scenarioItems.forEachIndexed { index, (tag, labelRes) ->
                             val isSelected = CompanionPrefs.isScenarioAllowed(preferredScenarios, tag)
                             Row(
                                 modifier = Modifier
@@ -211,7 +211,7 @@ fun CompanionSettingsSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = label,
+                                    text = stringResource(labelRes),
                                     fontSize = 14.sp,
                                     color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                                 )

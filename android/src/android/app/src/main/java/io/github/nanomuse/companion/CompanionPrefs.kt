@@ -70,16 +70,30 @@ object CompanionPrefs {
     fun getDailyMaxCount(prefs: SharedPreferences): Int =
         prefs.getInt(KEY_DAILY_MAX_COUNT, DEFAULT_DAILY_MAX_COUNT)
 
-    fun getPreferredScenarios(prefs: SharedPreferences): Set<String> =
-        prefs.getStringSet(KEY_PREFERRED_SCENARIOS, DEFAULT_PREFERRED_SCENARIOS) ?: DEFAULT_PREFERRED_SCENARIOS
+    fun normalizeScenario(scenario: String): String {
+        return when (scenario) {
+            "morning", "morning_greeting" -> "morning_greeting"
+            "evening", "evening_care" -> "evening_care"
+            "curious", "curious_checkin" -> "curious_checkin"
+            "longing", "longing_miss" -> "longing_miss"
+            "calm", "calm_companion" -> "calm_companion"
+            else -> scenario
+        }
+    }
+
+    fun getPreferredScenarios(prefs: SharedPreferences): Set<String> {
+        val raw = prefs.getStringSet(KEY_PREFERRED_SCENARIOS, null) ?: DEFAULT_PREFERRED_SCENARIOS
+        return raw.map { normalizeScenario(it) }.toSet()
+    }
 
     fun setPreferredScenarios(prefs: SharedPreferences, scenarios: Set<String>) {
-        prefs.edit().putStringSet(KEY_PREFERRED_SCENARIOS, scenarios).apply()
+        val normalized = scenarios.map { normalizeScenario(it) }.toSet()
+        prefs.edit().putStringSet(KEY_PREFERRED_SCENARIOS, normalized).apply()
     }
 
     fun isScenarioAllowed(preferred: Set<String>, tag: String): Boolean {
-        if (preferred.contains(tag)) return true
-        return preferred.any { p -> tag.startsWith(p) || p.startsWith(tag) }
+        val normTag = normalizeScenario(tag)
+        return preferred.map { normalizeScenario(it) }.contains(normTag)
     }
 
     fun getLastRealUserMessageTime(prefs: SharedPreferences): Long =

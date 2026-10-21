@@ -1206,4 +1206,13 @@
     <string name="nm_companion_quiet_hours_desc">Période silencieuse de %1$02d:00 à %2$02d:00</string>
     <string name="nm_companion_cooldown">Intervalle minimum</string>
     <string name="nm_companion_daily_limit">Plafond quotidien</string>
+
+    <string name="nm_companion_scenarios_title">Scénarios autorisés</string>
+    <string name="nm_companion_scenario_morning">Salutation matinale (07:00–09:30)</string>
+    <string name="nm_companion_scenario_evening">Soin du soir (21:30–23:00)</string>
+    <string name="nm_companion_scenario_curious">Petite prise de nouvelles (4h+ inactif)</string>
+    <string name="nm_companion_scenario_longing">Pensée affectueuse (10h+ inactif)</string>
+    <string name="nm_companion_scenario_calm">Présence calme (1h–4h inactif)</string>
+    <string name="nm_companion_hours_val">%1$d heures</string>
+    <string name="nm_companion_daily_limit_val">Max %1$d fois / jour</string>
 </resources>

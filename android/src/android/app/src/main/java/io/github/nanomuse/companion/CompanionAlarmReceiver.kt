@@ -69,11 +69,16 @@ class CompanionAlarmReceiver : BroadcastReceiver() {
             CompanionPrefs.recordLastRealUserMessageTime(prefs, lastUserTime)
         }
 
-        // 4. Query active interaction days (cached once per day with local timezone offset)
+        // 4. Query active interaction days (excluding routine wakes, cached once per day with local timezone offset)
         var activeDays = CompanionPrefs.getCachedActiveDays(prefs, now)
         if (activeDays == null) {
             val tzOffsetMs = java.util.TimeZone.getDefault().getOffset(now).toLong()
-            val countedDays = app.chatRepository.dao.distinctUserMessageDays(mainChatId, tzOffsetMs)
+            val allStamps = app.chatRepository.dao.allUserMessageStamps(mainChatId)
+            val countedDays = allStamps
+                .filter { io.github.nanomuse.chat.RoutineWakes.wakeFor(it.id) == null }
+                .map { (it.createdAt + tzOffsetMs) / 86400000L }
+                .distinct()
+                .size
             activeDays = maxOf(1, countedDays)
             CompanionPrefs.setCachedActiveDays(prefs, activeDays, now)
         }

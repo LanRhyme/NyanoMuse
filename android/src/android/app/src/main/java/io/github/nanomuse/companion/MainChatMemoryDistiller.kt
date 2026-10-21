@@ -62,25 +62,25 @@ object MainChatMemoryDistiller {
 
         scope.launch {
             try {
-                // 1. Archive dropped messages locally to preserve full verbatim history (P2-3)
-                archiveDroppedMessages(context, messages)
-
-                // 2. Filter out already distilled messages using persistent cursor and ID set (P1-3)
+                // 1. Filter out already processed messages using persistent ID set
                 val processedIds = getDistilledIds(context)
+                val newlyProcessedIds = mutableSetOf<String>()
+
+                // 2. Archive dropped messages locally to preserve full verbatim history (deduplicated & rotated)
+                archiveDroppedMessages(context, messages, processedIds)
+
+                // 3. Filter unconsumed user messages for fact/bond distillation
                 val unconsumedMessages = messages.filter { msg ->
                     msg.role == LLMMessage.Role.USER && (msg.dbMessageId == null || !processedIds.contains(msg.dbMessageId))
                 }
 
-                val newlyProcessedIds = mutableSetOf<String>()
-
                 for (msg in unconsumedMessages) {
                     val text = msg.content.trim()
                     if (text.isBlank() || text.startsWith("（") || text.startsWith("<")) {
-                        msg.dbMessageId?.let { newlyProcessedIds.add(it) }
                         continue
                     }
 
-                    // 3. Extract facts & preferences via robust MemoryExtractor (11 patterns + privacy check)
+                    // 4. Extract facts & preferences via robust MemoryExtractor (11 patterns + privacy check)
                     val facts = MemoryExtractor.extractPassiveMemories(text)
                     for (fact in facts) {
                         AppLogger.info(TAG, "Distilling fact from Main Chat: ${fact.content} (${fact.category})")
@@ -91,7 +91,7 @@ object MainChatMemoryDistiller {
                         )
                     }
 
-                    // 4. Extract companion emotional bonds
+                    // 5. Extract companion emotional bonds
                     if (isBondCandidate(text)) {
                         AppLogger.info(TAG, "Distilling companion bond: ${text.take(30)}...")
                         StructuredMemory.upsert(
@@ -101,11 +101,14 @@ object MainChatMemoryDistiller {
                             source = "distilled"
                         )
                     }
+                }
 
+                // 6. Record all dropped message IDs so they won't be re-archived or re-distilled on future overflows
+                messages.forEach { msg ->
                     msg.dbMessageId?.let { newlyProcessedIds.add(it) }
                 }
 
-                // 5. Update cursor and ID tracker
+                // 7. Update cursor and ID tracker
                 setCursor(context, System.currentTimeMillis())
                 addDistilledIds(context, newlyProcessedIds)
             } catch (t: Throwable) {
@@ -116,13 +119,26 @@ object MainChatMemoryDistiller {
         }
     }
 
-    private fun archiveDroppedMessages(context: Context, messages: List<LLMMessage>) {
+    private fun archiveDroppedMessages(context: Context, messages: List<LLMMessage>, processedIds: Set<String>) {
         try {
+            val toArchive = messages.filter { msg ->
+                msg.dbMessageId == null || !processedIds.contains(msg.dbMessageId)
+            }
+            if (toArchive.isEmpty()) return
+
             val archiveDir = File(context.filesDir, "companion")
             if (!archiveDir.exists()) archiveDir.mkdirs()
             val file = File(archiveDir, "main_chat_dropped_archive.jsonl")
+
+            // 5MB file size limit with rotation
+            if (file.exists() && file.length() > 5 * 1024 * 1024L) {
+                val oldFile = File(archiveDir, "main_chat_dropped_archive.jsonl.old")
+                if (oldFile.exists()) oldFile.delete()
+                file.renameTo(oldFile)
+            }
+
             val now = System.currentTimeMillis()
-            val lines = messages.map { msg ->
+            val lines = toArchive.map { msg ->
                 JSONObject().apply {
                     put("role", msg.role.value)
                     put("content", msg.content)

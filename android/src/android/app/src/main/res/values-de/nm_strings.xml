@@ -1205,4 +1205,13 @@
     <string name="nm_companion_quiet_hours_desc">Ruhezeit von %1$02d:00 bis %2$02d:00</string>
     <string name="nm_companion_cooldown">Mindestintervall</string>
     <string name="nm_companion_daily_limit">Tägliches Maximum</string>
+
+    <string name="nm_companion_scenarios_title">Erlaubte Szenarien</string>
+    <string name="nm_companion_scenario_morning">Morgengruß (07:00–09:30)</string>
+    <string name="nm_companion_scenario_evening">Abendfürsorge (21:30–23:00)</string>
+    <string name="nm_companion_scenario_curious">Neugierige Nachfrage (4 Std.+ inaktiv)</string>
+    <string name="nm_companion_scenario_longing">Vermissen &amp; Sehnsucht (10 Std.+ inaktiv)</string>
+    <string name="nm_companion_scenario_calm">Ruhige Begleitung (1–4 Std. inaktiv)</string>
+    <string name="nm_companion_hours_val">%1$d Stunden</string>
+    <string name="nm_companion_daily_limit_val">Max. %1$d-mal / Tag</string>
 </resources>

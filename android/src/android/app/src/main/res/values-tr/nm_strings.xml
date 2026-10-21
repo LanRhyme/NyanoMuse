@@ -1205,4 +1205,13 @@
     <string name="nm_companion_quiet_hours_desc">%1$02d:00 ile %2$02d:00 arası sessiz dönem</string>
     <string name="nm_companion_cooldown">Minimum Aralık</string>
     <string name="nm_companion_daily_limit">Günlük Üst Sınır</string>
+
+    <string name="nm_companion_scenarios_title">İzin Verilen Senaryolar</string>
+    <string name="nm_companion_scenario_morning">Sabah Karşılaması (07:00–09:30)</string>
+    <string name="nm_companion_scenario_evening">Akşam İlgisi (21:30–23:00)</string>
+    <string name="nm_companion_scenario_curious">Meraklı Hatır Sorma (4 saat+ çevrimdışı)</string>
+    <string name="nm_companion_scenario_longing">Özlem ve Sevgi (10 saat+ çevrimdışı)</string>
+    <string name="nm_companion_scenario_calm">Sakin Yoldaşlık (1–4 saat çevrimdışı)</string>
+    <string name="nm_companion_hours_val">%1$d saat</string>
+    <string name="nm_companion_daily_limit_val">Günde en fazla %1$d kez</string>
 </resources>

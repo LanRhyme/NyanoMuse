@@ -1183,4 +1183,13 @@
     <string name="nm_companion_quiet_hours_desc">Silent period from %1$02d:00 to %2$02d:00</string>
     <string name="nm_companion_cooldown">Minimum Interval</string>
     <string name="nm_companion_daily_limit">Daily Maximum</string>
+
+    <string name="nm_companion_scenarios_title">Allowed Scenarios</string>
+    <string name="nm_companion_scenario_morning">Morning Greeting (07:00–09:30)</string>
+    <string name="nm_companion_scenario_evening">Evening Care (21:30–23:00)</string>
+    <string name="nm_companion_scenario_curious">Curious Check-in (Offline 4h+)</string>
+    <string name="nm_companion_scenario_longing">Longing &amp; Miss (Offline 10h+)</string>
+    <string name="nm_companion_scenario_calm">Calm Companion (Offline 1h–4h)</string>
+    <string name="nm_companion_hours_val">%1$d hours</string>
+    <string name="nm_companion_daily_limit_val">Max %1$d times / day</string>
 </resources>

@@ -1201,4 +1201,13 @@
     <string name="nm_companion_quiet_hours_desc">%1$02d:00부터 %2$02d:00까지는 알리지 않습니다</string>
     <string name="nm_companion_cooldown">최소 간격</string>
     <string name="nm_companion_daily_limit">일일 최대 횟수</string>
+
+    <string name="nm_companion_scenarios_title">허용된 시나리오</string>
+    <string name="nm_companion_scenario_morning">아침 활기찬 인사 (07:00~09:30)</string>
+    <string name="nm_companion_scenario_evening">밤 따뜻한 안부 (21:30~23:00)</string>
+    <string name="nm_companion_scenario_curious">호기심 가득한 안부 (오프라인 4시간 이상)</string>
+    <string name="nm_companion_scenario_longing">그리움과 기다림 (오프라인 10시간 이상)</string>
+    <string name="nm_companion_scenario_calm">조용한 곁지기 (오프라인 1~4시간)</string>
+    <string name="nm_companion_hours_val">%1$d시간</string>
+    <string name="nm_companion_daily_limit_val">하루 최대 %1$d회</string>
 </resources>

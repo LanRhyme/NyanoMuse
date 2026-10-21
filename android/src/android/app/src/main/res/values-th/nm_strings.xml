@@ -1201,4 +1201,13 @@
     <string name="nm_companion_quiet_hours_desc">ช่วงเวลาเงียบตั้งแต่ %1$02d:00 ถึง %2$02d:00</string>
     <string name="nm_companion_cooldown">ช่วงเวลาขั้นต่ำ</string>
     <string name="nm_companion_daily_limit">ขีดจำกัดรายวัน</string>
+
+    <string name="nm_companion_scenarios_title">สถานการณ์ที่อนุญาต</string>
+    <string name="nm_companion_scenario_morning">ทักทายยามเช้า (07:00–09:30)</string>
+    <string name="nm_companion_scenario_evening">ห่วงใยยามค่ำคืน (21:30–23:00)</string>
+    <string name="nm_companion_scenario_curious">ทักทายด้วยความอยากรู้ (ออฟไลน์ 4 ชม.+)</string>
+    <string name="nm_companion_scenario_longing">คิดถึงและห่วงหา (ออฟไลน์ 10 ชม.+)</string>
+    <string name="nm_companion_scenario_calm">เคียงข้างอย่างเงียบสงบ (ออฟไลน์ 1–4 ชม.)</string>
+    <string name="nm_companion_hours_val">%1$d ชั่วโมง</string>
+    <string name="nm_companion_daily_limit_val">สูงสุด %1$d ครั้ง / วัน</string>
 </resources>

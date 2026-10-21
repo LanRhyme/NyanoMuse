@@ -204,13 +204,9 @@ interface ChatDao {
     @Query("SELECT id, created_at FROM messages WHERE session_id = :sessionId AND role = 'user' ORDER BY created_at DESC LIMIT :limit")
     suspend fun recentUserMessageStamps(sessionId: String, limit: Int = 20): List<MessageIdStamp>
 
-    // nanoMuse: companion emotion engine query for real last user message timestamp in main chat
-    @Query("SELECT created_at FROM messages WHERE session_id = :sessionId AND role = 'user' ORDER BY created_at DESC LIMIT 1")
-    suspend fun lastUserMessageCreatedAt(sessionId: String): Long?
-
-    // nanoMuse: count distinct interaction days with local timezone offset for intimacy computation
-    @Query("SELECT COUNT(DISTINCT ((created_at + :offsetMs) / 86400000)) FROM messages WHERE session_id = :sessionId AND role = 'user'")
-    suspend fun distinctUserMessageDays(sessionId: String, offsetMs: Long = 0L): Int
+    // nanoMuse: query all user message stamps in a session to calculate distinct real human interaction days
+    @Query("SELECT id, created_at FROM messages WHERE session_id = :sessionId AND role = 'user'")
+    suspend fun allUserMessageStamps(sessionId: String): List<MessageIdStamp>
 
     @Query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM messages WHERE session_id = :sessionId")
     suspend fun nextSortOrder(sessionId: String): Int

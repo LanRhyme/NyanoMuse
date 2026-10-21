@@ -1205,4 +1205,13 @@
     <string name="nm_companion_quiet_hours_desc">Tahimik na panahon mula %1$02d:00 hanggang %2$02d:00</string>
     <string name="nm_companion_cooldown">Pinakamababang Agwat</string>
     <string name="nm_companion_daily_limit">Pang-araw-araw na Limitasyon</string>
+
+    <string name="nm_companion_scenarios_title">Mga Pinapayagang Senaryo</string>
+    <string name="nm_companion_scenario_morning">Pagbati sa Umaga (07:00–09:30)</string>
+    <string name="nm_companion_scenario_evening">Pag-aalaga sa Gabi (21:30–23:00)</string>
+    <string name="nm_companion_scenario_curious">Mausisang Pangangamusta (4h+ offline)</string>
+    <string name="nm_companion_scenario_longing">Pangungulila (10h+ offline)</string>
+    <string name="nm_companion_scenario_calm">Payapang Pagsama (1h–4h offline)</string>
+    <string name="nm_companion_hours_val">%1$d oras</string>
+    <string name="nm_companion_daily_limit_val">Max %1$d beses / araw</string>
 </resources>

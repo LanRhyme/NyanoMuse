@@ -1209,4 +1209,13 @@
     <string name="nm_companion_quiet_hours_desc">Perioadă de liniște de la %1$02d:00 la %2$02d:00</string>
     <string name="nm_companion_cooldown">Interval minim</string>
     <string name="nm_companion_daily_limit">Limită zilnică</string>
+
+    <string name="nm_companion_scenarios_title">Scenarii permise</string>
+    <string name="nm_companion_scenario_morning">Salut de dimineață (07:00–09:30)</string>
+    <string name="nm_companion_scenario_evening">Grijă de seară (21:30–23:00)</string>
+    <string name="nm_companion_scenario_curious">Verificare curioasă (4h+ inactiv)</string>
+    <string name="nm_companion_scenario_longing">Dor de tine (10h+ inactiv)</string>
+    <string name="nm_companion_scenario_calm">Însoțire liniștită (1–4h inactiv)</string>
+    <string name="nm_companion_hours_val">%1$d ore</string>
+    <string name="nm_companion_daily_limit_val">Max %1$d ori / zi</string>
 </resources>

@@ -1178,4 +1178,13 @@
     <string name="nm_companion_quiet_hours_desc">%1$02d:00 至 %2$02d:00 期间保持静默</string>
     <string name="nm_companion_cooldown">最小触发间隔</string>
     <string name="nm_companion_daily_limit">每日主动上限</string>
+
+    <string name="nm_companion_scenarios_title">允许的主动场景</string>
+    <string name="nm_companion_scenario_morning">晨间元气问候 (07:00~09:30)</string>
+    <string name="nm_companion_scenario_evening">晚安温馨关怀 (21:30~23:00)</string>
+    <string name="nm_companion_scenario_curious">闲置好奇探头 (离线 4h+)</string>
+    <string name="nm_companion_scenario_longing">长久思念挂念 (离线 10h+)</string>
+    <string name="nm_companion_scenario_calm">日间恬静陪伴 (离线 1h~4h)</string>
+    <string name="nm_companion_hours_val">%1$d 小时</string>
+    <string name="nm_companion_daily_limit_val">每天上限 %1$d 次</string>
 </resources>
