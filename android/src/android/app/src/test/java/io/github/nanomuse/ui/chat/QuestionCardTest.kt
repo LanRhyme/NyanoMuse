@@ -150,4 +150,30 @@ class QuestionCardTest {
         )
         assertNull(error)
     }
+
+    @Test
+    fun `parseFromToolArgs detects multi select flags`() {
+        val jsonSnake = """
+            {
+              "question": "Select features",
+              "options": ["A", "B", "C"],
+              "is_multi_select": true
+            }
+        """.trimIndent()
+        assertEquals(true, QuestionCardParser.parseFromToolArgs(jsonSnake)?.isMultiSelect)
+
+        val jsonCamel = """
+            {
+              "questions": [
+                {
+                  "question": "Select features",
+                  "options": ["A", "B"],
+                  "multiSelect": true
+                }
+              ]
+            }
+        """.trimIndent()
+        assertEquals(true, QuestionCardParser.parseFromToolArgs(jsonCamel)?.isMultiSelect)
+    }
 }
+

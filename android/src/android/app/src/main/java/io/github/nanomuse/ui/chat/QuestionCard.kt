@@ -20,6 +20,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -137,7 +142,8 @@ object QuestionCardParser {
         return obj.optBoolean("is_multi_select", false) ||
             obj.optBoolean("multi_select", false) ||
             obj.optBoolean("isMultiSelect", false) ||
-            obj.optBoolean("multiSelect", false)
+            obj.optBoolean("multiSelect", false) ||
+            obj.optBoolean("multiple", false)
     }
 
     fun extractQuestion(rawText: String): Pair<String, QuestionCardData?> {
@@ -266,6 +272,10 @@ fun InteractiveQuestionCard(
         mutableStateOf(!isAnswered)
     }
 
+    var selectedOptions by remember(data) {
+        mutableStateOf<Set<String>>(emptySet())
+    }
+
     val containerShape = RoundedCornerShape(16.dp)
 
     Box(
@@ -380,14 +390,35 @@ fun InteractiveQuestionCard(
                         )
                     }
 
-                    Text(
-                        text = data.question,
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ChatColors.primaryText,
-                        lineHeight = 20.sp,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.weight(1f),
-                    )
+                    ) {
+                        Text(
+                            text = data.question,
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ChatColors.primaryText,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (data.isMultiSelect) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(accentColor.copy(alpha = 0.14f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                            ) {
+                                Text(
+                                    text = "多选",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor,
+                                )
+                            }
+                        }
+                    }
 
                     if (isAnswered) {
                         Row(
@@ -426,11 +457,15 @@ fun InteractiveQuestionCard(
 
                         val cleanOptionText = option.replace(Regex("""^\((Recommended|推荐)\)\s*""", RegexOption.IGNORE_CASE), "").trim()
 
-                        val isThisSelected = isAnswered && (
-                            selectedAnswer.equals(cleanOptionText, ignoreCase = true) ||
-                            selectedAnswer.startsWith(cleanOptionText, ignoreCase = true) ||
-                            cleanOptionText.startsWith(selectedAnswer, ignoreCase = true)
-                        )
+                        val isThisSelected = if (isAnswered) {
+                            val sel = selectedAnswer.orEmpty()
+                            val parts = sel.split(",", "，", "、", "\n").map { it.replace(Regex("""^\((Recommended|推荐)\)\s*""", RegexOption.IGNORE_CASE), "").trim() }.filter { it.isNotEmpty() }
+                            parts.any { it.equals(cleanOptionText, ignoreCase = true) || it.contains(cleanOptionText, ignoreCase = true) || cleanOptionText.contains(it, ignoreCase = true) }
+                        } else {
+                            if (data.isMultiSelect) {
+                                selectedOptions.contains(cleanOptionText)
+                            } else false
+                        }
 
                         val optionShape = RoundedCornerShape(11.dp)
                         val itemAlpha = if (!isAnswered || isThisSelected) 1f else 0.45f
@@ -458,26 +493,73 @@ fun InteractiveQuestionCard(
                                     shape = optionShape,
                                 )
                                 .then(
-                                    if (!isAnswered) Modifier.clickable { onOptionSelected(cleanOptionText) }
-                                    else Modifier
+                                    if (!isAnswered) {
+                                        Modifier.clickable {
+                                            if (data.isMultiSelect) {
+                                                selectedOptions = if (selectedOptions.contains(cleanOptionText)) {
+                                                    selectedOptions - cleanOptionText
+                                                } else {
+                                                    selectedOptions + cleanOptionText
+                                                }
+                                            } else {
+                                                onOptionSelected(cleanOptionText)
+                                            }
+                                        }
+                                    } else Modifier
                                 )
                                 .padding(horizontal = 13.dp, vertical = 10.dp),
                         ) {
-                            if (isThisSelected) {
+                            if (data.isMultiSelect) {
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .size(16.dp)
-                                        .background(accentColor, CircleShape),
+                                        .size(17.dp)
+                                        .clip(RoundedCornerShape(4.5.dp))
+                                        .background(if (isThisSelected) accentColor else Color.Transparent)
+                                        .border(
+                                            width = 1.3.dp,
+                                            color = if (isThisSelected) accentColor else ChatColors.secondaryText.copy(alpha = 0.4f * itemAlpha),
+                                            shape = RoundedCornerShape(4.5.dp),
+                                        ),
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(11.dp),
+                                    if (isThisSelected) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(12.dp),
+                                        )
+                                    }
+                                }
+                            } else {
+                                if (isThisSelected) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .background(accentColor, CircleShape),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(11.dp),
+                                        )
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .border(
+                                                width = 1.2.dp,
+                                                color = ChatColors.secondaryText.copy(alpha = 0.35f * itemAlpha),
+                                                shape = CircleShape,
+                                            ),
                                     )
                                 }
-                            } else if (isRecommended && !isAnswered) {
+                            }
+
+                            if (isRecommended && !isAnswered) {
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
@@ -492,16 +574,6 @@ fun InteractiveQuestionCard(
                                         color = accentColor,
                                     )
                                 }
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(14.dp)
-                                        .border(
-                                            width = 1.2.dp,
-                                            color = ChatColors.secondaryText.copy(alpha = 0.35f * itemAlpha),
-                                            shape = CircleShape,
-                                        ),
-                                )
                             }
 
                             Text(
@@ -511,6 +583,44 @@ fun InteractiveQuestionCard(
                                 color = if (isThisSelected) accentColor else ChatColors.primaryText.copy(alpha = itemAlpha),
                                 lineHeight = 18.5.sp,
                                 modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+
+                if (data.isMultiSelect && !isAnswered) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "已选 ${selectedOptions.size} 项",
+                            fontSize = 12.sp,
+                            color = ChatColors.secondaryText,
+                        )
+                        Button(
+                            onClick = {
+                                if (selectedOptions.isNotEmpty()) {
+                                    onOptionSelected(selectedOptions.joinToString(", "))
+                                }
+                            },
+                            enabled = selectedOptions.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = accentColor,
+                                disabledContainerColor = accentColor.copy(alpha = 0.25f),
+                            ),
+                            shape = RoundedCornerShape(999.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 5.dp),
+                            modifier = Modifier.height(32.dp),
+                        ) {
+                            Text(
+                                text = "确认提交",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (selectedOptions.isNotEmpty()) Color.White else Color.White.copy(alpha = 0.5f),
                             )
                         }
                     }
