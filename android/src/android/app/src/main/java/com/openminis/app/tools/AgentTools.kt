@@ -57,8 +57,16 @@ object AgentTools {
                 type = "string",
                 description = "Array of question objects or stringified JSON. Each question object contains: {\"question\": \"Question text\", \"options\": [\"(Recommended) Choice A\", \"Choice B\"], \"header\": \"Optional title\", \"multi_select\": false}.",
             ),
+            "question" to AgentToolParam(
+                type = "string",
+                description = "Single question text (alternative to questions array).",
+            ),
+            "options" to AgentToolParam(
+                type = "string",
+                description = "List of choices if providing a single question.",
+            ),
         ),
-        required = listOf("questions"),
+        required = emptyList(),
     )
     private fun shellExecuteDefinition(executionMode: com.openminis.app.sandbox.ExecutionMode = com.openminis.app.sandbox.ExecutionMode.ROOT): AgentToolDefinition {
         val desc = when (executionMode) {

@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.ui.theme.ChatColors
+import org.json.JSONArray
 import org.json.JSONObject
 
 data class QuestionCardData(
@@ -47,26 +48,113 @@ data class QuestionCardData(
 object QuestionCardParser {
     private val regex = Regex("""<question>([\s\S]*?)(?:</question>|$)""", RegexOption.IGNORE_CASE)
 
-    fun extractQuestion(rawText: String): Pair<String, QuestionCardData?> {
-        val match = regex.find(rawText) ?: return Pair(rawText, null)
-        val jsonStr = match.groupValues[1].trim()
-        val data = try {
-            val json = JSONObject(jsonStr)
-            val question = json.optString("question", "").ifBlank {
-                json.optString("title", "")
+    private fun cleanMarkdownCode(raw: String): String {
+        var text = raw.trim()
+        if (text.startsWith("```")) {
+            text = text.substringAfter("\n")
+            if (text.endsWith("```")) {
+                text = text.substringBeforeLast("```")
             }
-            val optionsArray = json.optJSONArray("options")
-            val options = mutableListOf<String>()
-            if (optionsArray != null) {
-                for (i in 0 until optionsArray.length()) {
-                    options.add(optionsArray.optString(i, ""))
+            text = text.trim()
+        }
+        return text
+    }
+
+    private fun extractQuestionText(obj: JSONObject): String {
+        val keys = listOf("question", "prompt", "text", "title", "header", "message", "query", "description", "content")
+        for (k in keys) {
+            val v = obj.optString(k, "").trim()
+            if (v.isNotEmpty()) return v
+        }
+        return ""
+    }
+
+    private fun extractOptionsList(obj: JSONObject): List<String> {
+        val keys = listOf("options", "choices", "items", "answers", "candidates", "alternatives")
+        for (k in keys) {
+            val arr = obj.optJSONArray(k)
+            if (arr != null && arr.length() > 0) {
+                return parseOptionsArray(arr)
+            }
+            val str = obj.optString(k, "").trim()
+            if (str.isNotEmpty()) {
+                val parsed = parseOptionsFromString(str)
+                if (parsed.isNotEmpty()) return parsed
+            }
+        }
+        return emptyList()
+    }
+
+    private fun parseOptionsFromString(raw: String): List<String> {
+        val trimmed = cleanMarkdownCode(raw)
+        if (trimmed.startsWith("[")) {
+            try {
+                val arr = JSONArray(trimmed)
+                return parseOptionsArray(arr)
+            } catch (_: Exception) {}
+        }
+        if (trimmed.contains("\n")) {
+            return trimmed.split("\n")
+                .map { it.replace(Regex("""^[-*•\d.]+\s*"""), "").trim() }
+                .filter { it.isNotEmpty() }
+        }
+        if (trimmed.contains(",")) {
+            return trimmed.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        }
+        return listOf(trimmed)
+    }
+
+    private fun parseOptionsArray(arr: JSONArray): List<String> {
+        val list = mutableListOf<String>()
+        for (i in 0 until arr.length()) {
+            val item = arr.opt(i) ?: continue
+            when (item) {
+                is JSONObject -> {
+                    val label = listOf("label", "text", "option", "value", "title", "name", "content")
+                        .map { item.optString(it, "").trim() }
+                        .firstOrNull { it.isNotEmpty() } ?: ""
+                    val desc = listOf("description", "desc", "detail", "sub")
+                        .map { item.optString(it, "").trim() }
+                        .firstOrNull { it.isNotEmpty() } ?: ""
+                    if (label.isNotEmpty()) {
+                        if (desc.isNotEmpty()) list.add("$label - $desc")
+                        else list.add(label)
+                    }
+                }
+                is String -> {
+                    if (item.isNotBlank()) list.add(item.trim())
+                }
+                else -> {
+                    val s = item.toString().trim()
+                    if (s.isNotBlank()) list.add(s)
                 }
             }
-            if (question.isNotEmpty() && options.isNotEmpty()) {
+        }
+        return list
+    }
+
+    private fun extractMultiSelect(obj: JSONObject): Boolean {
+        return obj.optBoolean("is_multi_select", false) ||
+            obj.optBoolean("multi_select", false) ||
+            obj.optBoolean("isMultiSelect", false) ||
+            obj.optBoolean("multiSelect", false)
+    }
+
+    fun extractQuestion(rawText: String): Pair<String, QuestionCardData?> {
+        val match = regex.find(rawText) ?: return Pair(rawText, null)
+        val jsonStr = cleanMarkdownCode(match.groupValues[1])
+        val data = try {
+            val json = JSONObject(jsonStr)
+            val question = extractQuestionText(json)
+            var options = extractOptionsList(json)
+            if (options.isEmpty()) {
+                options = listOf("(Recommended) 确认", "取消")
+            }
+            if (question.isNotEmpty()) {
                 QuestionCardData(
                     question = question,
                     options = options,
-                    isMultiSelect = json.optBoolean("is_multi_select", false),
+                    isMultiSelect = extractMultiSelect(json),
                 )
             } else null
         } catch (_: Exception) {
@@ -82,48 +170,83 @@ object QuestionCardParser {
     }
 
     fun parseFromToolArgs(argsJson: String): QuestionCardData? {
-        if (argsJson.isBlank()) return null
+        val clean = cleanMarkdownCode(argsJson)
+        if (clean.isBlank()) return null
         return try {
-            val root = JSONObject(argsJson)
-            val qArray = root.optJSONArray("questions")
-            val qObj = if (qArray != null && qArray.length() > 0) {
-                qArray.optJSONObject(0)
-            } else root
-
-            if (qObj == null) return null
-            val question = qObj.optString("question", "").ifBlank {
-                qObj.optString("title", "").ifBlank {
-                    qObj.optString("header", "")
-                }
+            if (clean.startsWith("[")) {
+                val arr = JSONArray(clean)
+                if (arr.length() == 0) return null
+                val first = arr.optJSONObject(0) ?: return null
+                val question = extractQuestionText(first).ifEmpty { "请选择以下选项：" }
+                var options = extractOptionsList(first)
+                if (options.isEmpty()) options = listOf("(Recommended) 确认", "取消")
+                return QuestionCardData(
+                    question = question,
+                    options = options,
+                    isMultiSelect = extractMultiSelect(first),
+                )
             }
-            val options = mutableListOf<String>()
-            val optArray = qObj.optJSONArray("options")
-            if (optArray != null) {
-                for (i in 0 until optArray.length()) {
-                    val item = optArray.opt(i)
-                    when (item) {
-                        is JSONObject -> {
-                            val label = item.optString("label", "")
-                            val desc = item.optString("description", "")
-                            if (label.isNotEmpty()) {
-                                if (desc.isNotEmpty()) options.add("$label - $desc")
-                                else options.add(label)
-                            }
-                        }
-                        is String -> if (item.isNotBlank()) options.add(item)
-                        else -> if (item != null) options.add(item.toString())
+
+            val root = JSONObject(clean)
+            // 1. Check if 'questions' field exists as an array
+            val qArray = root.optJSONArray("questions")
+            var qObj = if (qArray != null && qArray.length() > 0) {
+                qArray.optJSONObject(0)
+            } else null
+
+            // 2. If questions was passed as a string (due to AgentToolParam type: string)
+            if (qObj == null && root.has("questions")) {
+                val rawQuestions = root.optString("questions", "").trim()
+                if (rawQuestions.isNotEmpty()) {
+                    val cleanedInner = cleanMarkdownCode(rawQuestions)
+                    if (cleanedInner.startsWith("[")) {
+                        try {
+                            val innerArr = JSONArray(cleanedInner)
+                            if (innerArr.length() > 0) qObj = innerArr.optJSONObject(0)
+                        } catch (_: Exception) {}
+                    } else if (cleanedInner.startsWith("{")) {
+                        try {
+                            qObj = JSONObject(cleanedInner)
+                        } catch (_: Exception) {}
                     }
                 }
             }
-            if (question.isNotEmpty() && options.isNotEmpty()) {
+
+            // 3. Fallback to root object itself
+            if (qObj == null) {
+                qObj = root
+            }
+
+            var question = extractQuestionText(qObj)
+            if (question.isEmpty()) {
+                question = extractQuestionText(root)
+            }
+            if (question.isEmpty()) {
+                question = root.optString("tool_title", "").ifEmpty { "请选择以下选项：" }
+            }
+
+            var options = extractOptionsList(qObj)
+            if (options.isEmpty()) {
+                options = extractOptionsList(root)
+            }
+            if (options.isEmpty()) {
+                options = listOf("(Recommended) 确认", "取消")
+            }
+
+            val isMulti = extractMultiSelect(qObj) || extractMultiSelect(root)
+            QuestionCardData(
+                question = question,
+                options = options,
+                isMultiSelect = isMulti,
+            )
+        } catch (_: Exception) {
+            val fallbackQ = clean.take(120).trim()
+            if (fallbackQ.isNotEmpty()) {
                 QuestionCardData(
-                    question = question,
-                    options = options,
-                    isMultiSelect = qObj.optBoolean("multi_select", false) || qObj.optBoolean("is_multi_select", false),
+                    question = fallbackQ,
+                    options = listOf("(Recommended) 确认", "取消"),
                 )
             } else null
-        } catch (_: Exception) {
-            null
         }
     }
 }

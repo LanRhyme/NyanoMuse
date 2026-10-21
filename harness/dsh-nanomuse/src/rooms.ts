@@ -2614,7 +2614,9 @@ export function describeCall(name: string, raw: string): string {
     case 'schedule_create':
       return short(s('title') || s('prompt'))
     case 'ask_user_question':
-      return short(String((args.questions as { question?: string }[] | undefined)?.[0]?.question ?? ''))
+    case 'ask_question':
+    case 'ask_user':
+      return short(String((args.questions as { question?: string }[] | undefined)?.[0]?.question ?? (args as Record<string, unknown>).question ?? (args as Record<string, unknown>).prompt ?? ''))
     case 'present':
       return short(String((args.files as { path?: string }[] | undefined)?.map((f) => f.path).join(', ') ?? ''))
     default: {

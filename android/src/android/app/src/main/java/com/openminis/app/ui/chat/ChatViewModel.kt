@@ -383,6 +383,11 @@ class ChatViewModel(
             }
             val missing = mutableListOf<String>()
             for (field in enforced) {
+                if (name in setOf("ask_user_question", "ask_question", "ask_user", "ask")) {
+                    if (field == "questions" && (args.has("question") || args.has("prompt") || args.has("text") || args.has("title"))) {
+                        continue
+                    }
+                }
                 // Absent — or present as an explicit JSON null. org.json reports
                 // has() == true for `{"x": null}` and opt() hands back
                 // JSONObject.NULL, which is not a String, so a null previously
@@ -9966,7 +9971,7 @@ class ChatViewModel(
             com.openminis.app.tools.NativeSystemTools.TOOL_APP_LAUNCH -> com.openminis.app.tools.NativeSystemTools.executeAppLaunch(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SYSTEM_NOTIFY -> com.openminis.app.tools.NativeSystemTools.executeSystemNotify(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SCREEN_CAPTURE -> executeScreenCaptureTool(argsJson)
-            com.openminis.app.tools.AgentTools.TOOL_ASK_USER_QUESTION, "ask_user_question", "ask_question" -> executeAskUserQuestion(toolId, argsJson)
+            com.openminis.app.tools.AgentTools.TOOL_ASK_USER_QUESTION, "ask_user_question", "ask_question", "ask_user", "ask" -> executeAskUserQuestion(toolId, argsJson)
             else -> ToolExecutionResult("Unknown tool: $name", false)
         }
 

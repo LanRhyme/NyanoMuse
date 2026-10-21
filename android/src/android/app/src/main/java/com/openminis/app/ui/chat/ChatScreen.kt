@@ -4562,25 +4562,26 @@ fun ChatScreen(
                             is FlatChatItem.AssistantAskQuestion -> {
                                 val qData = remember(item.block.toolArgs) {
                                     io.github.nanomuse.ui.chat.QuestionCardParser.parseFromToolArgs(item.block.toolArgs)
-                                }
-                                if (qData != null) {
-                                    val isPending = item.block.toolStatus == ToolBlockStatus.RUNNING ||
-                                        item.block.toolStatus == ToolBlockStatus.PENDING ||
-                                        item.block.content.isEmpty()
-                                    val selected = if (!isPending) {
-                                        item.block.content.removePrefix("User selected: ").trim()
-                                    } else null
-                                    io.github.nanomuse.ui.chat.InteractiveQuestionCard(
-                                        data = qData,
-                                        selectedAnswer = selected,
-                                        onOptionSelected = { option ->
-                                            viewModel.answerQuestion(item.block.id, option)
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp),
-                                    )
-                                }
+                                } ?: io.github.nanomuse.ui.chat.QuestionCardData(
+                                    question = item.block.toolTitle.ifEmpty { item.block.content.ifEmpty { "请选择以下选项：" } },
+                                    options = listOf("(Recommended) 确认", "取消"),
+                                )
+                                val isPending = item.block.toolStatus == ToolBlockStatus.RUNNING ||
+                                    item.block.toolStatus == ToolBlockStatus.PENDING ||
+                                    item.block.content.isEmpty()
+                                val selected = if (!isPending) {
+                                    item.block.content.removePrefix("User selected: ").trim()
+                                } else null
+                                io.github.nanomuse.ui.chat.InteractiveQuestionCard(
+                                    data = qData,
+                                    selectedAnswer = selected,
+                                    onOptionSelected = { option ->
+                                        viewModel.answerQuestion(item.block.id, option)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                )
                             }
                             is FlatChatItem.AssistantInfo -> FallbackInfoBlock(
                                 block = item.block,

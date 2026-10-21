@@ -782,7 +782,7 @@ internal fun buildFlatChatItems(
                     out.add(dedupe(FlatChatItem.NanoMuseAllowance(message.id))) // nanoMuse
                 }
                 else -> {
-                    if (block.toolName == "ask_user_question" || block.toolName == "ask_question") {
+                    if (isAskQuestionTool(block.toolName)) {
                         flushToolGroup()
                         out.add(dedupe(FlatChatItem.AssistantAskQuestion(
                             messageId = message.id,
@@ -824,7 +824,7 @@ internal fun buildFlatChatItems(
                 "info" -> false
                 "thinking" -> showSteps && (message.thinkingLevel?.isEnabled ?: true) // nanoMuse: hidden steps do not count
                 "text" -> it.content.isNotEmpty()
-                "tool_use" -> if (it.toolName == "ask_user_question" || it.toolName == "ask_question") true else showSteps // pills render immediately — when the steps are shown (nanoMuse)
+                "tool_use" -> if (isAskQuestionTool(it.toolName)) true else showSteps // pills render immediately — when the steps are shown (nanoMuse)
                 else -> true // the app's own cards
             }
         }
@@ -853,10 +853,13 @@ internal fun buildFlatChatItems(
     return out
 }
 
+private fun isAskQuestionTool(name: String): Boolean =
+    name == "ask_user_question" || name == "ask_question" || name == "ask_user" || name == "ask"
+
 /** nanoMuse: a finished assistant turn made of steps alone — nothing the chat would show with the steps hidden. */
 private fun stepsOnlyTurn(m: ChatMessage): Boolean =
     m.role == "assistant" && !m.isStreaming && m.error == null && m.content.isEmpty() &&
         m.toolBlocks.isNotEmpty() && m.toolBlocks.all {
-            (it.kind == "tool_use" && it.toolName != "ask_user_question" && it.toolName != "ask_question") ||
+            (it.kind == "tool_use" && !isAskQuestionTool(it.toolName)) ||
             it.kind == "thinking" || (it.kind == "text" && it.content.isEmpty())
         }
