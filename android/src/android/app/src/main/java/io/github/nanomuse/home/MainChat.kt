@@ -16,11 +16,16 @@ object MainChat {
     private const val PREFS = "nanomuse"
     private const val KEY_SESSION = "main_chat.session"
     private const val KEY_FIRST_CONVERSATION_SESSION = "first_conversation.session"
+    const val KEY_LAST_ACTIVE_SESSION = "last_active.session"
+    const val KEY_LAST_ACTIVE_TIME = "last_active.time"
 
     @Volatile private var draft: String? = null
 
     /** Draft id → real id, for the shell that keeps showing the chat under its draft key. */
     @Volatile private var promotedDraft: Pair<String, String>? = null
+
+    private val _lastPromotedDraft = MutableStateFlow<Pair<String, String>?>(null)
+    val lastPromotedDraft: StateFlow<Pair<String, String>?> = _lastPromotedDraft
 
     private val _sessionId = MutableStateFlow<String?>(null)
 
@@ -29,6 +34,59 @@ object MainChat {
 
     fun persisted(context: Context): String? =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_SESSION, null)
+
+    fun setLastActive(context: Context, id: String) {
+        if (isDraftId(id)) return
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LAST_ACTIVE_SESSION, id)
+            .putLong(KEY_LAST_ACTIVE_TIME, System.currentTimeMillis())
+            .apply()
+    }
+
+    fun getLastActive(context: Context): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_LAST_ACTIVE_SESSION, null)
+
+    /**
+     * Resolves which session should be displayed when the app launches or restarts:
+     * - Mode 2 (New Chat): fresh draft
+     * - Mode 3 (Home): designated main chat
+     * - Mode 0 (Auto) / Mode 1 (Last Session): latest active conversation across local activity and multi-device sync
+     */
+    suspend fun resolveLaunchSession(context: Context, chatRepository: ChatRepository): String {
+        val mode = com.openminis.app.ui.settings.getAppearancePrefs(context)
+            .getInt(com.openminis.app.ui.settings.KEY_LAUNCH_SESSION, 0)
+
+        if (mode == 2) {
+            return "__new__${UUID.randomUUID()}"
+        }
+
+        if (mode == 3) {
+            return resolve(context, chatRepository)
+        }
+
+        val hidden = io.github.nanomuse.sync.ConversationSync.hidden.value + io.github.nanomuse.feed.FeedFlow.hidden.value
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val lastActiveId = prefs.getString(KEY_LAST_ACTIVE_SESSION, null)
+        val lastActiveTime = prefs.getLong(KEY_LAST_ACTIVE_TIME, 0L)
+        val lastActiveSession = if (lastActiveId != null && lastActiveId !in hidden) {
+            chatRepository.getSession(lastActiveId)
+        } else null
+
+        val latestSession = chatRepository.dao.listSessions().firstOrNull { it.id !in hidden }
+
+        val targetId = when {
+            latestSession == null && lastActiveSession == null -> resolve(context, chatRepository)
+            lastActiveSession == null -> latestSession!!.id
+            latestSession == null -> lastActiveSession.id
+            latestSession.id == lastActiveSession.id -> lastActiveSession.id
+            latestSession.updatedAt > lastActiveTime -> latestSession.id
+            else -> lastActiveSession.id
+        }
+
+        setLastActive(context, targetId)
+        return targetId
+    }
 
     /**
      * Picks the main chat: the persisted one if it still exists, else the first-conversation
@@ -62,10 +120,16 @@ object MainChat {
      * account): the home is a fresh draft until the person writes, when [onPromoted] pins it.
      */
     fun clear(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_SESSION).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_SESSION)
+            .remove(KEY_LAST_ACTIVE_SESSION)
+            .remove(KEY_LAST_ACTIVE_TIME)
+            .apply()
         val d = "__new__${UUID.randomUUID()}"
         draft = d
         promotedDraft = null
+        _lastPromotedDraft.value = null
         _sessionId.value = d
     }
 
@@ -77,15 +141,18 @@ object MainChat {
     fun reset() {
         draft = null
         promotedDraft = null
+        _lastPromotedDraft.value = null
         _sessionId.value = null
     }
 
     /** Called by ChatViewModel.ensureSession when a draft gets its database row. */
     fun onPromoted(context: Context, draftId: String, realId: String) {
+        setLastActive(context, realId)
+        promotedDraft = draftId to realId
+        _lastPromotedDraft.value = draftId to realId
         if (draftId != draft && draftId != _sessionId.value) return
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_SESSION, realId).apply()
         draft = null
-        promotedDraft = draftId to realId
         _sessionId.value = realId
     }
 
@@ -94,6 +161,7 @@ object MainChat {
         if (isDraftId(id)) return
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_SESSION, id).apply()
         _sessionId.value = id
+        setLastActive(context, id)
     }
 
     fun isMain(context: Context, id: String): Boolean {

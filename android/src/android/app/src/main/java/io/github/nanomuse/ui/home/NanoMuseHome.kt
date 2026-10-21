@@ -134,15 +134,37 @@ fun NanoMuseHome(
     val mainSessionId by MainChat.sessionId.collectAsState()
 
     LaunchedEffect(Unit) {
-        val main = MainChat.resolve(context, chatRepository)
-        if (chatSessionId == null) chatSessionId = main
+        MainChat.resolve(context, chatRepository)
+        if (chatSessionId == null) {
+            chatSessionId = MainChat.resolveLaunchSession(context, chatRepository)
+        }
+    }
+
+    // When a draft chat gets its real session ID, sync it to chatSessionId and persist as last active
+    val lastPromoted by MainChat.lastPromotedDraft.collectAsState()
+    LaunchedEffect(lastPromoted) {
+        val (from, to) = lastPromoted ?: return@LaunchedEffect
+        if (chatSessionId == from) {
+            chatSessionId = to
+            MainChat.setLastActive(context, to)
+        }
+    }
+
+    // Persist current active session whenever it changes
+    LaunchedEffect(chatSessionId) {
+        val id = chatSessionId ?: return@LaunchedEffect
+        if (!MainChat.isDraftId(id)) {
+            MainChat.setLastActive(context, id)
+        }
     }
 
     // contract C10: a sign-in made the open chat another account's — the home is this account's now
     val hiddenSessions by io.github.nanomuse.sync.ConversationSync.hidden.collectAsState()
     LaunchedEffect(hiddenSessions, mainSessionId) {
         val shown = chatSessionId ?: return@LaunchedEffect
-        if (shown in hiddenSessions) chatSessionId = mainSessionId ?: MainChat.resolve(context, chatRepository)
+        if (shown in hiddenSessions) {
+            chatSessionId = MainChat.resolveLaunchSession(context, chatRepository)
+        }
     }
 
     val isMainChat = chatSessionId?.let { MainChat.isMain(context, it) } ?: true
@@ -165,6 +187,9 @@ fun NanoMuseHome(
         focusManager.clearFocus(force = true)
         chatSessionId = id
         tab = HomeTab.CHAT
+        if (!MainChat.isDraftId(id)) {
+            MainChat.setLastActive(context, id)
+        }
     }
 
     fun showMain() {
@@ -201,13 +226,7 @@ fun NanoMuseHome(
         val shown = chatSessionId ?: return@LaunchedEffect
         val list = sessions ?: return@LaunchedEffect
         if (MainChat.isDraftId(shown) || list.any { it.id == shown }) return@LaunchedEffect
-        val main = mainSessionId
-        chatSessionId = if (main != null && main != shown && (MainChat.isDraftId(main) || list.any { it.id == main })) {
-            main
-        } else {
-            MainChat.reset()
-            MainChat.resolve(context, chatRepository)
-        }
+        chatSessionId = MainChat.resolveLaunchSession(context, chatRepository)
     }
     var setupDone by remember { mutableStateOf(FirstRunSetup.isDone(context)) }
     // A provider of the person's own that could answer: enabled and holding a credential. The
