@@ -22,11 +22,15 @@ object MemoryTools {
                 put("type", "string")
                 put("description", "The memory content to write. Use concise Markdown with a short heading (## Topic) and context about what was done/learned.")
             })
+            put("replaces_id", JSONObject().apply {
+                put("type", "string")
+                put("description", "Optional memory ID (e.g. 'mem_...') that this entry updates, contradicts, or supersedes. If provided, the old memory is automatically archived to prevent contradictions.")
+            })
         }
 
         return JSONObject().apply {
             put("name", "memory_write")
-            put("description", "Write a memory entry to today's daily log (YYYY-MM-DD.md). Memories persist across all sessions. Each entry is prepended with a timestamp. Save: user preferences, recurring patterns, key facts, project conventions, reusable knowledge. Avoid saving passwords, API keys, tokens, or secrets unless the user explicitly confirms after being warned. Keep entries concise and general-purpose. GLOBAL.md is read-only (user-maintained via Settings).")
+            put("description", "Write a memory entry to today's daily log (YYYY-MM-DD.md). Memories persist across all sessions. Each entry is prepended with a timestamp. Save: user preferences, recurring patterns, key facts, project conventions, reusable knowledge. If updating or superseding an existing memory, pass its ID in replaces_id. Avoid saving passwords, API keys, tokens, or secrets unless the user explicitly confirms after being warned. Keep entries concise and general-purpose. GLOBAL.md is read-only (user-maintained via Settings).")
             put("input_schema", JSONObject().apply {
                 put("type", "object")
                 put("properties", properties)
@@ -108,11 +112,12 @@ object MemoryTools {
             val obj = JSONObject(inputJson)
             val content = obj.optString("content", "")
             val toolTitle = obj.optString("tool_title", "memory_write")
+            val replacesId = obj.optString("replaces_id", "").takeIf { it.isNotBlank() }
 
             if (content.isBlank()) {
                 ToolResult("Error: Missing required 'content' parameter", false, toolTitle)
             } else {
-                val result = repository.writeMemory(content)
+                val result = repository.writeMemory(content, replacesId)
                 val success = result.startsWith("Memory saved")
                 ToolResult(result, success, toolTitle)
             }

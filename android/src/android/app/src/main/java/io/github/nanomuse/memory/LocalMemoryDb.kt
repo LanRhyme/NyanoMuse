@@ -644,4 +644,95 @@ class LocalMemoryDb(context: Context, name: String = DATABASE_NAME) : SQLiteOpen
         )
         return true
     }
+
+    /**
+     * Supersede an existing memory with a new fact (temporal belief revision).
+     * Atomically marks the old memory as archived (Cold storage, importance demoted)
+     * and inserts the new memory into active Hot storage.
+     * Both operations emit synchronized OpLog entries.
+     */
+    fun supersede(
+        oldId: String,
+        newContent: String,
+        category: String? = null,
+        source: String = "agent",
+        isPinned: Boolean? = null
+    ): Pair<MemoryEntity, MemoryEntity?> {
+        val old = get(oldId)
+        var archivedOld: MemoryEntity? = null
+        if (old != null && !old.deleted) {
+            archivedOld = upsert(
+                id = old.id,
+                content = old.content,
+                category = old.category,
+                source = old.source,
+                isPinned = false,
+                isArchived = true,
+                importance = minOf(old.importance, 0.3f),
+                confidence = old.confidence
+            )
+        }
+        val newRecord = upsert(
+            content = newContent,
+            category = category ?: old?.category ?: "preference",
+            source = source,
+            isPinned = isPinned ?: (old?.isPinned ?: false),
+            isArchived = false,
+            importance = 0.7f
+        )
+        return Pair(newRecord, archivedOld)
+    }
+
+    /**
+     * Detect direct attribute conflicts against active Hot memories.
+     * Recognizes name/call-them, location/living, device/hardware/OS, and key preferences.
+     */
+    fun findDirectConflict(newContent: String): MemoryEntity? {
+        val trimmed = newContent.trim()
+        val active = getHotMemories(200)
+
+        // 1. Call them / preferred name
+        val callThemMatch = Regex("^(?:call them|叫我|称呼我为|我的名字是)[:：\\s]?", RegexOption.IGNORE_CASE)
+        if (callThemMatch.containsMatchIn(trimmed)) {
+            return active.firstOrNull { callThemMatch.containsMatchIn(it.content) }
+        }
+
+        // 2. Residence / living location
+        val livesInMatch = Regex("^(?:lives? in|living in|relocated to|住在|居住在|搬到了|现居)[:：\\s]?", RegexOption.IGNORE_CASE)
+        if (livesInMatch.containsMatchIn(trimmed)) {
+            return active.firstOrNull { livesInMatch.containsMatchIn(it.content) }
+        }
+
+        // 3. Hardware / OS / tool specifications
+        val zhDeviceMatch = Regex("^(?:当前|现在|主力)?(手机|平板|电脑|笔记本|操作系统|系统|窗口管理器|合成器|桌面环境|编辑器|IDE|包管理器)(?:是|使用|换成了|为)[:：\\s]?", RegexOption.IGNORE_CASE)
+        val zhM = zhDeviceMatch.find(trimmed)
+        if (zhM != null) {
+            val key = zhM.groupValues[1]
+            return active.firstOrNull { it.content.contains(key) && zhDeviceMatch.containsMatchIn(it.content) }
+        }
+
+        val enDeviceMatch = Regex("^(?:current|primary)?\\s*(phone|tablet|laptop|desktop|os|window manager|compositor|editor|ide|package manager)\\s*(?:is|changed to|using)[:：\\s]?", RegexOption.IGNORE_CASE)
+        val enM = enDeviceMatch.find(trimmed)
+        if (enM != null) {
+            val key = enM.groupValues[1].lowercase()
+            return active.firstOrNull { it.content.lowercase().contains(key) && enDeviceMatch.containsMatchIn(it.content) }
+        }
+
+        return null
+    }
+
+    /**
+     * Search active memories for potential topical conflicts.
+     */
+    fun detectConflicts(newContent: String, category: String? = null, limit: Int = 3): List<MemoryEntity> {
+        val matches = search(newContent, limit = limit * 2, includeArchived = false)
+        if (matches.isEmpty()) return emptyList()
+        return matches
+            .mapNotNull { m -> get(m.item.id) }
+            .filter { entity ->
+                if (category != null && entity.category != category) return@filter false
+                entity.content.trim() != newContent.trim()
+            }
+            .take(limit)
+    }
 }

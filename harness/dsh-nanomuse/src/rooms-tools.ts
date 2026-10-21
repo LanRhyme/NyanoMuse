@@ -108,18 +108,19 @@ export function apply(ctx: Context): void {
       ctx.tools.register(
         defineTool({
           name: 'remember',
-          description: "Keep one fact about the person for every later chat (their Memory): a preference, a name, a routine, a decision they made. One line, in their words' language. Use it when they tell you something they will expect you to know next time; not for the task at hand.",
+          description: "Keep one fact about the person for every later chat (their Memory): a preference, a name, a routine, a decision they made. One line, in their words' language. If this fact updates, contradicts, or replaces an existing memory (check the [id] labels in your context), pass its id in `replaces_id` to supersede and archive the old memory.",
           parameters: {
             text: { type: 'string', required: true, description: 'The fact, one line, at most 400 characters.' },
+            replaces_id: { type: 'string', description: 'The ID (e.g. mem_...) of an existing memory that this fact updates, contradicts, or replaces. The old memory will be archived.' },
           },
           output: {
-            schema: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' } }, additionalProperties: false },
-            render: (_args, value) => [{ type: 'text', text: `Remembered: ${value.text}` }],
+            schema: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' }, replaced_id: { type: 'string' } }, additionalProperties: false },
+            render: (_args, value) => [{ type: 'text', text: value.replaced_id ? `Updated memory (superseded ${value.replaced_id}): ${value.text}` : `Remembered: ${value.text}` }],
           },
           async execute(args) {
-            const item = await rooms.remember(args.text, 'agent')
+            const item = await rooms.remember(args.text, 'agent', args.replaces_id)
             if (!item) throw new Error('Nothing to remember.')
-            return { id: item.id, text: item.text }
+            return { id: item.id, text: item.text, replaced_id: args.replaces_id ?? '' }
           },
           presentCall: (args) => ({ card: 'generic', title: `Remember: ${(args.text || '').slice(0, 60)}`, kind: 'other', rawInput: args }),
         }),
@@ -210,15 +211,15 @@ export function apply(ctx: Context): void {
             if (rooms.feedInstructions) lines.push(`What the person wants in their Feed: ${rooms.feedInstructions.slice(0, 300)}`)
             const memory = rooms.memory
             if (memory.length) {
-              lines.push('', 'What you remember about the person (their Memory; add to it with remember, search deeper with recall_memory):')
+              lines.push('', 'What you remember about the person (their Memory; add to it with remember, search deeper with recall_memory). If any fact here has changed or is contradicted by the person, call remember with replaces_id="[id]" to supersede it:')
               let charCount = 0
               let injected = 0
               for (const item of memory) {
                 if (injected >= 30 || charCount >= 3000) break
                 // one long line is skipped, not a reason to drop every shorter one after it
                 if (charCount + item.text.length > 3000) continue
-                lines.push(`- ${item.text}`)
-                charCount += item.text.length
+                lines.push(`- [${item.id}] ${item.text}`)
+                charCount += item.text.length + item.id.length + 4
                 injected++
               }
               if (memory.length > injected) {

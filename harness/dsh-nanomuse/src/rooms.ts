@@ -937,11 +937,20 @@ export default class NanomuseRooms extends Service {
     return this.store.memory
   }
 
-  /** Keep one line; a line already there (loosely compared) is refreshed, not doubled. */
-  async remember(text: string, source: MemoryItem['source'] = 'agent'): Promise<MemoryItem | null> {
+  /** Keep one line; a line already there (loosely compared) is refreshed, not doubled. If replacesId or a direct conflict is found, supersedes it. */
+  async remember(text: string, source: MemoryItem['source'] = 'agent', replacesId?: string): Promise<MemoryItem | null> {
     const line = text.replace(/\s+/g, ' ').trim().slice(0, MEMORY_LINE)
     if (!line) return null
     if (this.memoryStore) {
+      if (replacesId) {
+        const res = await this.supersedeMemory(replacesId, line, source)
+        return res.newRecord
+      }
+      const directConflict = this.memoryStore.findDirectConflict(line)
+      if (directConflict) {
+        const res = await this.supersedeMemory(directConflict.id, line, source)
+        return res.newRecord
+      }
       const key = titleKey(line)
       const existing = this.store.memory.find((m) => titleKey(m.text) === key)
       const record = this.memoryStore.upsert({
@@ -965,6 +974,25 @@ export default class NanomuseRooms extends Service {
     this.store.memory.push(item)
     await this.save()
     return item
+  }
+
+  /** Supersede an existing memory with an updated fact, moving the old memory to Cold archive. */
+  async supersedeMemory(oldId: string, text: string, source: MemoryItem['source'] = 'agent'): Promise<{ newRecord: MemoryItem; archivedOld: MemoryItem | null }> {
+    const line = text.replace(/\s+/g, ' ').trim().slice(0, MEMORY_LINE)
+    if (!line) throw new Error('text is required')
+    if (this.memoryStore) {
+      const res = this.memoryStore.supersede(oldId, line, { source })
+      this.memoryStore.archiveStale(MEMORY_HOT_LIMIT)
+      this.refreshMemoryStore()
+      await this.save()
+      return {
+        newRecord: { id: res.newRecord.id, at: res.newRecord.updated_at, text: res.newRecord.content, source },
+        archivedOld: res.archivedOld ? { id: res.archivedOld.id, at: res.archivedOld.updated_at, text: res.archivedOld.content, source: res.archivedOld.source as MemoryItem['source'] } : null,
+      }
+    }
+    await this.forget(oldId)
+    const newRecord = await this.remember(line, source)
+    return { newRecord: newRecord!, archivedOld: null }
   }
 
   async forget(id: string): Promise<void> {
@@ -2194,6 +2222,13 @@ export default class NanomuseRooms extends Service {
             await this.save()
           }
           return send(res, 204)
+        }
+        case '/memory/supersede': {
+          const oldId = String(body.old_id ?? '')
+          const text = String(body.text ?? '').replace(/\s+/g, ' ').trim().slice(0, MEMORY_LINE)
+          if (!oldId || !text) return send(res, 400, { error: { message: 'old_id and text are required' } })
+          const resSupersede = await this.supersedeMemory(oldId, text, 'person')
+          return send(res, 200, resSupersede)
         }
         case '/data/export':
           return send(res, 200, { path: await this.exportData() })

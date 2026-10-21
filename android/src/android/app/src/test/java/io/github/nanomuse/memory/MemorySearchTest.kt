@@ -81,4 +81,22 @@ class MemorySearchTest {
             )
         }
     }
+
+    @Test
+    fun testFindDirectConflictMatchesAttributeCollisions() {
+        val callThemMatch = Regex("^(?:call them|叫我|称呼我为|我的名字是)[:：\\s]?", RegexOption.IGNORE_CASE)
+        assertTrue(callThemMatch.containsMatchIn("Call them: Bob"))
+        assertTrue(callThemMatch.containsMatchIn("叫我小明"))
+
+        val livesInMatch = Regex("^(?:lives? in|living in|relocated to|住在|居住在|搬到了|现居)[:：\\s]?", RegexOption.IGNORE_CASE)
+        assertTrue(livesInMatch.containsMatchIn("住在北京市海淀区"))
+        assertTrue(livesInMatch.containsMatchIn("现居杭州市西湖区"))
+        assertTrue(livesInMatch.containsMatchIn("Lives in Seattle"))
+
+        val zhDeviceMatch = Regex("^(?:当前|现在|主力)?(手机|平板|电脑|笔记本|操作系统|系统|窗口管理器|合成器|桌面环境|编辑器|IDE|包管理器)(?:是|使用|换成了|为)[:：\\s]?", RegexOption.IGNORE_CASE)
+        val m1 = zhDeviceMatch.find("当前平板使用一加平板2 Pro")
+        assertTrue(m1 != null && m1.groupValues[1] == "平板")
+        val m2 = zhDeviceMatch.find("当前平板换成了 iPad Pro")
+        assertTrue(m2 != null && m2.groupValues[1] == "平板")
+    }
 }

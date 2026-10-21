@@ -62,7 +62,7 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
      * New entries are prepended (newest first).
      * Returns a success/error message string.
      */
-    fun writeMemory(content: String): String {
+    fun writeMemory(content: String, replacesId: String? = null): String {
         if (content.isBlank()) return "Error: Missing required 'content' parameter"
 
         val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
@@ -71,7 +71,8 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
 
         val timeFmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         val timestamp = timeFmt.format(Date())
-        val entry = "<!-- $timestamp -->\n$content\n\n"
+        val supersedeNote = if (!replacesId.isNullOrBlank()) " <!-- Supersedes $replacesId -->" else ""
+        val entry = "<!-- $timestamp -->$supersedeNote\n$content\n\n"
 
         val existing = if (file.exists()) file.readText() else ""
         val newContent = entry + existing
@@ -79,13 +80,20 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         return try {
             file.writeText(newContent)
             Log.i(TAG, "Memory written to $fileName (${content.length} chars)")
-            // nanoMuse: dual-write into LocalMemoryDb for CJK Bigram FTS retrieval
+            // nanoMuse: dual-write into LocalMemoryDb with conflict resolution
             context?.let { ctx ->
                 try {
-                    io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).upsert(
-                        content = content,
-                        source = "agent"
-                    )
+                    val db = io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx)
+                    if (!replacesId.isNullOrBlank()) {
+                        db.supersede(replacesId, content, source = "agent")
+                    } else {
+                        val directConflict = db.findDirectConflict(content)
+                        if (directConflict != null) {
+                            db.supersede(directConflict.id, content, source = "agent")
+                        } else {
+                            db.upsert(content = content, source = "agent")
+                        }
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "LocalMemoryDb dual-write failed", e)
                 }
@@ -304,14 +312,14 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
             sb.append(content).append("\n")
         }
         if (hotMemories.isNotEmpty()) {
-            sb.append("\nStructured long-term memories:\n")
+            sb.append("\nStructured long-term memories (to update or supersede a memory, provide its [id] in memory_write's replaces_id parameter):\n")
             var chars = 0
             var shown = 0
             for (m in hotMemories) {
                 if (shown >= MAX_INJECTED_MEMORIES || chars >= MAX_INJECTED_CHARS) break
                 if (chars + m.content.length > MAX_INJECTED_CHARS) continue
-                sb.append("- ").append(m.content).append("\n")
-                chars += m.content.length
+                sb.append("- [").append(m.id).append("] ").append(m.content).append("\n")
+                chars += m.content.length + m.id.length + 4
                 shown++
             }
             val left = hotMemories.size - shown

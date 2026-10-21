@@ -569,6 +569,99 @@ export class MemoryStore {
   }
 
   /**
+   * Supersede an existing memory with a new fact (temporal belief revision).
+   * Atomically marks the old memory as archived (Cold storage, importance demoted)
+   * and inserts the new memory into active Hot storage.
+   * Both operations emit synchronized OpLog entries.
+   */
+  supersede(oldId: string, newContent: string, options?: {
+    category?: MemoryRecord['category']
+    source?: MemoryRecord['source']
+    importance?: number
+    is_pinned?: number
+  }): { newRecord: MemoryRecord; archivedOld: MemoryRecord | null } {
+    const old = this.get(oldId)
+    let archivedOld: MemoryRecord | null = null
+    if (old && !old.deleted) {
+      archivedOld = this.upsert({
+        id: old.id,
+        content: old.content,
+        category: old.category,
+        source: old.source,
+        is_pinned: 0,
+        is_archived: 1,
+        importance: Math.min(old.importance, 0.3),
+        confidence: old.confidence,
+      })
+    }
+
+    const newRecord = this.upsert({
+      content: newContent,
+      category: options?.category ?? old?.category ?? 'preference',
+      source: options?.source ?? 'agent',
+      is_pinned: typeof options?.is_pinned === 'number' ? options.is_pinned : (old?.is_pinned ?? 0),
+      is_archived: 0,
+      importance: options?.importance ?? 0.7,
+    })
+
+    return { newRecord, archivedOld }
+  }
+
+  /**
+   * Detect direct attribute conflicts against active Hot memories.
+   * Recognizes name/call-them, location/living, device/hardware/OS, and key preferences.
+   */
+  findDirectConflict(newContent: string): MemoryRecord | null {
+    const trimmed = newContent.trim()
+    const active = this.getHotMemories(200)
+
+    // 1. Call them / preferred name
+    const callThemMatch = /^(?:call them|叫我|称呼我为|我的名字是)[:：\s]?/i
+    if (callThemMatch.test(trimmed)) {
+      return active.find((m) => callThemMatch.test(m.content)) ?? null
+    }
+
+    // 2. Residence / living location
+    const livesInMatch = /^(?:lives? in|living in|relocated to|住在|居住在|搬到了|现居)[:：\s]?/i
+    if (livesInMatch.test(trimmed)) {
+      return active.find((m) => livesInMatch.test(m.content)) ?? null
+    }
+
+    // 3. Hardware / OS / tool specifications
+    const zhDeviceMatch = /^(?:当前|现在|主力)?(手机|平板|电脑|笔记本|操作系统|系统|窗口管理器|合成器|桌面环境|编辑器|IDE|包管理器)(?:是|使用|换成了|为)[:：\s]?/i
+    const zhM = zhDeviceMatch.exec(trimmed)
+    if (zhM && zhM[1]) {
+      const key = zhM[1]
+      return active.find((row) => row.content.includes(key) && zhDeviceMatch.test(row.content)) ?? null
+    }
+
+    const enDeviceMatch = /^(?:current|primary)?\s*(phone|tablet|laptop|desktop|os|window manager|compositor|editor|ide|package manager)\s*(?:is|changed to|using)[:：\s]?/i
+    const enM = enDeviceMatch.exec(trimmed)
+    if (enM && enM[1]) {
+      const key = enM[1].toLowerCase()
+      return active.find((row) => row.content.toLowerCase().includes(key) && enDeviceMatch.test(row.content)) ?? null
+    }
+
+    return null
+  }
+
+  /**
+   * Search active memories for potential topical conflicts.
+   */
+  detectConflicts(newContent: string, options?: { category?: MemoryRecord['category']; limit?: number }): MemoryRecord[] {
+    const limit = options?.limit ?? 3
+    const matches = this.search(newContent, { limit: limit * 2, includeArchived: false })
+    if (!matches.length) return []
+    return matches
+      .filter((m) => {
+        if (options?.category && m.item.category !== options.category) return false
+        return m.score >= 0.35 && m.item.content.trim() !== newContent.trim()
+      })
+      .slice(0, limit)
+      .map((m) => m.item)
+  }
+
+  /**
    * Close the underlying database connection.
    */
   close(): void {

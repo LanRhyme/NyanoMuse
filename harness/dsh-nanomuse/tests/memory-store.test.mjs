@@ -154,3 +154,76 @@ test('MemoryStore end-to-end search achieves 8/8 recall on golden dataset', asyn
   assert.equal(passed, 8, 'All 8 evaluation queries must pass top-1 rank')
   store.close()
 })
+
+test('MemoryStore supersede atomically archives old memory and activates new memory', () => {
+  const store = new MemoryStore(':memory:')
+
+  const old = store.upsert({
+    id: 'mem_city',
+    content: '住在北京市海淀区',
+    category: 'profile',
+    is_pinned: 1,
+    importance: 0.8,
+  })
+  assert.equal(store.activeCount(), 1)
+  assert.equal(store.archivedCount(), 0)
+
+  const { newRecord, archivedOld } = store.supersede('mem_city', '搬家至杭州市西湖区定居')
+  assert.ok(newRecord, 'New memory should be created')
+  assert.ok(archivedOld, 'Old memory should be returned as archived')
+  assert.equal(archivedOld.id, 'mem_city')
+  assert.equal(archivedOld.is_archived, 1)
+  assert.equal(archivedOld.is_pinned, 0, 'Archived memory should not stay pinned')
+
+  assert.equal(newRecord.content, '搬家至杭州市西湖区定居')
+  assert.equal(newRecord.is_archived, 0)
+  assert.equal(newRecord.category, 'profile', 'Should inherit category')
+  assert.equal(newRecord.is_pinned, 1, 'Should inherit pinned state')
+
+  assert.equal(store.activeCount(), 1)
+  assert.equal(store.archivedCount(), 1)
+
+  // Search active only finds the new city
+  const activeHits = store.search('杭州', { includeArchived: false })
+  assert.equal(activeHits.length, 1)
+  assert.equal(activeHits[0].item.id, newRecord.id)
+
+  const oldHits = store.search('北京', { includeArchived: false })
+  assert.equal(oldHits.length, 0, 'Old city should not match active search')
+
+  const coldHits = store.search('北京', { includeArchived: true })
+  assert.equal(coldHits.length, 1, 'Old city should still exist in cold archive')
+
+  store.close()
+})
+
+test('MemoryStore findDirectConflict detects attribute collisions', () => {
+  const store = new MemoryStore(':memory:')
+
+  store.upsert({ id: 'mem_name', content: 'Call them: Alice' })
+  store.upsert({ id: 'mem_home', content: '住在深圳市南山区' })
+  store.upsert({ id: 'mem_tab', content: '当前平板使用一加平板2 Pro' })
+  store.upsert({ id: 'mem_tea', content: '平时喜欢喝大红袍' })
+
+  // 1. Name collision
+  const nameConflict = store.findDirectConflict('Call them: Bob')
+  assert.ok(nameConflict)
+  assert.equal(nameConflict.id, 'mem_name')
+
+  // 2. Residence collision
+  const homeConflict = store.findDirectConflict('现居杭州市西湖区')
+  assert.ok(homeConflict)
+  assert.equal(homeConflict.id, 'mem_home')
+
+  // 3. Hardware collision
+  const tabConflict = store.findDirectConflict('当前平板换成了 iPad Pro')
+  assert.ok(tabConflict)
+  assert.equal(tabConflict.id, 'mem_tab')
+
+  // 4. Non-colliding preference
+  const teaConflict = store.findDirectConflict('平时喜欢吃苹果')
+  assert.equal(teaConflict, null)
+
+  store.close()
+})
+
