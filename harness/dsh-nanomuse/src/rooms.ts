@@ -180,6 +180,7 @@ export interface MemoryItem {
   text: string
   /** Who wrote it: the agent in a chat, the person by hand, an import, or passive extraction. */
   source: 'agent' | 'person' | 'import' | 'extracted'
+  is_pinned?: boolean
 }
 
 /** One step of a task as the Activity tab and its detail view show it: a tool call, the answer, the start, the end. */
@@ -751,7 +752,18 @@ export default class NanomuseRooms extends Service {
       at: m.updated_at,
       text: m.content,
       source: (m.source === 'person' || m.source === 'import' || m.source === 'extracted' ? m.source : 'agent') as MemoryItem['source'],
+      is_pinned: Boolean(m.is_pinned),
     }))
+  }
+
+  lastActiveRequest = ''
+
+  latestQueryForSession(sessionId?: string): string {
+    if (sessionId) {
+      const r = this.recordFor(sessionId, false)
+      if (r?.request) return r.request
+    }
+    return this.lastActiveRequest
   }
 
   searchMemory(query: string, options?: { limit?: number; includeArchived?: boolean }): ScoredMatch<MemoryRecord>[] {
@@ -861,6 +873,7 @@ export default class NanomuseRooms extends Service {
         const text = textOf(event.data.content).replace(/\s+/g, ' ').trim()
         if (text) {
           record.request = text.slice(0, 200)
+          this.lastActiveRequest = record.request
           // Safe passive extraction: ONLY inspect user messages (prevent tool injection)
           const extracted = extractPassiveMemories(text)
           for (const item of extracted) {

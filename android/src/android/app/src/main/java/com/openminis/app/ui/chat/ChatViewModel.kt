@@ -3494,6 +3494,7 @@ class ChatViewModel(
      * up. Mirrors iOS `pendingSendText` / `pendingSendAttachments`.
      */
     private var pendingSendText: String? = null
+    private var _latestUserQuery: String? = null
 
     private val _showCompactBeforeSendPrompt = MutableStateFlow(false)
     val showCompactBeforeSendPrompt: StateFlow<Boolean> = _showCompactBeforeSendPrompt.asStateFlow()
@@ -3667,14 +3668,21 @@ class ChatViewModel(
         - Important constraints, rules, or user preferences mentioned
         - Any tool calls and their results that affect current state
 
-        STRUCTURE:
-        1. Start with a one-line description of what the conversation was about (use past tense — "User asked X, agent did Y", NOT "Goal: X").
-        2. Then a concise narrative of what happened, preserving technical details.
-        3. End with a "What had been done so far" section listing completed work — NOT a "todo" or "pending" list. Do not invent ongoing objectives or carry-over tasks from old turns; if the user wants to continue, they will say so in their next message.
+        STRUCTURE YOUR SUMMARY IN FOUR CLEAR MARKDOWN SECTIONS:
+        ### 任务状态与目标
+        - Record the overall objective, what has been completed, and current progress. Use past tense — record facts, not ongoing self-invented work orders.
+
+        ### 核心决策与约束
+        - Record key architectural and implementation decisions, user instructions, negative constraints, and established patterns.
+
+        ### 文件产物与代码变动
+        - List all files created, modified, read, or deleted with verbatim absolute paths, and key functions/symbols touched.
+
+        ### 踩坑与禁止事项
+        - Record failed attempts, errors encountered, root causes, and explicit things NOT to repeat.
 
         PRIORITIZE recent context over older history — recent decisions and recent file/path references are most useful for continuity.
-
-        Do NOT translate or alter code snippets, file paths, identifiers, or error messages. Be concise but never lose information the agent needs.
+        Do NOT translate or alter code snippets, file paths, identifiers, or error messages. Be concise, dense, and structured.
     """.trimIndent()
 
     // T203 part 2: these MUST be declared before `init { loadSession() }` below.
@@ -6995,6 +7003,9 @@ class ChatViewModel(
         // here — clearing at this point would strip the content out from under
         // a send that then bails on the context-check paths below.
         val trimmed = text.trim()
+        if (trimmed.isNotEmpty()) {
+            _latestUserQuery = trimmed
+        }
         // While streaming, enqueue instead of silently dropping (iOS: send vs enqueuePrompt).
         if (_isStreaming.value) {
             enqueuePrompt(text)
@@ -11129,7 +11140,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         // intentionally NOT gated by this toggle: skills are part of the
         // tool surface and SOUL.md is part of identity, both orthogonal
         // to the memory feature.
-        val globalMemoryFragment = if (memoryOn) memoryRepository?.loadGlobalMemoryFragment() else null
+        val globalMemoryFragment = if (memoryOn) memoryRepository?.loadGlobalMemoryFragment(_latestUserQuery) else null
         val dailyMemoryFragment = if (memoryOn) memoryRepository?.loadRecentDailyMemoryFragment() else null
         // [XSessionDiag] Hypothesis 3: ties the memory-injection sizes to a
         // SESSION id. MemoryRepository itself has no session context, so its own

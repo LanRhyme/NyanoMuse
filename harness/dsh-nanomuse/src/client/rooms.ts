@@ -90,7 +90,8 @@ export interface MemoryItem {
   id: string
   at: number
   text: string
-  source: 'agent' | 'person' | 'import'
+  source: 'agent' | 'person' | 'import' | 'extracted'
+  is_pinned?: boolean
 }
 
 /** One step of a task, as `src/rooms.ts` records it. */

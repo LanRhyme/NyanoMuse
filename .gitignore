@@ -70,6 +70,7 @@ android/native/build/
 # editors / OS
 .vscode/
 .idea/
+.workbuddy/
 .DS_Store
 *.swp
 

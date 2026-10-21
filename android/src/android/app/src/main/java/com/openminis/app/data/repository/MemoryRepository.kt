@@ -286,21 +286,22 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
      * `AIChatViewModel.loadGlobalMemoryFragment()`. Returns null if the file
      * is missing or empty.
      */
-    fun loadGlobalMemoryFragment(): String? {
+    fun loadGlobalMemoryFragment(query: String? = null): String? {
         val globalFile = File(memoryDir, GLOBAL_FILE)
         val content = if (globalFile.exists()) {
             try { globalFile.readText() } catch (_: Exception) { "" }
         } else ""
 
-        // nanoMuse: the prompt carries GLOBAL.md and the newest structured memories, within a budget
-        val hotMemories = context?.let { ctx ->
+        // nanoMuse: Stable pinned passport + Query-aware Top-K volatile recall
+        val store = context?.let { ctx ->
             try {
-                io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).getHotMemories(50)
+                io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to load hot memories from LocalMemoryDb", e)
-                emptyList()
+                Log.w(TAG, "Failed to load LocalMemoryDb", e)
+                null
             }
-        } ?: emptyList()
+        }
+        val hotMemories = store?.getHotMemories(50) ?: emptyList()
 
         if (content.isEmpty() && hotMemories.isEmpty()) return null
 
@@ -311,11 +312,62 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         }
         if (hotMemories.isNotEmpty()) {
             sb.append("\nStructured long-term memories (to update or supersede a memory, give its [id] in memory_write's replaces_id):\n")
+
+            // 1. Stable Pinned Passport (always present first, keeps cache prefix byte-stable)
+            val pinned = hotMemories.filter { it.isPinned }
+            val chosen = mutableListOf<io.github.nanomuse.memory.MemoryEntity>()
+            chosen.addAll(pinned)
+            val chosenIds = chosen.map { it.id }.toMutableSet()
+
+            // 2. Volatile Query-Aware Top-K: If query is available, search relevant memories
+            val cleanQuery = query?.trim()
+            if (!cleanQuery.isNullOrEmpty() && store != null) {
+                try {
+                    val matches = store.search(cleanQuery, limit = 8, includeArchived = false)
+                    for (m in matches) {
+                        if (chosen.size >= 10) break
+                        if (!chosenIds.contains(m.item.id)) {
+                            chosenIds.add(m.item.id)
+                            hotMemories.find { it.id == m.item.id }?.let { chosen.add(it) }
+                                ?: chosen.add(
+                                    io.github.nanomuse.memory.MemoryEntity(
+                                        id = m.item.id,
+                                        content = m.item.content,
+                                        searchText = m.item.searchText ?: "",
+                                        category = "preference",
+                                        source = "extracted",
+                                        isPinned = m.item.isPinned,
+                                        isArchived = false,
+                                        importance = m.item.importance,
+                                        useCount = 0,
+                                        lastUsedAt = 0,
+                                        confidence = 1f,
+                                        createdAt = m.item.updatedAt,
+                                        updatedAt = m.item.updatedAt,
+                                        deleted = false
+                                    )
+                                )
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Dynamic query memory search failed", e)
+                }
+            }
+
+            // 3. Fallback: If still under quota, fill with newest hot memories
+            for (m in hotMemories) {
+                if (chosen.size >= 8) break
+                if (!chosenIds.contains(m.id)) {
+                    chosenIds.add(m.id)
+                    chosen.add(m)
+                }
+            }
+
             var chars = 0
             var shown = 0
-            for (m in hotMemories) {
-                if (shown >= MAX_INJECTED_MEMORIES || chars >= MAX_INJECTED_CHARS) break
-                if (chars + m.content.length > MAX_INJECTED_CHARS) continue
+            for (m in chosen) {
+                if (shown >= MAX_INJECTED_MEMORIES || chars >= 2000) break
+                if (chars + m.content.length > 2000) continue
                 sb.append("- [").append(m.id).append("] ").append(m.content).append("\n")
                 chars += m.content.length + m.id.length + 4
                 shown++

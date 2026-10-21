@@ -9,8 +9,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from './cloud.ts'
-import type {} from './rooms.ts'
-import { AREAS, languageName } from './rooms.ts'
+import { AREAS, languageName, type MemoryItem } from './rooms.ts'
 
 export const name = 'nanomuse-rooms-tools'
 export const inject = ['tools', 'nanomuseRooms', 'nanomuseCloud']
@@ -197,27 +196,69 @@ export function apply(ctx: Context): void {
         ctx.systemPrompt.context({
           name: 'nanomuse-rooms',
           order: 55,
-          text: () => {
-            const goals = rooms.goals
+          text: (context) => {
             const lines: string[] = []
             const persona = rooms.persona
             if (persona) lines.push('Who you are, as the person wrote it in your IDENTITY.md and SOUL.md (follow it):', persona, '')
-            if (goals.length) {
-              lines.push("The person's goals (their Goals room; update them with goals_room_update, or end a check with one fenced block tagged `nanomuse-goal-update` holding {\"goal_id\", \"progress\": 0-100, \"status\": \"on_track|attention|done\", \"note\"} — the app turns it into a card):")
-              for (const goal of goals.slice(0, 12)) lines.push(`- ${goal.id} · ${goal.title} (${goal.category}, ${goal.status}${goal.progress >= 0 ? `, ${goal.progress}%` : ''})${goal.summary ? `: ${goal.summary}` : ''}`)
+
+            // Filter active tracking goals only (exclude completed or paused goals to preserve attention)
+            const trackingGoals = rooms.goals.filter((g) => g.status === 'tracking')
+            if (trackingGoals.length) {
+              lines.push("The person's active goals (their Goals room; update them with goals_room_update, or end a check with one fenced block tagged `nanomuse-goal-update` holding {\"goal_id\", \"progress\": 0-100, \"status\": \"on_track|attention|done\", \"note\"} — the app turns it into a card):")
+              for (const goal of trackingGoals.slice(0, 8)) {
+                lines.push(`- ${goal.id} · ${goal.title} (${goal.category}, ${goal.status}${goal.progress >= 0 ? `, ${goal.progress}%` : ''})${goal.summary ? `: ${goal.summary}` : ''}`)
+              }
             } else {
               lines.push('The person has no goals in their Goals room yet; when they state a long-term aim, offer to track it there. They create one from the room ("Create goal › category"), or you can, when they agree: ask what, why and by when, how often to check, then write EXACTLY ONE fenced block tagged `nanomuse-goal` with {"title", "why", "category", "check_every_hours" (0 = daily), "check_time": "HH:MM", "steps": [...], "first_check"} — the app makes the goal, its chat and its checks from it, and shows it as a card. Do not describe the block.')
             }
             if (rooms.feedInstructions) lines.push(`What the person wants in their Feed: ${rooms.feedInstructions.slice(0, 300)}`)
+
+            // Tier 3: Query-Aware Attention Injection (Pinned core passport + Intent-driven Top-K recall)
             const memory = rooms.memory
             if (memory.length) {
               lines.push('', 'What you remember about the person (their Memory; add to it with remember, search deeper with recall_memory). If any fact here has changed or is contradicted by the person, call remember with replaces_id="[id]" to supersede it:')
+
+              // Safe session ID resolution with fallback
+              const sid = (context as { agent?: { session?: { id?: string } }; scope?: { session?: { id?: string } } })?.agent?.session?.id
+                ?? (context as { scope?: { session?: { id?: string } } })?.scope?.session?.id
+              const currentQuery = rooms.latestQueryForSession(sid).trim()
+
+              // 1. Pinned memories (stable core passport, always injected first)
+              const chosenItems: MemoryItem[] = memory.filter((m) => m.is_pinned)
+              const chosenIds = new Set(chosenItems.map((m) => m.id))
+
+              // 2. Query-Aware Dynamic Top-K: If query is available, search relevant memories
+              if (currentQuery) {
+                const matches = rooms.searchMemory(currentQuery, { limit: 8, includeArchived: false })
+                for (const match of matches) {
+                  if (chosenItems.length >= 10) break
+                  if (!chosenIds.has(match.item.id)) {
+                    chosenIds.add(match.item.id)
+                    chosenItems.push({
+                      id: match.item.id,
+                      at: match.item.updated_at,
+                      text: match.item.content,
+                      source: (match.item.source === 'person' || match.item.source === 'import' || match.item.source === 'extracted' ? match.item.source : 'agent') as MemoryItem['source'],
+                      is_pinned: Boolean(match.item.is_pinned),
+                    })
+                  }
+                }
+              }
+
+              // 3. Fallback: If still under quota, fill with newest hot memories
+              for (const item of memory) {
+                if (chosenItems.length >= 8) break
+                if (!chosenIds.has(item.id)) {
+                  chosenIds.add(item.id)
+                  chosenItems.push(item)
+                }
+              }
+
               let charCount = 0
               let injected = 0
-              for (const item of memory) {
-                if (injected >= 30 || charCount >= 3000) break
-                // one long line is skipped, not a reason to drop every shorter one after it
-                if (charCount + item.text.length > 3000) continue
+              for (const item of chosenItems) {
+                if (charCount >= 2000) break
+                if (charCount + item.text.length > 2000) continue
                 lines.push(`- [${item.id}] ${item.text}`)
                 charCount += item.text.length + item.id.length + 4
                 injected++
