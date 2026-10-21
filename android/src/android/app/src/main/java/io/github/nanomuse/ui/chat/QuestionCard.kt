@@ -146,33 +146,32 @@ object QuestionCardParser {
             obj.optBoolean("multiple", false)
     }
 
+    fun isAskQuestionTool(toolName: String): Boolean {
+        val clean = toolName.lowercase().trim()
+        return clean == "ask_user_question" || clean == "ask_question" || clean == "ask_user" || clean == "ask"
+    }
+
     fun extractQuestion(rawText: String): Pair<String, QuestionCardData?> {
-        val match = regex.find(rawText) ?: return Pair(rawText, null)
-        val jsonStr = cleanMarkdownCode(match.groupValues[1])
-        val data = try {
-            val json = JSONObject(jsonStr)
-            val question = extractQuestionText(json)
-            var options = extractOptionsList(json)
-            if (options.isEmpty()) {
-                options = listOf("(Recommended) 确认", "取消")
+        val match = regex.find(rawText)
+        if (match != null) {
+            val data = parseFromToolArgs(match.groupValues[1])
+            if (data != null) {
+                val before = rawText.substring(0, match.range.first).trim()
+                val after = rawText.substring(minOf(match.range.last + 1, rawText.length)).trim()
+                val cleanedText = listOf(before, after).filter { it.isNotEmpty() }.joinToString("\n\n")
+                return Pair(cleanedText, data)
             }
-            if (question.isNotEmpty()) {
-                QuestionCardData(
-                    question = question,
-                    options = options,
-                    isMultiSelect = extractMultiSelect(json),
-                )
-            } else null
-        } catch (_: Exception) {
-            null
         }
 
-        if (data == null) return Pair(rawText, null)
+        val trimmed = rawText.trim()
+        if (trimmed.startsWith("```") || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            val data = parseFromToolArgs(trimmed)
+            if (data != null && data.question.isNotBlank() && data.options.isNotEmpty()) {
+                return Pair("", data)
+            }
+        }
 
-        val before = rawText.substring(0, match.range.first).trim()
-        val after = rawText.substring(minOf(match.range.last + 1, rawText.length)).trim()
-        val cleanedText = listOf(before, after).filter { it.isNotEmpty() }.joinToString("\n\n")
-        return Pair(cleanedText, data)
+        return Pair(rawText, null)
     }
 
     fun parseFromToolArgs(argsJson: String): QuestionCardData? {

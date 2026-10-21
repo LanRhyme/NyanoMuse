@@ -175,5 +175,16 @@ class QuestionCardTest {
         """.trimIndent()
         assertEquals(true, QuestionCardParser.parseFromToolArgs(jsonCamel)?.isMultiSelect)
     }
+
+    @Test
+    fun `extractQuestion handles questions array and code fence inside question tag`() {
+        val text = "Preamble\n<question>\n```json\n{\"questions\": [{\"question\": \"Deploy where?\", \"options\": [\"Cloud\", \"Edge\"]}]}\n```\n</question>\nPostscript"
+        val (cleaned, parsed) = QuestionCardParser.extractQuestion(text)
+        assertNotNull(parsed)
+        assertEquals("Deploy where?", parsed?.question)
+        assertEquals(listOf("Cloud", "Edge"), parsed?.options)
+        assertTrue(cleaned.contains("Preamble"))
+        assertTrue(cleaned.contains("Postscript"))
+    }
 }
 

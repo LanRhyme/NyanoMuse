@@ -3261,11 +3261,24 @@ export default class NanomuseCloud extends Service {
           if (text && !text.startsWith('[Asked from ')) lines.push({ id: String(data.id ?? `u${event.seq}`), role: 'user', text, at: event.time })
         } else if (event.type === 'assistant/message') {
           const data = event.data as unknown as { message?: { id?: string; content?: readonly ContentBlock[] }; interrupted?: true }
-          const text = textOf(data.message?.content)
+          let text = textOf(data.message?.content)
+          const qTool = data.message?.content?.find((c) => {
+            const block = c as unknown as { type?: string; name?: string }
+            return block?.type === 'tool_use' && (block?.name === 'ask_user_question' || block?.name === 'ask_question' || block?.name === 'ask_user' || block?.name === 'ask')
+          }) as unknown as { input?: unknown } | undefined
+          if (qTool && !text.includes('<question>')) {
+            const inputStr = typeof qTool.input === 'string' ? qTool.input : JSON.stringify(qTool.input ?? {})
+            text = text ? `${text}\n\n<question>${inputStr}</question>` : `<question>${inputStr}</question>`
+          }
           if (text && data.interrupted !== true) lastAssistant = { id: String(data.message?.id ?? `a${event.seq}`), role: 'assistant', text, at: event.time }
         } else if (event.type === 'turn/end') {
           if (lastAssistant) lines.push(lastAssistant)
           lastAssistant = undefined
+        }
+      }
+      if (lastAssistant && lastAssistant.text.includes('<question>')) {
+        if (!lines.some((l) => l.id === lastAssistant?.id)) {
+          lines.push(lastAssistant)
         }
       }
       entry.lines = lines

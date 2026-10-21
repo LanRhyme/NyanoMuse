@@ -4452,6 +4452,7 @@ fun ChatScreen(
                                             }
                                             io.github.nanomuse.ui.chat.InteractiveQuestionCard(
                                                 data = questionData,
+                                                selectedAnswer = item.selectedAnswer,
                                                 onOptionSelected = { option ->
                                                     viewModel.sendMessage(option)
                                                 },

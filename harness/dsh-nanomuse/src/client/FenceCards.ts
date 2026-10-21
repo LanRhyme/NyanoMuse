@@ -35,17 +35,25 @@ export function parseQuestionTag(text: string): { question: string; options: str
   const match = /<question>([\s\S]*?)(?:<\/question>|$)/i.exec(text)
   if (!match) return undefined
   try {
-    const obj = JSON.parse(match[1]!.trim())
-    const q = obj.question || obj.title || obj.header
-    const opts = obj.options || (Array.isArray(obj.questions) && obj.questions[0]?.options)
-    const questionText = q || (Array.isArray(obj.questions) && obj.questions[0]?.question)
+    let clean = match[1]!.trim()
+    if (clean.startsWith('```')) {
+      clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
+    }
+    let obj: unknown = JSON.parse(clean)
+    if (Array.isArray(obj)) obj = obj[0]
+    if (!obj || typeof obj !== 'object') return undefined
+    const o = obj as Record<string, unknown>
+    const firstQ = Array.isArray(o.questions) && o.questions[0] && typeof o.questions[0] === 'object' ? (o.questions[0] as Record<string, unknown>) : undefined
+    const q = o.question || o.title || o.header || o.prompt || firstQ?.question || firstQ?.title || firstQ?.header || firstQ?.prompt
+    const opts = o.options || o.choices || firstQ?.options || firstQ?.choices
+    const questionText = q
     if (questionText && Array.isArray(opts) && opts.length > 0) {
       return {
         question: String(questionText).trim(),
         options: opts.map((x: unknown) => {
           if (x && typeof x === 'object') {
-            const lbl = (x as Record<string, unknown>).label || ''
-            const desc = (x as Record<string, unknown>).description || ''
+            const lbl = (x as Record<string, unknown>).label || (x as Record<string, unknown>).text || ''
+            const desc = (x as Record<string, unknown>).description || (x as Record<string, unknown>).desc || ''
             return desc ? `${lbl} - ${desc}` : String(lbl)
           }
           return String(x || '').trim()
@@ -356,7 +364,7 @@ export function renderFenceCards(t: Translate): () => void {
         qEl.insertAdjacentElement('afterend', questionCard(t, q))
       }
     }
-    for (const p of document.querySelectorAll<HTMLElement>(`[class*="_markdown"] p:not([${DONE}])`)) {
+    for (const p of document.querySelectorAll<HTMLElement>(`[class*="_markdown"] p:not([${DONE}]), .nm-remote-bubble:not([${DONE}])`)) {
       const text = p.textContent || ''
       if (!text.includes('<question>')) continue
       const q = parseQuestionTag(text)

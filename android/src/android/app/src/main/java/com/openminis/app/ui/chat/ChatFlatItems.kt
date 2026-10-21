@@ -372,6 +372,7 @@ internal sealed class FlatChatItem {
         val messageIsStreaming: Boolean,
         /** Joined raw markdown of the parent message, used by Copy Markdown. */
         val messageMarkdown: String,
+        val selectedAnswer: String? = null,
     ) : FlatChatItem() {
         override val key = "mdblock:$messageId:$parentBlockId:$blockIndex"
         override val contentType = "mdblock"
@@ -728,6 +729,11 @@ internal fun buildFlatChatItems(
                     if (block.content.isNotEmpty()) {
                         flushToolGroup()
                         val isLastText = index == lastTextIdx
+                        val nextUserText = if (idx + 1 < messages.size && messages[idx + 1].role == "user") {
+                            val uContent = messages[idx + 1].content.trim()
+                            if (uContent.isNotEmpty()) uContent
+                            else messages[idx + 1].toolBlocks.filter { it.kind == "text" }.joinToString("\n") { it.content }.trim()
+                        } else null
                         // nanoMuse: keep each assistant text block in a single markdown
                         // bubble (matching iOS) so lists, headings, paragraphs, and code
                         // blocks from one turn stay together inside one bubble.
@@ -739,6 +745,7 @@ internal fun buildFlatChatItems(
                             isLastBlockOfMessage = isLastText,
                             messageIsStreaming = message.isStreaming && isLastText,
                             messageMarkdown = joinedMarkdown,
+                            selectedAnswer = nextUserText?.takeIf { it.isNotBlank() },
                         )))
                     }
                 }

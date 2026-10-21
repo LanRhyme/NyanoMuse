@@ -68,6 +68,14 @@ class MemoryChats : LocalChats {
         }.toString(),
         at,
     )
+    fun assistantQuestion(sessionId: String, text: String, questionArgs: String, at: Long = next()): String = add(
+        sessionId, "assistant",
+        JSONArray().apply {
+            if (text.isNotEmpty()) put(JSONObject().put("type", "text").put("value", text))
+            put(JSONObject().put("type", "toolUse").put("value", JSONObject().put("toolUseId", "t_q").put("name", "ask_user_question").put("input", questionArgs)))
+        }.toString(),
+        at,
+    )
     fun toolResult(sessionId: String, at: Long = next()): String = add(
         sessionId, "user",
         JSONArray().put(JSONObject().put("type", "toolResult").put("value", JSONObject().put("toolUseId", "t1").put("output", "ok").put("success", true))).toString(),

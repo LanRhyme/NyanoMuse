@@ -40,9 +40,36 @@ object Transcript {
             val arr = JSONArray(m.partsJson)
             (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
         }.getOrDefault(emptyList())
-        val text: String = parts.filter { it.optString("type") == "text" }
+
+        val questionTool = parts.firstOrNull {
+            it.optString("type") == "toolUse" &&
+                io.github.nanomuse.ui.chat.QuestionCardParser.isAskQuestionTool(it.optJSONObject("value")?.optString("name").orEmpty())
+        }
+        val questionToolInput: String? = questionTool?.optJSONObject("value")?.let { v ->
+            val raw = v.opt("input")
+            when (raw) {
+                is JSONObject -> raw.toString()
+                is String -> raw
+                else -> raw?.toString()
+            }?.trim()
+        }?.takeIf { it.isNotEmpty() }
+
+        val hasOtherToolUse = parts.any {
+            it.optString("type") == "toolUse" &&
+                !io.github.nanomuse.ui.chat.QuestionCardParser.isAskQuestionTool(it.optJSONObject("value")?.optString("name").orEmpty())
+        }
+
+        private val rawText: String = parts.filter { it.optString("type") == "text" }
             .joinToString("\n") { systemReminder.replace(it.optString("value"), "").trim() }
             .trim()
+
+        val text: String = if (questionToolInput != null && !rawText.contains("<question>", ignoreCase = true)) {
+            if (rawText.isNotEmpty()) "$rawText\n\n<question>$questionToolInput</question>"
+            else "<question>$questionToolInput</question>"
+        } else {
+            rawText
+        }
+
         val attachments: List<Attachment> = parts.filter { it.optString("type") == "mediaRef" }.mapNotNull { p ->
             val v = p.optJSONObject("value") ?: return@mapNotNull null
             val name = v.optString("originalFileName").ifBlank { v.optString("relativePath").substringAfterLast('/') }
@@ -68,7 +95,7 @@ object Transcript {
             val head = seg.first()
             if (head.isPersons) out += TranscriptItem(head.m.id, "user", head.text, head.attachments, head.m.createdAt)
             val last = seg.last()
-            val finished = i < segments.lastIndex || (last.isAssistant && !last.hasToolUse)
+            val finished = i < segments.lastIndex || (last.isAssistant && !last.hasOtherToolUse)
             if (!finished) return@forEachIndexed
             val reply = seg.lastOrNull { it.isAssistant && it.text.isNotEmpty() } ?: return@forEachIndexed
             out += TranscriptItem(reply.m.id, "assistant", reply.text, emptyList(), reply.m.createdAt)

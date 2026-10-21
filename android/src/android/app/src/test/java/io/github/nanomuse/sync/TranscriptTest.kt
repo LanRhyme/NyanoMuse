@@ -70,4 +70,18 @@ class TranscriptTest {
         val plain = org.json.JSONArray(Transcript.partsJson("hello", emptyList()))
         assertEquals("hello", plain.getJSONObject(0).getString("value"))
     }
+
+    @Test fun `assistant question tool call is included as question tag and not dropped while pending`() {
+        chats.addSession("s_q")
+        chats.user("s_q", "Help me choose an architecture")
+        val qJson = """{"question":"Which do you prefer?","options":["MVVM","MVI"]}"""
+        chats.assistantQuestion("s_q", "Sure, let's decide:", qJson)
+
+        val out = items("s_q")
+        assertEquals(2, out.size)
+        assertEquals("user", out[0].role)
+        assertEquals("Help me choose an architecture", out[0].text)
+        assertEquals("assistant", out[1].role)
+        assertTrue(out[1].text.contains("<question>$qJson</question>"))
+    }
 }
