@@ -84,4 +84,21 @@ class TranscriptTest {
         assertEquals("assistant", out[1].role)
         assertTrue(out[1].text.contains("<question>$qJson</question>"))
     }
+
+    @Test fun `assistant question tool call answered retains both question and user answer in transcript`() {
+        chats.addSession("s_qa")
+        chats.user("s_qa", "Help me choose an architecture")
+        val qJson = """{"question":"Which do you prefer?","options":["MVVM","MVI"]}"""
+        chats.assistantQuestion("s_qa", "Sure, let's decide:", qJson)
+        chats.questionResult("s_qa", "MVVM")
+        chats.assistant("s_qa", "Great choice, MVVM it is.")
+
+        val out = items("s_qa")
+        assertEquals(4, out.size)
+        assertEquals("user" to "Help me choose an architecture", out[0].role to out[0].text)
+        assertEquals("assistant", out[1].role)
+        assertTrue(out[1].text.contains("<question>$qJson</question>"))
+        assertEquals("user" to "MVVM", out[2].role to out[2].text)
+        assertEquals("assistant" to "Great choice, MVVM it is.", out[3].role to out[3].text)
+    }
 }

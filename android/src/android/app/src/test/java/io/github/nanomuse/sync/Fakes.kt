@@ -81,6 +81,11 @@ class MemoryChats : LocalChats {
         JSONArray().put(JSONObject().put("type", "toolResult").put("value", JSONObject().put("toolUseId", "t1").put("output", "ok").put("success", true))).toString(),
         at,
     )
+    fun questionResult(sessionId: String, selectedAnswer: String, at: Long = next()): String = add(
+        sessionId, "user",
+        JSONArray().put(JSONObject().put("type", "toolResult").put("value", JSONObject().put("toolUseId", "t_q").put("name", "ask_user_question").put("output", "User selected: $selectedAnswer").put("success", true))).toString(),
+        at,
+    )
     fun userWithPicture(sessionId: String, text: String, file: String, at: Long = next()): String = add(
         sessionId, "user",
         JSONArray().apply {

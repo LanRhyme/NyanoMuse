@@ -54,6 +54,17 @@ object Transcript {
             }?.trim()
         }?.takeIf { it.isNotEmpty() }
 
+        val questionToolResult = parts.firstOrNull {
+            it.optString("type") == "toolResult" &&
+                io.github.nanomuse.ui.chat.QuestionCardParser.isAskQuestionTool(it.optJSONObject("value")?.optString("name").orEmpty())
+        }
+        val rawAnswerText = questionToolResult?.optJSONObject("value")?.optString("output")
+            ?.removePrefix("User selected: ")?.trim().orEmpty()
+        val isQuestionAnswer = m.role.equals("user", true) && questionToolResult != null &&
+            rawAnswerText.isNotEmpty() &&
+            !rawAnswerText.startsWith("<system-reminder>") &&
+            !rawAnswerText.contains("cancelled", ignoreCase = true)
+
         val hasOtherToolUse = parts.any {
             it.optString("type") == "toolUse" &&
                 !io.github.nanomuse.ui.chat.QuestionCardParser.isAskQuestionTool(it.optJSONObject("value")?.optString("name").orEmpty())
@@ -63,11 +74,13 @@ object Transcript {
             .joinToString("\n") { systemReminder.replace(it.optString("value"), "").trim() }
             .trim()
 
-        val text: String = if (questionToolInput != null && !rawText.contains("<question>", ignoreCase = true)) {
-            if (rawText.isNotEmpty()) "$rawText\n\n<question>$questionToolInput</question>"
-            else "<question>$questionToolInput</question>"
-        } else {
-            rawText
+        val text: String = when {
+            isQuestionAnswer -> rawAnswerText
+            questionToolInput != null && !rawText.contains("<question>", ignoreCase = true) -> {
+                if (rawText.isNotEmpty()) "$rawText\n\n<question>$questionToolInput</question>"
+                else "<question>$questionToolInput</question>"
+            }
+            else -> rawText
         }
 
         val attachments: List<Attachment> = parts.filter { it.optString("type") == "mediaRef" }.mapNotNull { p ->
@@ -79,8 +92,8 @@ object Transcript {
         val hasToolResult = parts.any { it.optString("type") == "toolResult" }
         val isUser = m.role.equals("user", true)
         val isAssistant = m.role.equals("assistant", true)
-        /** The person wrote this (not a tool result, not the runtime's "continue" nudge). */
-        val isPersons = isUser && !hasToolResult && (text.isNotEmpty() || attachments.isNotEmpty()) && !text.startsWith(CONTINUE_REMINDER)
+        /** The person wrote this (or picked as question answer; not an internal tool result, not continue nudge). */
+        val isPersons = isQuestionAnswer || (isUser && !hasToolResult && (text.isNotEmpty() || attachments.isNotEmpty()) && !text.startsWith(CONTINUE_REMINDER))
     }
 
     fun items(messages: List<LocalMessage>): List<TranscriptItem> {

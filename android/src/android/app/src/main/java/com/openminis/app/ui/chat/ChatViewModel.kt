@@ -9435,6 +9435,23 @@ class ChatViewModel(
                 }
             }
 
+            // Persist question turn immediately so other devices receive sync while waiting
+            var assistantDbId: String? = null
+            val hasQuestionTool = toolCalls.any { (_, name, _) -> io.github.nanomuse.ui.chat.QuestionCardParser.isAskQuestionTool(name) }
+            if (hasQuestionTool) {
+                val preParts = buildTurnParts(allToolBlocks, turnStartBlockIndex, toolInputMap)
+                val preMeta = allToolBlocks.filter { it.kind == "tool_use" }.associateBy { it.id }
+                assistantDbId = persistAssistantTurn(preParts, lastUsage, turnReasoningContent, preMeta)
+                if (assistantDbId != null) {
+                    val lastIdx = agentHistory.indexOfLast { it.role == LLMMessage.Role.ASSISTANT && it.dbMessageId == null }
+                    if (lastIdx >= 0) {
+                        agentHistory[lastIdx] = agentHistory[lastIdx].copy(dbMessageId = assistantDbId)
+                    }
+                }
+                io.github.nanomuse.sync.ConversationSync.changed()
+                io.github.nanomuse.sync.ConversationSync.turnEnded(realSessionId.ifEmpty { sessionId })
+            }
+
             // Execute all tool calls
             val resultParts = mutableListOf<AgentContentPart>()
             for ((id, name, args) in toolCalls) {
@@ -9738,7 +9755,12 @@ class ChatViewModel(
             // assistant entry — compact-marker boundary resolution depends on it.
             val turnParts = buildTurnParts(allToolBlocks, turnStartBlockIndex, toolInputMap)
             val blockMeta = allToolBlocks.filter { it.kind == "tool_use" }.associateBy { it.id }
-            val assistantDbId = persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta)
+            if (assistantDbId == null) {
+                assistantDbId = persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta)
+            } else {
+                val partsJson = buildAssistantPartsJson(turnParts, blockMeta)
+                chatRepository.updateMessageParts(assistantDbId, partsJson)
+            }
             if (assistantDbId != null) {
                 val lastIdx = agentHistory.indexOfLast { it.role == LLMMessage.Role.ASSISTANT && it.dbMessageId == null }
                 if (lastIdx >= 0) {
