@@ -50,6 +50,8 @@ site/docs/
 # nanoMuse on DeepSeek Harness (harness/README.md): built by `pnpm build`, not committed
 harness/dsh-nanomuse/node_modules/
 harness/dsh-nanomuse/lib/
+# a stray `pnpm install` in the repository root
+/node_modules/
 
 # android app (the signing key lives outside the repo; see docs/android.md)
 android/.gradle/
