@@ -49,6 +49,7 @@ fun CompanionSettingsSheet(
     var quietEnd by remember { mutableIntStateOf(CompanionPrefs.getQuietEndHour(prefs)) }
     var minInterval by remember { mutableIntStateOf(CompanionPrefs.getMinIntervalHours(prefs)) }
     var dailyMax by remember { mutableIntStateOf(CompanionPrefs.getDailyMaxCount(prefs)) }
+    var preferredScenarios by remember { mutableStateOf(CompanionPrefs.getPreferredScenarios(prefs)) }
 
     val currentMoodSubtitle = remember { CompanionStatus.currentMoodSubtitle(context) }
 
@@ -181,6 +182,53 @@ fun CompanionSettingsSheet(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
+                    }
+                }
+
+                MuseGap()
+                MuseSectionLabel("允许的主动场景")
+                MuseCard {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val scenarioItems = listOf(
+                            "morning_greeting" to "晨间元气问候 (07:00~09:30)",
+                            "evening_care" to "晚安温馨关怀 (21:30~23:00)",
+                            "curious_checkin" to "闲置好奇探头 (离线 4h+)",
+                            "longing_miss" to "长久思念挂念 (离线 10h+)",
+                            "calm_companion" to "日间恬静陪伴 (离线 1h~4h)"
+                        )
+                        scenarioItems.forEachIndexed { index, (tag, label) ->
+                            val isSelected = CompanionPrefs.isScenarioAllowed(preferredScenarios, tag)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 14.sp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Switch(
+                                    checked = isSelected,
+                                    onCheckedChange = { checked ->
+                                        val next = preferredScenarios.toMutableSet()
+                                        if (checked) next.add(tag) else next.remove(tag)
+                                        preferredScenarios = next
+                                        CompanionPrefs.setPreferredScenarios(prefs, next)
+                                    }
+                                )
+                            }
+                            if (index < scenarioItems.lastIndex) {
+                                MuseRowDivider()
+                            }
+                        }
                     }
                 }
             }

@@ -29,6 +29,7 @@ object CompanionPrefs {
     const val KEY_TODAY_COUNT = "companion_today_count"
     const val KEY_CACHED_ACTIVE_DAYS = "companion_cached_active_days"
     const val KEY_CACHED_ACTIVE_DAYS_DATE = "companion_cached_active_days_date"
+    const val KEY_LAST_REAL_USER_MESSAGE_TIME = "companion_last_real_user_message_time"
 
     // Defaults
     const val DEFAULT_PROACTIVE_ENABLED = true
@@ -36,7 +37,13 @@ object CompanionPrefs {
     const val DEFAULT_QUIET_END_HOUR = 8
     const val DEFAULT_MIN_INTERVAL_HOURS = 4
     const val DEFAULT_DAILY_MAX_COUNT = 3
-    val DEFAULT_PREFERRED_SCENARIOS: Set<String> = setOf("morning", "evening", "curious", "longing")
+    val DEFAULT_PREFERRED_SCENARIOS: Set<String> = setOf(
+        "morning_greeting",
+        "evening_care",
+        "curious_checkin",
+        "longing_miss",
+        "calm_companion"
+    )
 
     fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -68,6 +75,22 @@ object CompanionPrefs {
 
     fun setPreferredScenarios(prefs: SharedPreferences, scenarios: Set<String>) {
         prefs.edit().putStringSet(KEY_PREFERRED_SCENARIOS, scenarios).apply()
+    }
+
+    fun isScenarioAllowed(preferred: Set<String>, tag: String): Boolean {
+        if (preferred.contains(tag)) return true
+        return preferred.any { p -> tag.startsWith(p) || p.startsWith(tag) }
+    }
+
+    fun getLastRealUserMessageTime(prefs: SharedPreferences): Long =
+        prefs.getLong(KEY_LAST_REAL_USER_MESSAGE_TIME, 0L)
+
+    fun recordLastRealUserMessageTime(prefs: SharedPreferences, at: Long) {
+        prefs.edit().putLong(KEY_LAST_REAL_USER_MESSAGE_TIME, at).apply()
+    }
+
+    fun recordLastRealUserMessageTime(context: Context, at: Long) {
+        recordLastRealUserMessageTime(prefs(context), at)
     }
 
     fun getLastProactiveTime(prefs: SharedPreferences): Long =

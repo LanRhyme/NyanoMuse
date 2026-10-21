@@ -70,7 +70,7 @@
     <string name="nm_open_drawer">Chats</string>
 
     <!-- Home: the chats drawer -->
-    <string name="nm_drawer_main_chat">All chats</string>
+    <string name="nm_drawer_main_chat">Main chat</string>
     <string name="nm_drawer_side_chats">Chats</string>
     <string name="nm_drawer_all_chats">All chats</string>
     <string name="nm_drawer_empty_title">No chats yet</string>

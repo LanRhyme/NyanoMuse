@@ -7045,6 +7045,8 @@ class ChatViewModel(
         val trimmed = text.trim()
         if (trimmed.isNotEmpty()) {
             _latestUserQuery = trimmed
+            // nanoMuse: record real user message time for companion emotion tracking
+            io.github.nanomuse.companion.CompanionPrefs.recordLastRealUserMessageTime(context, System.currentTimeMillis())
         }
         // While streaming, enqueue instead of silently dropping (iOS: send vs enqueuePrompt).
         if (_isStreaming.value) {

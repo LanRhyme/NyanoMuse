@@ -120,8 +120,9 @@ fun SideChatDrawer(
     var renameText by remember { mutableStateOf("") }
     var sessionToDelete by remember { mutableStateOf<ChatSessionEntity?>(null) }
     var query by remember { mutableStateOf("") }
-    val allChats = remember(sessions, query) {
+    val allChats = remember(sessions, query, mainSessionId) {
         sessions
+            .filter { it.id != mainSessionId }
             .filter { query.isBlank() || (it.title ?: "").contains(query, ignoreCase = true) }
             .sortedWith(compareByDescending<ChatSessionEntity> { it.pinnedAt ?: 0L }.thenByDescending { it.updatedAt })
     }
@@ -193,6 +194,50 @@ fun SideChatDrawer(
             )
         }
         Spacer(Modifier.height(4.dp))
+
+        // nanoMuse: 主聊天 (Main Chat) 专属常驻入口
+        val isMainSelected = currentSessionId != null &&
+            (currentSessionId == mainSessionId || (mainSessionId != null && io.github.nanomuse.home.MainChat.isMain(context, currentSessionId)))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 2.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isMainSelected) nmRowSelected else Color.Transparent)
+                .clickable(onClick = onOpenMain)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+        ) {
+            Icon(
+                Icons.Outlined.Home,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = if (isMainSelected) ChatColors.link else nmInk,
+            )
+            Spacer(Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.nm_drawer_main_chat),
+                    fontSize = 15.5.sp,
+                    fontWeight = if (isMainSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isMainSelected) ChatColors.link else nmInk,
+                )
+                Text(
+                    text = agentName,
+                    fontSize = 12.sp,
+                    color = nmMuted,
+                )
+            }
+            if (isMainSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(ChatColors.link)
+                )
+            }
+        }
+        Spacer(Modifier.height(2.dp))
 
         // nanoMuse: Devices — the account's other Muses, one tap away like a chat (docs/every-device.md)
         if (onDevices != null) {

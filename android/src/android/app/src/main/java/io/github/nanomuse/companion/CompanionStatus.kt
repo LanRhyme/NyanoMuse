@@ -12,7 +12,8 @@ object CompanionStatus {
     fun currentMood(context: Context): CompanionEmotion.MoodState {
         val prefs = CompanionPrefs.prefs(context)
         val now = System.currentTimeMillis()
-        val lastTime = prefs.getLong(MainChat.KEY_LAST_ACTIVE_TIME, now)
+        val realUserTime = CompanionPrefs.getLastRealUserMessageTime(prefs)
+        val lastTime = if (realUserTime > 0L) realUserTime else prefs.getLong(MainChat.KEY_LAST_ACTIVE_TIME, now)
         val activeDays = CompanionPrefs.getCachedActiveDays(prefs, now) ?: 1
         return CompanionEmotion.evaluate(
             now = now,

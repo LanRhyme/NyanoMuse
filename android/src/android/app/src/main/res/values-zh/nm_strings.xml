@@ -67,7 +67,7 @@
     <string name="nm_open_drawer">对话</string>
 
     <!-- 首页：对话抽屉 -->
-    <string name="nm_drawer_main_chat">全部会话</string>
+    <string name="nm_drawer_main_chat">主聊天</string>
     <string name="nm_drawer_side_chats">全部会话</string>
     <string name="nm_drawer_all_chats">全部会话</string>
     <string name="nm_drawer_empty_title">暂无历史会话</string>

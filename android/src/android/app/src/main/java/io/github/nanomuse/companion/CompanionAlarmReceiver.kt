@@ -53,13 +53,27 @@ class CompanionAlarmReceiver : BroadcastReceiver() {
             return
         }
 
-        // 3. Query last user message created_at in main chat
-        val lastUserTime = app.chatRepository.dao.lastUserMessageCreatedAt(mainChatId) ?: 0L
+        // 3. Query real user message created_at in main chat (excluding routine/companion wakes)
+        val stamps = app.chatRepository.dao.recentUserMessageStamps(mainChatId, 20)
+        var lastUserTime = 0L
+        for (stamp in stamps) {
+            if (io.github.nanomuse.chat.RoutineWakes.wakeFor(stamp.id) == null) {
+                lastUserTime = stamp.createdAt
+                break
+            }
+        }
+        if (lastUserTime == 0L) {
+            lastUserTime = stamps.lastOrNull()?.createdAt ?: 0L
+        }
+        if (lastUserTime > 0L) {
+            CompanionPrefs.recordLastRealUserMessageTime(prefs, lastUserTime)
+        }
 
-        // 4. Query active interaction days (cached once per day to prevent redundant DB queries)
+        // 4. Query active interaction days (cached once per day with local timezone offset)
         var activeDays = CompanionPrefs.getCachedActiveDays(prefs, now)
         if (activeDays == null) {
-            val countedDays = app.chatRepository.dao.distinctUserMessageDays(mainChatId)
+            val tzOffsetMs = java.util.TimeZone.getDefault().getOffset(now).toLong()
+            val countedDays = app.chatRepository.dao.distinctUserMessageDays(mainChatId, tzOffsetMs)
             activeDays = maxOf(1, countedDays)
             CompanionPrefs.setCachedActiveDays(prefs, activeDays, now)
         }
@@ -75,9 +89,9 @@ class CompanionAlarmReceiver : BroadcastReceiver() {
             quietHoursEnd = quietEnd
         )
 
-        // 6. Check proactive score threshold and user preferred scenarios
+        // 6. Check proactive score threshold and user preferred scenarios (flexible prefix/tag matching)
         val preferredScenarios = CompanionPrefs.getPreferredScenarios(prefs)
-        if (moodState.proactiveScore >= 0.60f && preferredScenarios.contains(moodState.scenarioTag)) {
+        if (moodState.proactiveScore >= 0.60f && CompanionPrefs.isScenarioAllowed(preferredScenarios, moodState.scenarioTag)) {
             AppLogger.info(TAG, "Triggering companion proactive dialogue: scenario=${moodState.scenarioTag} mood=${moodState.primaryMood}")
             val ok = CompanionWake.dispatch(context, mainChatId, moodState)
             if (ok) {

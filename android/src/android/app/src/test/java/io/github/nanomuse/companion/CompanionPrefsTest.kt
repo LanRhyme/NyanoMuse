@@ -188,5 +188,9 @@ class CompanionPrefsTest {
         val custom = setOf("morning", "evening")
         CompanionPrefs.setPreferredScenarios(prefs, custom)
         assertEquals(custom, CompanionPrefs.getPreferredScenarios(prefs))
+
+        assertTrue(CompanionPrefs.isScenarioAllowed(setOf("morning_greeting"), "morning_greeting"))
+        assertTrue(CompanionPrefs.isScenarioAllowed(setOf("morning"), "morning_greeting"))
+        assertFalse(CompanionPrefs.isScenarioAllowed(setOf("evening_care"), "morning_greeting"))
     }
 }

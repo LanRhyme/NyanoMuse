@@ -66,7 +66,7 @@
     <string name="nm_more">更多</string>
     <string name="nm_open_drawer">對話</string>
 
-    <string name="nm_drawer_main_chat">全部對話</string>
+    <string name="nm_drawer_main_chat">主對話</string>
     <string name="nm_drawer_side_chats">全部對話</string>
     <string name="nm_drawer_all_chats">全部對話</string>
     <string name="nm_drawer_empty_title">暫無歷史對話</string>

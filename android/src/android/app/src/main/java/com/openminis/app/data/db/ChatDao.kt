@@ -195,13 +195,22 @@ interface ChatDao {
     )
     suspend fun loadUserMessagesSince(since: Long, limit: Int): List<MessageEntity>
 
+    data class MessageIdStamp(
+        val id: String,
+        @androidx.room.ColumnInfo(name = "created_at") val createdAt: Long,
+    )
+
+    // nanoMuse: companion emotion engine query for real user message stamps excluding routine wakes
+    @Query("SELECT id, created_at FROM messages WHERE session_id = :sessionId AND role = 'user' ORDER BY created_at DESC LIMIT :limit")
+    suspend fun recentUserMessageStamps(sessionId: String, limit: Int = 20): List<MessageIdStamp>
+
     // nanoMuse: companion emotion engine query for real last user message timestamp in main chat
     @Query("SELECT created_at FROM messages WHERE session_id = :sessionId AND role = 'user' ORDER BY created_at DESC LIMIT 1")
     suspend fun lastUserMessageCreatedAt(sessionId: String): Long?
 
-    // nanoMuse: count distinct interaction days for intimacy computation
-    @Query("SELECT COUNT(DISTINCT (created_at / 86400000)) FROM messages WHERE session_id = :sessionId AND role = 'user'")
-    suspend fun distinctUserMessageDays(sessionId: String): Int
+    // nanoMuse: count distinct interaction days with local timezone offset for intimacy computation
+    @Query("SELECT COUNT(DISTINCT ((created_at + :offsetMs) / 86400000)) FROM messages WHERE session_id = :sessionId AND role = 'user'")
+    suspend fun distinctUserMessageDays(sessionId: String, offsetMs: Long = 0L): Int
 
     @Query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM messages WHERE session_id = :sessionId")
     suspend fun nextSortOrder(sessionId: String): Int

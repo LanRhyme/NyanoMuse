@@ -2,6 +2,7 @@ package io.github.nanomuse.companion
 
 import android.content.Context
 import com.openminis.app.MinisApp
+import com.openminis.app.R
 import com.openminis.app.debug.HeadlessChatRunner
 import com.openminis.app.logging.AppLogger
 import io.github.nanomuse.chat.RoutineWakes
@@ -23,12 +24,11 @@ object CompanionWake {
         val session = app.chatRepository.getSession(sessionId) ?: return@withContext false
 
         // 1. Choose natural intent label & quiet prompt based on mood scenario
-        val label = when (moodState.scenario) {
-            CompanionEmotion.Scenario.MORNING_GREETING -> "✨ 早安问候"
-            CompanionEmotion.Scenario.EVENING_CARE -> "🌙 晚安轻语"
-            CompanionEmotion.Scenario.CURIOUS_CHECKIN -> "🐾 探头关心"
-            CompanionEmotion.Scenario.LONGING_MISS -> "💙 想老大了"
-            else -> "🐾 轻快探头"
+        val label = when (moodState.primaryMood) {
+            CompanionEmotion.PrimaryMood.HAPPY -> context.getString(R.string.nm_companion_mood_happy)
+            CompanionEmotion.PrimaryMood.CURIOUS -> context.getString(R.string.nm_companion_mood_curious)
+            CompanionEmotion.PrimaryMood.LONGING -> context.getString(R.string.nm_companion_mood_longing)
+            CompanionEmotion.PrimaryMood.SLEEPY -> context.getString(R.string.nm_companion_mood_sleepy)
         }
 
         val promptText = when (moodState.scenario) {
@@ -47,46 +47,59 @@ object CompanionWake {
             framingInstruction = moodState.framingInstruction
         )
 
-        // 3. Optional: apply model binding if configured by user
+        // 3. Optional: apply model binding if configured by user, keeping original binding to restore in finally
         val customBinding = CompanionPrefs.getProactiveModelBinding(CompanionPrefs.prefs(context))
-        if (!customBinding.isNullOrBlank()) {
+        val originalBinding = session.modelBinding
+        val originalModelId = session.modelId
+        var bindingSwapped = false
+
+        if (!customBinding.isNullOrBlank() && customBinding != originalBinding) {
             runCatching {
                 app.chatRepository.updateSessionBinding(sessionId, customBinding, "")
+                bindingSwapped = true
             }
         }
 
-        // 4. Send prompt headless with timeout
-        val result = try {
-            HeadlessChatRunner.prompt(
-                context = context,
-                sessionId = sessionId,
-                text = promptText,
-                wait = true,
-                timeoutMs = 45_000L
-            )
-        } catch (t: Throwable) {
-            RoutineWakes.disarm(sessionId)
-            AppLogger.warning(TAG, "Companion proactive prompt failed: ${t.message}")
-            return@withContext false
-        }
+        try {
+            // 4. Send prompt headless with timeout
+            val result = try {
+                HeadlessChatRunner.prompt(
+                    context = context,
+                    sessionId = sessionId,
+                    text = promptText,
+                    wait = true,
+                    timeoutMs = 45_000L
+                )
+            } catch (t: Throwable) {
+                RoutineWakes.disarm(sessionId)
+                AppLogger.warning(TAG, "Companion proactive prompt failed: ${t.message}")
+                return@withContext false
+            }
 
-        if (result.status != "Completed" || result.responseText.isNullOrBlank()) {
-            RoutineWakes.disarm(sessionId)
-            return@withContext false
-        }
+            if (result.status != "Completed" || result.responseText.isNullOrBlank()) {
+                RoutineWakes.disarm(sessionId)
+                return@withContext false
+            }
 
-        // 5. Post notification if user is not actively viewing main chat
-        val activeSession = com.openminis.app.ui.chat.ChatViewModelStore.activeSessionId
-        val isViewingMainChat = (app.isAppForeground() && activeSession == sessionId)
-        if (!isViewingMainChat) {
-            CompanionNotifications.postProactiveNotification(
-                context = context,
-                sessionId = sessionId,
-                mood = moodState.primaryMood,
-                text = result.responseText.trim()
-            )
-        }
+            // 5. Post notification if user is not actively viewing main chat
+            val activeSession = com.openminis.app.ui.chat.ChatViewModelStore.activeSessionId
+            val isViewingMainChat = (app.isAppForeground() && activeSession == sessionId)
+            if (!isViewingMainChat) {
+                CompanionNotifications.postProactiveNotification(
+                    context = context,
+                    sessionId = sessionId,
+                    mood = moodState.primaryMood,
+                    text = result.responseText.trim()
+                )
+            }
 
-        return@withContext true
+            return@withContext true
+        } finally {
+            if (bindingSwapped) {
+                runCatching {
+                    app.chatRepository.updateSessionBinding(sessionId, originalBinding ?: "", originalModelId ?: "")
+                }
+            }
+        }
     }
 }

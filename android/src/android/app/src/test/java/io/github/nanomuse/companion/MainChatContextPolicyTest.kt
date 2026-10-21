@@ -58,4 +58,41 @@ class MainChatContextPolicyTest {
         assertTrue(droppedCount > 0)
         assertEquals("Message 20", kept.last().content.take(10))
     }
+
+    @Test
+    fun testEstimateTokensCJKAndToolUse() {
+        val cjkMessage = LLMMessage(
+            role = LLMMessage.Role.USER,
+            content = "今天天气真好，老大带我去散步吧" // 15 CJK chars
+        )
+        val tokens = MainChatContextPolicy.estimateTokens(cjkMessage)
+        assertEquals(15, tokens)
+
+        val toolMessage = LLMMessage(
+            role = LLMMessage.Role.ASSISTANT,
+            content = "",
+            contentParts = listOf(
+                AgentContentPart.ToolUse(
+                    name = "read_file",
+                    input = org.json.JSONObject("{\"path\":\"/sdcard/test.txt\"}"),
+                    id = "tool_1"
+                )
+            )
+        )
+        val toolTokens = MainChatContextPolicy.estimateTokens(toolMessage)
+        assertTrue(toolTokens > 5)
+    }
+
+    @Test
+    fun testDynamicScalingForLargeContext() {
+        val messages = (1..15).map { i ->
+            LLMMessage(role = LLMMessage.Role.USER, content = "User turn $i")
+        }
+        // 1M context model should accommodate history easily under default budget
+        val kept = MainChatContextPolicy.applySlidingWindow(
+            history = messages,
+            contextWindow = 1_000_000
+        )
+        assertEquals(15, kept.size)
+    }
 }
