@@ -78,6 +78,11 @@
     <string name="nm_drawer_settings">การตั้งค่า</string>
     <string name="nm_drawer_untitled">แชทใหม่</string>
     <string name="nm_drawer_set_main">ตั้งเป็นแชทหลัก</string>
+    <string name="nm_drawer_pin">ปักหมุด</string>
+    <string name="nm_drawer_unpin">เลิกปักหมุด</string>
+    <string name="nm_drawer_rename">เปลี่ยนชื่อ</string>
+    <string name="nm_drawer_delete">ลบแชท</string>
+    <string name="nm_drawer_delete_confirm">ต้องการลบแชทนี้หรือไม่</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">เป้าหมาย</string>

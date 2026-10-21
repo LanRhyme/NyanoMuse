@@ -78,6 +78,11 @@
     <string name="nm_drawer_settings">Pengaturan</string>
     <string name="nm_drawer_untitled">Obrolan baru</string>
     <string name="nm_drawer_set_main">Jadikan obrolan utama</string>
+    <string name="nm_drawer_pin">Sematkan</string>
+    <string name="nm_drawer_unpin">Lepas sematan</string>
+    <string name="nm_drawer_rename">Ganti nama</string>
+    <string name="nm_drawer_delete">Hapus chat</string>
+    <string name="nm_drawer_delete_confirm">Yakin ingin menghapus chat ini?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Tujuan</string>

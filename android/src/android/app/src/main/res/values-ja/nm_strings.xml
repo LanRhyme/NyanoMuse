@@ -78,6 +78,11 @@
     <string name="nm_drawer_settings">設定</string>
     <string name="nm_drawer_untitled">新しいチャット</string>
     <string name="nm_drawer_set_main">これをメインチャットにする</string>
+    <string name="nm_drawer_pin">ピン留め</string>
+    <string name="nm_drawer_unpin">ピン留めを解除</string>
+    <string name="nm_drawer_rename">名前を変更</string>
+    <string name="nm_drawer_delete">チャットを削除</string>
+    <string name="nm_drawer_delete_confirm">このチャットを削除しますか？</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">目標</string>

@@ -82,6 +82,11 @@
     <string name="nm_drawer_settings">Setări</string>
     <string name="nm_drawer_untitled">Conversație nouă</string>
     <string name="nm_drawer_set_main">Fă din aceasta conversația principală</string>
+    <string name="nm_drawer_pin">Fixează</string>
+    <string name="nm_drawer_unpin">Anulează fixarea</string>
+    <string name="nm_drawer_rename">Redenumește</string>
+    <string name="nm_drawer_delete">Șterge conversația</string>
+    <string name="nm_drawer_delete_confirm">Sigur ștergi această conversație?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Obiective</string>

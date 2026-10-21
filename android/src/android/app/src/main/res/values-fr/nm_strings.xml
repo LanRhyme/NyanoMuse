@@ -80,6 +80,11 @@
     <string name="nm_drawer_settings">Réglages</string>
     <string name="nm_drawer_untitled">Nouvelle discussion</string>
     <string name="nm_drawer_set_main">En faire la discussion principale</string>
+    <string name="nm_drawer_pin">Épingler</string>
+    <string name="nm_drawer_unpin">Désépingler</string>
+    <string name="nm_drawer_rename">Renommer</string>
+    <string name="nm_drawer_delete">Supprimer la conversation</string>
+    <string name="nm_drawer_delete_confirm">Voulez-vous vraiment supprimer cette conversation ?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Objectifs</string>

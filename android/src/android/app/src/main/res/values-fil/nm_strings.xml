@@ -80,6 +80,11 @@
     <string name="nm_drawer_settings">Mga setting</string>
     <string name="nm_drawer_untitled">Bagong chat</string>
     <string name="nm_drawer_set_main">Gawin itong pangunahing chat</string>
+    <string name="nm_drawer_pin">I-pin</string>
+    <string name="nm_drawer_unpin">Alisin ang pin</string>
+    <string name="nm_drawer_rename">Palitan ang pangalan</string>
+    <string name="nm_drawer_delete">Burahin ang chat</string>
+    <string name="nm_drawer_delete_confirm">Sigurado ka bang buburahin ang chat na ito?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Mga Layunin</string>

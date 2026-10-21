@@ -80,6 +80,11 @@
     <string name="nm_drawer_settings">Ayarlar</string>
     <string name="nm_drawer_untitled">Yeni sohbet</string>
     <string name="nm_drawer_set_main">Bunu ana sohbet yap</string>
+    <string name="nm_drawer_pin">Sabitle</string>
+    <string name="nm_drawer_unpin">Sabitlemeyi kaldır</string>
+    <string name="nm_drawer_rename">Yeniden adlandır</string>
+    <string name="nm_drawer_delete">Sohbeti sil</string>
+    <string name="nm_drawer_delete_confirm">Bu sohbeti silmek istediğine emin misin?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Hedefler</string>

@@ -84,6 +84,11 @@
     <string name="nm_drawer_settings">Ustawienia</string>
     <string name="nm_drawer_untitled">Nowy czat</string>
     <string name="nm_drawer_set_main">Ustaw jako czat główny</string>
+    <string name="nm_drawer_pin">Przypnij</string>
+    <string name="nm_drawer_unpin">Odepnij</string>
+    <string name="nm_drawer_rename">Zmień nazwę</string>
+    <string name="nm_drawer_delete">Usuń czat</string>
+    <string name="nm_drawer_delete_confirm">Czy na pewno usunąć ten czat?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Cele</string>

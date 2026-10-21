@@ -80,6 +80,11 @@
     <string name="nm_drawer_settings">Ajustes</string>
     <string name="nm_drawer_untitled">Chat nuevo</string>
     <string name="nm_drawer_set_main">Hacer este el chat principal</string>
+    <string name="nm_drawer_pin">Fijar</string>
+    <string name="nm_drawer_unpin">Desfijar</string>
+    <string name="nm_drawer_rename">Cambiar nombre</string>
+    <string name="nm_drawer_delete">Eliminar chat</string>
+    <string name="nm_drawer_delete_confirm">¿Seguro que quieres eliminar este chat?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Metas</string>

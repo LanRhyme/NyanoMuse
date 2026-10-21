@@ -80,6 +80,11 @@
     <string name="nm_drawer_settings">Configurações</string>
     <string name="nm_drawer_untitled">Nova conversa</string>
     <string name="nm_drawer_set_main">Tornar esta a conversa principal</string>
+    <string name="nm_drawer_pin">Fixar</string>
+    <string name="nm_drawer_unpin">Desafixar</string>
+    <string name="nm_drawer_rename">Renomear</string>
+    <string name="nm_drawer_delete">Excluir conversa</string>
+    <string name="nm_drawer_delete_confirm">Tem certeza de que quer excluir esta conversa?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Metas</string>

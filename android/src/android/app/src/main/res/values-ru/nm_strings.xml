@@ -84,6 +84,11 @@
     <string name="nm_drawer_settings">Настройки</string>
     <string name="nm_drawer_untitled">Новый чат</string>
     <string name="nm_drawer_set_main">Сделать основным чатом</string>
+    <string name="nm_drawer_pin">Закрепить</string>
+    <string name="nm_drawer_unpin">Открепить</string>
+    <string name="nm_drawer_rename">Переименовать</string>
+    <string name="nm_drawer_delete">Удалить чат</string>
+    <string name="nm_drawer_delete_confirm">Удалить этот чат?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Цели</string>

@@ -78,6 +78,11 @@
     <string name="nm_drawer_settings">Tetapan</string>
     <string name="nm_drawer_untitled">Sembang baharu</string>
     <string name="nm_drawer_set_main">Jadikan ini sembang utama</string>
+    <string name="nm_drawer_pin">Sematkan</string>
+    <string name="nm_drawer_unpin">Nyahsemat</string>
+    <string name="nm_drawer_rename">Namakan semula</string>
+    <string name="nm_drawer_delete">Padam chat</string>
+    <string name="nm_drawer_delete_confirm">Pasti mahu padam chat ini?</string>
 
     <!-- Goals tab -->
     <string name="nm_goals_title">Matlamat</string>
