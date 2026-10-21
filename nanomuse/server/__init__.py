@@ -16,14 +16,32 @@ import socket
 import sys
 import threading
 import traceback
+from typing import TYPE_CHECKING, Any
 
 from nanomuse import __version__, loopback
 from nanomuse.certs import ensure_ca_bundle
 from nanomuse.config import Settings
-from nanomuse.server.api import STATIC_DIR, create_app
-from nanomuse.server.service import MuseService
+
+if TYPE_CHECKING:
+    from nanomuse.server.api import STATIC_DIR, create_app
+    from nanomuse.server.service import MuseService
 
 __all__ = ["MuseService", "STATIC_DIR", "bridge_url", "create_app", "lan_ip", "port_taken", "serve"]
+
+
+def __getattr__(name: str) -> Any:
+    """The app and the service are imported when they are asked for, not when this package
+    is: ``nanomuse.sync`` imports the server's events, and the server imports the sync
+    engine, so the eager import made ``import nanomuse.sync`` a circle."""
+    if name in ("STATIC_DIR", "create_app"):
+        from nanomuse.server import api
+
+        return getattr(api, name)
+    if name == "MuseService":
+        from nanomuse.server.service import MuseService
+
+        return MuseService
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def bridge_url(host: str, port: int) -> str:
@@ -108,6 +126,9 @@ def serve(
             flush=True,
         )
         raise SystemExit(98)
+    from nanomuse.server.api import create_app
+    from nanomuse.server.service import MuseService
+
     service = MuseService(settings)
     service.bridge.base_url = bridge_url(host, port)
     app = create_app(settings, service)
@@ -185,6 +206,8 @@ def _utf8_console() -> None:
 
 def _print_banner(url: str, service: MuseService, print_qr: bool) -> None:
     from rich.console import Console
+
+    from nanomuse.server.api import STATIC_DIR
 
     console = Console()
     name = (service.profile.name or "").strip()
