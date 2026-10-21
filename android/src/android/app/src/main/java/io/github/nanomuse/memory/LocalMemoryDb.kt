@@ -723,11 +723,16 @@ class LocalMemoryDb(context: Context, name: String = DATABASE_NAME) : SQLiteOpen
 
     /**
      * Search active memories for potential topical conflicts.
+     *
+     * A match only counts when it is a close one: the same words are not the same fact, and
+     * the desktop keeps the same floor (0.35 on the same scale, both scorers are the same
+     * formula).
      */
     fun detectConflicts(newContent: String, category: String? = null, limit: Int = 3): List<MemoryEntity> {
         val matches = search(newContent, limit = limit * 2, includeArchived = false)
         if (matches.isEmpty()) return emptyList()
         return matches
+            .filter { it.score >= 0.35f }
             .mapNotNull { m -> get(m.item.id) }
             .filter { entity ->
                 if (category != null && entity.category != category) return@filter false

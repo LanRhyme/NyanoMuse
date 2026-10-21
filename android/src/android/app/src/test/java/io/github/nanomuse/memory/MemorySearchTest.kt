@@ -99,4 +99,27 @@ class MemorySearchTest {
         val m2 = zhDeviceMatch.find("当前平板换成了 iPad Pro")
         assertTrue(m2 != null && m2.groupValues[1] == "平板")
     }
+
+    @Test
+    fun testTheConflictFloorKeepsWeakMatchesOut() {
+        // the floor the conflict detection uses: a close match counts, a shared word does not
+        val now = System.currentTimeMillis()
+        val query = "住在北京"
+        val tokens = MemoryTokenizer.tokenizeForSearch(query).split(Regex("\\s+")).filter { it.isNotEmpty() }
+
+        val close = MemoryCandidate(
+            id = "mem_city",
+            content = "住在北京市海淀区",
+            searchText = MemoryTokenizer.tokenizeForSearch("住在北京市海淀区"),
+            updatedAt = now,
+        )
+        val weak = MemoryCandidate(
+            id = "mem_tea",
+            content = "平时喜欢喝大红袍",
+            searchText = MemoryTokenizer.tokenizeForSearch("平时喜欢喝大红袍"),
+            updatedAt = now,
+        )
+        assertTrue(MemoryScorer.scoreCandidate(query, tokens, close, now).score >= 0.35f)
+        assertTrue(MemoryScorer.scoreCandidate(query, tokens, weak, now).score < 0.35f)
+    }
 }

@@ -62,6 +62,8 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
      * New entries are prepended (newest first).
      * Returns a success/error message string.
      */
+    // nanoMuse: replacesId names the memory this entry supersedes, so two facts about the
+    // same thing do not stand next to each other (the structured store archives the old one)
     fun writeMemory(content: String, replacesId: String? = null): String {
         if (content.isBlank()) return "Error: Missing required 'content' parameter"
 
@@ -80,23 +82,10 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         return try {
             file.writeText(newContent)
             Log.i(TAG, "Memory written to $fileName (${content.length} chars)")
-            // nanoMuse: dual-write into LocalMemoryDb with conflict resolution
+            // nanoMuse: dual-write into LocalMemoryDb, with the conflict resolution: a fact
+            // that replaces an older one archives it instead of standing beside it
             context?.let { ctx ->
-                try {
-                    val db = io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx)
-                    if (!replacesId.isNullOrBlank()) {
-                        db.supersede(replacesId, content, source = "agent")
-                    } else {
-                        val directConflict = db.findDirectConflict(content)
-                        if (directConflict != null) {
-                            db.supersede(directConflict.id, content, source = "agent")
-                        } else {
-                            db.upsert(content = content, source = "agent")
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "LocalMemoryDb dual-write failed", e)
-                }
+                io.github.nanomuse.memory.StructuredMemory.writeWithConflict(ctx, content, replacesId)
             }
             "Memory saved to $fileName (${content.length} chars)"
         } catch (e: Exception) {
@@ -312,7 +301,7 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
             sb.append(content).append("\n")
         }
         if (hotMemories.isNotEmpty()) {
-            sb.append("\nStructured long-term memories (to update or supersede a memory, provide its [id] in memory_write's replaces_id parameter):\n")
+            sb.append("\nStructured long-term memories (to update or supersede a memory, give its [id] in memory_write's replaces_id):\n")
             var chars = 0
             var shown = 0
             for (m in hotMemories) {
@@ -619,101 +608,5 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
             }
         }
         return result
-    }
-
-    // -- Structured Memory (LocalMemoryDb) helpers --
-
-    fun getAllStructuredMemories(includeArchived: Boolean = true): List<io.github.nanomuse.memory.MemoryEntity> {
-        val ctx = context ?: return emptyList()
-        return try {
-            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).getAllMemories(includeArchived)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get all memories", e)
-            emptyList()
-        }
-    }
-
-    fun searchStructuredMemories(query: String, limit: Int = 20, includeArchived: Boolean = true): List<io.github.nanomuse.memory.MemoryMatch> {
-        val ctx = context ?: return emptyList()
-        return try {
-            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).search(query, limit, includeArchived)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to search memories", e)
-            emptyList()
-        }
-    }
-
-    fun activeStructuredCount(): Int {
-        val ctx = context ?: return 0
-        return try {
-            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).activeCount()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get active count", e)
-            0
-        }
-    }
-
-    fun archivedStructuredCount(): Int {
-        val ctx = context ?: return 0
-        return try {
-            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).archivedCount()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get archived count", e)
-            0
-        }
-    }
-
-    fun upsertStructuredMemory(
-        id: String? = null,
-        content: String,
-        category: String = "preference",
-        source: String = "manual",
-        isPinned: Boolean = false,
-        isArchived: Boolean = false,
-    ): io.github.nanomuse.memory.MemoryEntity? {
-        val ctx = context ?: return null
-        return try {
-            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).upsert(
-                id = id,
-                content = content,
-                category = category,
-                source = source,
-                isPinned = isPinned,
-                isArchived = isArchived
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to upsert memory", e)
-            null
-        }
-    }
-
-    fun togglePin(id: String, isPinned: Boolean? = null): Boolean {
-        val ctx = context ?: return false
-        return try {
-            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).togglePin(id, isPinned)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to toggle pin", e)
-            false
-        }
-    }
-
-    fun toggleArchive(id: String, isArchived: Boolean? = null): Boolean {
-        val ctx = context ?: return false
-        return try {
-            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).toggleArchive(id, isArchived)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to toggle archive", e)
-            false
-        }
-    }
-
-    fun deleteStructuredMemory(id: String): Boolean {
-        val ctx = context ?: return false
-        return try {
-            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).delete(id)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete structured memory", e)
-            false
-        }
     }
 }

@@ -166,13 +166,18 @@ sessions and the hub's notices, *Today* and *Earlier*), **Approvals** (the per-a
 *Always allow* grants with **Revoke**, *Manage permissions* → Settings → Computer use,
 then what you allowed or rejected on the approval cards, with when; kept on this
 computer), **Daily** (the routines; *Manage routines* opens the harness's schedules
-panel), **Soul & memory** (what the agent remembers about you, one line each): a
-field to add one, a search field that also reaches the older memories kept out
-of the list, × to forget one, *Import memory* (a sheet: paste what another
-assistant knew, one line per memory), and the agent's description when the account has
-one. The agent writes memory itself with the `remember` tool when you tell it something
-you will expect it to know next time, and every chat's prompt carries the newest ones
-(`memory.db` here, with the account's other devices when one is signed in). *Change look* has the dragon, an emoji on a colour,
+panel), **Soul & memory** (what the agent remembers about you, one line each): the list
+with the filters (all, the live ones, the archived ones, and a category each), a
+search that also reaches the older memories kept out of the list, and the row
+actions: pin, archive, edit, delete. Under the list, how many are live and how
+many are archived; a field to add one, *Import memory* (a sheet: paste what
+another assistant knew, one line per memory), and the agent's description when the
+account has one. The agent writes memory itself with the `remember` tool when you
+tell it something you will expect it to know next time, and every chat's prompt
+carries the newest ones (`memory.db` here, with the account's other devices when
+one is signed in). A fact that changes replaces the old one: when you say that you
+moved or that the device changed, the old line is archived and the new one takes
+its place, in the prompt and in the search, on every device. *Change look* has the dragon, an emoji on a colour,
 and **Draw one**, the avatar studio: describe the character, pick a style (the 3D
 toy look by default), see what it costs against today's allowance, *Draw four*,
 and the four candidates come up in a 2×2 grid with *Option 1–4*; *This one* draws the

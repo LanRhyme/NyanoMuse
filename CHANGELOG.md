@@ -38,6 +38,10 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Desktop
 
+- **The Memory panel lists every memory, with the filters and the actions.** The list has the hot and the cold memories, a category each, a search that reaches what the list leaves out, and the row actions: pin, archive, edit, delete. A memory can be pinned, archived, edited or deleted, and the count of the archived ones is shown under the list.
+
+- **A fact that changes replaces the old one instead of standing beside it.** When the person tells the agent that they moved, that they are called something else, or that the device changed, the old memory is archived and the new one takes its place, in the prompt and in the search. The `remember` tool takes the id of the memory it replaces, and the prompt carries the ids so it can.
+
 - **Memory reaches the account's other devices, and the Memory panel can search all of it.** Every memory write is queued as one operation with an id of its own and pushed to the relay, which gives it a sequence number the other devices apply in order; only the text and its flags travel, so each device builds its own index, and a change made offline waits for the next sign-in. In the panel a search field looks through the archived memories the list leaves out, each marked *Archived*.
 
 - **Memory is a searchable SQLite store, and the 400-line cap that silently dropped the oldest lines is gone.** Facts live in `memory.db` beside `rooms.json`, each with a pre-tokenised index (CJK bigrams and lowercase words), so a question in Chinese finds the fact that answers it even when the words differ. The prompt carries the pinned and newest memories within a 30-line, 3000-character budget and points at `recall_memory` for the rest. Repeating a fact updates that line instead of adding a second one, and lines past the hot limit move to an archive instead of being deleted. *Download your agent data* includes `memories.json`, and *Reset* deletes the store.
@@ -69,6 +73,10 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **The bundled runtime kept its library links.** Staging the PyInstaller output preserved relative library aliases and macOS framework links instead of copying their targets into duplicate files and directories.
 
 ### Android
+
+- **The memory screen lists every memory, with the filters and the actions.** The Settings screen has the hot and the cold memories, a category each, a search that reaches what the list leaves out, and the row actions: pin, archive, edit, delete. The files behind it (`GLOBAL.md`, the daily logs) stay in a drawer of their own.
+
+- **A fact that changes replaces the old one instead of standing beside it.** When the person tells the agent that they moved, that they are called something else, or that the device changed, the old memory is archived and the new one takes its place, in the prompt and in the search. The `memory_write` tool takes the id of the memory it replaces, and the prompt carries the ids so it can.
 
 - **Memories follow the account between this phone and the computer.** Every write here is queued as one operation with an id of its own and sent to the relay, which gives it a sequence number the other devices apply in order; only the text and its flags travel, and each device builds its own index, so a change made offline waits and goes up on the next sync. The searchable store moves with its account on a switch or a sign-out, like the memory files do. A keyword lookup still finds the memories the prompt leaves out for age.
 

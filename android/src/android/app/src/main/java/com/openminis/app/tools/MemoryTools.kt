@@ -22,6 +22,7 @@ object MemoryTools {
                 put("type", "string")
                 put("description", "The memory content to write. Use concise Markdown with a short heading (## Topic) and context about what was done/learned.")
             })
+            // nanoMuse: the memory this entry supersedes, so the store archives the old one
             put("replaces_id", JSONObject().apply {
                 put("type", "string")
                 put("description", "Optional memory ID (e.g. 'mem_...') that this entry updates, contradicts, or supersedes. If provided, the old memory is automatically archived to prevent contradictions.")
@@ -117,6 +118,7 @@ object MemoryTools {
             if (content.isBlank()) {
                 ToolResult("Error: Missing required 'content' parameter", false, toolTitle)
             } else {
+                // nanoMuse: the conflict resolution lives in the structured store
                 val result = repository.writeMemory(content, replacesId)
                 val success = result.startsWith("Memory saved")
                 ToolResult(result, success, toolTitle)
