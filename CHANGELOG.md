@@ -38,6 +38,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Desktop
 
+- **Pinned Main Chat shortcut in sidebar chats column.** A dedicated Main Chat button sits directly beneath the New chat action with home icon and active selection indicator, filtering the main session out of the ordinary side chats list to prevent duplication
+
 - **System prompt carries query-aware relevant memories with bounded pinned passport.** The model context dynamically retrieves top-k relevant memories matching the user's latest query rather than dumping an unbounded list of facts; pinned core facts form a stable prefix capped at 6 items, with prompt budget ceiling preserved and deeper search delegated to `recall_memory`
 
 - **A fact the person states in passing is kept without them asking.** When a message says where they live, what they call their computer, what they are allergic to, or how they like to be addressed, the line is written to the memory store and travels with the account. Commands, questions and the things of the moment ("open this file", "what time is it") are left alone, and a value that reads like a phone number, an e-mail address or a card is never kept — it would travel to every device without being asked for. A line that starts with 记住 still works, and its source in the panel is *extracted* rather than *you*.
