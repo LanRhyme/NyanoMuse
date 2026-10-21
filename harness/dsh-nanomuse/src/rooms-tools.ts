@@ -10,8 +10,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from './cloud.ts'
 import { AREAS, languageName, type MemoryItem } from './rooms.ts'
-import { selectMemoriesForPrompt, MEMORY_PROMPT_LIMITS, type SelectedMemoriesResult } from './rooms-memory-prompt.ts'
-export { selectMemoriesForPrompt, MEMORY_PROMPT_LIMITS, type SelectedMemoriesResult }
+import { selectMemoriesForPrompt } from './rooms-memory-prompt.ts'
 
 export const name = 'nanomuse-rooms-tools'
 export const inject = ['tools', 'nanomuseRooms', 'nanomuseCloud']
@@ -248,5 +247,3 @@ export function apply(ctx: Context): void {
     )
   })
 }
-
-
