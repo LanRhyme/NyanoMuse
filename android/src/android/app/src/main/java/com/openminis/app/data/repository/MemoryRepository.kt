@@ -64,7 +64,7 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
      */
     // nanoMuse: replacesId names the memory this entry supersedes, so two facts about the
     // same thing do not stand next to each other (the structured store archives the old one)
-    fun writeMemory(content: String, replacesId: String? = null): String {
+    fun writeMemory(content: String, replacesId: String? = null, source: String = "agent"): String {
         if (content.isBlank()) return "Error: Missing required 'content' parameter"
 
         val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
@@ -85,7 +85,7 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
             // nanoMuse: dual-write into LocalMemoryDb, with the conflict resolution: a fact
             // that replaces an older one archives it instead of standing beside it
             context?.let { ctx ->
-                io.github.nanomuse.memory.StructuredMemory.writeWithConflict(ctx, content, replacesId)
+                io.github.nanomuse.memory.StructuredMemory.writeWithConflict(ctx, content, replacesId, source)
             }
             "Memory saved to $fileName (${content.length} chars)"
         } catch (e: Exception) {

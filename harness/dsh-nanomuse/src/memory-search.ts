@@ -58,17 +58,98 @@ export function tokenizeForSearch(text: string): string {
   return tokens.join(' ')
 }
 
+export const EQUIVALENT_SYNONYMS: readonly (readonly string[])[] = [
+  // Devices & Hardware
+  ['电脑', 'pc', '计算机', '台式机', '主机', '工作站'],
+  ['笔记本', 'laptop', 'macbook', 'thinkpad'],
+  ['平板', 'tablet', 'pad', 'ipad', '平板电脑'],
+  ['手机', 'phone', '移动端', 'smartphone'],
+
+  // Systems, Environments & Tools
+  ['操作系统', 'os', '系统'],
+  ['桌面环境', '窗口管理器', '合成器', 'wm', 'compositor'],
+  ['包管理器', 'packagemanager', '包管理工具'],
+  ['编辑器', '开发工具', 'ide', 'editor', '代码编辑器'],
+
+  // Lifestyle & Habits
+  ['热饮', '饮品', '饮料', '喝的'],
+  ['饮食', '食物', '餐', '吃的'],
+  ['偏好', '喜好', '偏爱', '倾向'],
+  ['习惯', '日常习惯', '生活习惯'],
+  ['住址', '所在地', '居住地', '现居'],
+  ['姓名', '名字', '称呼', '叫我', '昵称', 'name'],
+  ['代码', '编程', '开发', '写代码', 'coding'],
+  ['工作', '职业', '身份', '岗位', '上班', '公司', 'work', 'job'],
+]
+
+export const HYPERNYM_EXPANSIONS: Record<string, readonly string[]> = {
+  // Category -> Instances
+  '热饮': ['拿铁', '咖啡', '美式', '茶', '红茶', '绿茶', '乌龙茶', '奶茶', '可乐', '水'],
+  '饮品': ['拿铁', '咖啡', '美式', '茶', '红茶', '绿茶', '乌龙茶', '奶茶', '可乐', '水'],
+  '饮料': ['拿铁', '咖啡', '美式', '茶', '红茶', '绿茶', '乌龙茶', '奶茶', '可乐', '水'],
+  '喝': ['拿铁', '咖啡', '美式', '茶', '红茶', '绿茶', '乌龙茶', '奶茶', '可乐', '水'],
+  '饮食': ['菜', '饭', '面', '早饭', '午饭', '晚饭', '早餐', '午餐', '晚餐', '零食', '甜品'],
+  '食物': ['菜', '饭', '面', '早饭', '午饭', '晚饭', '早餐', '午餐', '晚餐', '零食', '甜品'],
+  '吃': ['菜', '饭', '面', '早饭', '午饭', '晚饭', '早餐', '午餐', '晚餐', '零食', '甜品'],
+  '操作系统': ['linux', 'arch', 'cachyos', 'windows', 'macos', 'android', 'coloros', 'hyperos', 'ios'],
+  '系统': ['linux', 'arch', 'cachyos', 'windows', 'macos', 'android', 'coloros', 'hyperos', 'ios'],
+  '窗口管理器': ['niri', 'hyprland', 'sway', 'wayland', 'gnome', 'kde', 'x11'],
+  '合成器': ['niri', 'hyprland', 'sway', 'wayland'],
+  '编辑器': ['neovim', 'nvim', 'vscode', 'cursor', 'zed', 'vim'],
+  '包管理器': ['pacman', 'paru', 'aur', 'pnpm', 'npm', 'yarn', 'cargo', 'pip'],
+}
+
+const EQUIVALENTS_MAP = new Map<string, readonly string[]>()
+for (const cluster of EQUIVALENT_SYNONYMS) {
+  for (const term of cluster) {
+    EQUIVALENTS_MAP.set(term.toLowerCase(), cluster)
+  }
+}
+
+export function getSynonyms(term: string): readonly string[] {
+  const lower = term.toLowerCase()
+  const equivalents = EQUIVALENTS_MAP.get(lower) ?? []
+  const hypernyms = HYPERNYM_EXPANSIONS[lower] ?? []
+  if (!equivalents.length && !hypernyms.length) return []
+  const combined = new Set<string>([...equivalents, ...hypernyms])
+  return [...combined]
+}
+
 /**
  * Build safe FTS match query string from raw search query.
- * Quotes each token and joins with OR so that any matching token retrieves the candidate,
- * which is then accurately scored and filtered by rankCandidates.
+ * Quotes each token and joins with OR, expanding concept synonyms to enable semantic recall.
  */
 export function buildFtsQuery(query: string): string {
   const tokenized = tokenizeForSearch(query)
   const tokens = tokenized.split(/\s+/).filter((t) => t.length > 0)
   if (!tokens.length) return ''
-  // Quote each token to prevent SQLite FTS syntax errors, join with OR
-  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(' OR ')
+
+  const querySet = new Set(tokens)
+
+  // Expand tokens with concept synonyms
+  for (const token of tokens) {
+    const syns = getSynonyms(token)
+    for (const s of syns.slice(0, 12)) {
+      const synTokenized = tokenizeForSearch(s)
+      for (const st of synTokenized.split(/\s+/)) {
+        if (st.length > 0) querySet.add(st)
+      }
+    }
+  }
+
+  // Also check raw query words (e.g. multi-character words like "热饮", "电脑")
+  const rawWords = query.toLowerCase().split(/[\s,，.。!！?？]+/)
+  for (const w of rawWords) {
+    const syns = getSynonyms(w)
+    for (const s of syns.slice(0, 12)) {
+      const synTokenized = tokenizeForSearch(s)
+      for (const st of synTokenized.split(/\s+/)) {
+        if (st.length > 0) querySet.add(st)
+      }
+    }
+  }
+
+  return [...querySet].map((t) => `"${t.replace(/"/g, '""')}"`).join(' OR ')
 }
 
 export interface CandidateMemory {
@@ -89,6 +170,7 @@ export interface ScoredMatch<T extends CandidateMemory = CandidateMemory> {
 /**
  * Application-level scoring function for memory retrieval candidates.
  * Operates independently of underlying database FTS engine (FTS4 / FTS5).
+ * Grants partial semantic bonus for concept synonyms to achieve semantic generalized ranking.
  */
 export function scoreCandidate<T extends CandidateMemory>(
   query: string,
@@ -100,14 +182,26 @@ export function scoreCandidate<T extends CandidateMemory>(
   const candidateTokenStr = candidate.search_text || tokenizeForSearch(candidate.content)
   const candidateTokenSet = new Set(candidateTokenStr.split(/\s+/))
 
-  let hitCount = 0
+  let exactHits = 0
+  let synonymHits = 0
+
   for (const token of queryTokens) {
     if (candidateTokenSet.has(token)) {
-      hitCount++
+      exactHits++
+    } else {
+      const syns = getSynonyms(token)
+      for (const s of syns) {
+        const sTokens = tokenizeForSearch(s).split(/\s+/).filter(Boolean)
+        if (sTokens.some((st) => candidateTokenSet.has(st)) || content.includes(s.toLowerCase())) {
+          synonymHits++
+          break
+        }
+      }
     }
   }
 
-  const tokenCoverage = queryTokens.length > 0 ? hitCount / queryTokens.length : 0
+  const effectiveHits = exactHits + (synonymHits * 0.5)
+  const tokenCoverage = queryTokens.length > 0 ? effectiveHits / queryTokens.length : 0
 
   // Exact substring match bonus
   const cleanQuery = query.toLowerCase().trim()
@@ -130,7 +224,7 @@ export function scoreCandidate<T extends CandidateMemory>(
   return {
     item: candidate,
     score,
-    hitCount,
+    hitCount: exactHits + synonymHits,
   }
 }
 

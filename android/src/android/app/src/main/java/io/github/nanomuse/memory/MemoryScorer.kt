@@ -29,14 +29,25 @@ object MemoryScorer {
         val candidateTokenStr = candidate.searchText ?: MemoryTokenizer.tokenizeForSearch(candidate.content)
         val candidateTokenSet = candidateTokenStr.split(Regex("\\s+")).toSet()
 
-        var hitCount = 0
+        var exactHits = 0
+        var synonymHits = 0
         for (token in queryTokens) {
             if (candidateTokenSet.contains(token)) {
-                hitCount++
+                exactHits++
+            } else {
+                val syns = MemoryTokenizer.getSynonyms(token)
+                for (s in syns) {
+                    val sTokens = MemoryTokenizer.tokenizeForSearch(s).split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    if (sTokens.any { candidateTokenSet.contains(it) } || content.contains(s.lowercase())) {
+                        synonymHits++
+                        break
+                    }
+                }
             }
         }
 
-        val tokenCoverage = if (queryTokens.isNotEmpty()) hitCount.toFloat() / queryTokens.size.toFloat() else 0f
+        val effectiveHits = exactHits.toFloat() + (synonymHits.toFloat() * 0.5f)
+        val tokenCoverage = if (queryTokens.isNotEmpty()) effectiveHits / queryTokens.size.toFloat() else 0f
 
         // Exact substring match bonus
         val cleanQuery = query.lowercase().trim()
@@ -59,7 +70,7 @@ object MemoryScorer {
         return MemoryMatch(
             item = candidate,
             score = score,
-            hitCount = hitCount
+            hitCount = exactHits + synonymHits
         )
     }
 

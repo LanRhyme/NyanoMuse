@@ -110,17 +110,22 @@ object StructuredMemory {
      * is archived, not deleted: it is still findable, and the other devices see the same
      * change.
      */
-    fun writeWithConflict(context: Context, content: String, replacesId: String?): Boolean {
+    fun writeWithConflict(
+        context: Context,
+        content: String,
+        replacesId: String? = null,
+        source: String = "agent"
+    ): Boolean {
         val store = db(context) ?: return false
         return try {
             if (!replacesId.isNullOrBlank()) {
-                store.supersede(replacesId, content, source = "agent")
+                store.supersede(replacesId, content, source = source)
             } else {
                 val conflict = store.findDirectConflict(content)
                 if (conflict != null) {
-                    store.supersede(conflict.id, content, source = "agent")
+                    store.supersede(conflict.id, content, source = source)
                 } else {
-                    store.upsert(content = content, source = "agent")
+                    store.upsert(content = content, source = source)
                 }
             }
             true

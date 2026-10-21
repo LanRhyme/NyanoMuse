@@ -7125,6 +7125,18 @@ class ChatViewModel(
             io.github.nanomuse.sync.ConversationSync.sent(activeSessionId) // nanoMuse: the person's line reaches the other devices at send (C8), then "working" (C9)
             io.github.nanomuse.chat.RoutineWakes.claim(activeSessionId, persistedUser.id) // nanoMuse: a routine's prompt is marked as such on its row
 
+            // Passive preference extraction: ONLY inspect user messages (prevent tool injection)
+            if (memoryRepository != null && trimmed.isNotBlank()) {
+                try {
+                    val extracted = io.github.nanomuse.memory.MemoryExtractor.extractPassiveMemories(trimmed)
+                    for (item in extracted) {
+                        memoryRepository.writeMemory(item.content, source = "extracted")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "passive memory extraction error", e)
+                }
+            }
+
             val userMsg = ChatMessage(
                 id = persistedUser.id,
                 role = "user",

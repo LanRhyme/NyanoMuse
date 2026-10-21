@@ -31,6 +31,7 @@ import { afterTurn, boundTo, currentSuggestions, dismissChooser, FIRST_RUN_EMPTY
 import { DEFAULT_NUDGES, dueAsk, LEDGER_EMPTY, NUDGES_EVERY_MS, NUDGES_ORIGIN, NUDGES_TIMEOUT_MS, readLedger, readNudges, recordAsk, recordDay, recordStarred, recordTask, type Ask, type Moment, type NudgeLedger, type NudgesPolicy, type NudgesView } from './nudges.ts'
 import { MemoryStore, type MemoryRecord } from './memory-store.ts'
 import { MemorySync } from './memory-sync.ts'
+import { extractPassiveMemories } from './memory-extraction.ts'
 import type { ScoredMatch } from './memory-search.ts'
 import { packageAssetsDir } from './profile.ts'
 import { randomBytes } from 'node:crypto'
@@ -177,8 +178,8 @@ export interface MemoryItem {
   id: string
   at: number
   text: string
-  /** Who wrote it: the agent in a chat, the person by hand, or an import. */
-  source: 'agent' | 'person' | 'import'
+  /** Who wrote it: the agent in a chat, the person by hand, an import, or passive extraction. */
+  source: 'agent' | 'person' | 'import' | 'extracted'
 }
 
 /** One step of a task as the Activity tab and its detail view show it: a tool call, the answer, the start, the end. */
@@ -749,7 +750,7 @@ export default class NanomuseRooms extends Service {
       id: m.id,
       at: m.updated_at,
       text: m.content,
-      source: (m.source === 'person' || m.source === 'import' ? m.source : 'agent') as MemoryItem['source'],
+      source: (m.source === 'person' || m.source === 'import' || m.source === 'extracted' ? m.source : 'agent') as MemoryItem['source'],
     }))
   }
 
@@ -861,9 +862,9 @@ export default class NanomuseRooms extends Service {
         if (text) {
           record.request = text.slice(0, 200)
           // Safe passive extraction: ONLY inspect user messages (prevent tool injection)
-          const memoryMatch = /^(?:记住|请记住|以后记住|记录一下)\s*[:：,，]?\s*(.+)$/i.exec(text)
-          if (memoryMatch && memoryMatch[1] && memoryMatch[1].length > 2) {
-            void this.remember(memoryMatch[1].trim(), 'person').catch(() => undefined)
+          const extracted = extractPassiveMemories(text)
+          for (const item of extracted) {
+            void this.remember(item.content, 'extracted').catch(() => undefined)
           }
         }
         this.activityChanged(record)
