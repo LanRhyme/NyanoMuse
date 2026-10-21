@@ -18,6 +18,17 @@ const TRANSIENT_PATTERNS = [
   /(?:吗|呢|吧|？|\?)$/,
 ]
 
+/**
+ * A value that reads like a phone number, an e-mail address, an id or a card number is not
+ * a fact to keep: passive extraction writes it to every device of the account and into the
+ * prompt, without the person asking for it. Short digits (Pixel 8, HarmonyOS 4) still pass.
+ */
+function looksPrivate(line: string): boolean {
+  if (line.includes('@')) return true
+  if (/\d{7,}/.test(line)) return true // seven or more digits in a row: phone, id, card
+  return false
+}
+
 export function extractPassiveMemories(text: string): ExtractedMemory[] {
   if (!text || typeof text !== 'string') return []
   const trimmed = text.trim()
@@ -33,6 +44,10 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
     .filter((s) => s.length >= 3 && s.length <= 120)
 
   const results: ExtractedMemory[] = []
+  const keep = (m: { content: string; category: ExtractedMemory['category']; importance: number }) => {
+    if (looksPrivate(m.content)) return
+    results.push(m)
+  }
 
   for (const s of sentences) {
     // Check transient exclusions
@@ -41,7 +56,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
     // Pattern 1: Explicit Remember prefix (highest priority)
     const explicitMatch = /^(?:记住|请记住|以后记住|记录一下)\s*[:：,，]?\s*(.+)$/i.exec(s)
     if (explicitMatch && explicitMatch[1] && explicitMatch[1].length >= 3) {
-      results.push({
+      keep({
         content: explicitMatch[1].trim(),
         category: 'preference',
         importance: 0.8,
@@ -54,7 +69,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
     if (zhDeviceMatch && zhDeviceMatch[1] && zhDeviceMatch[2] && zhDeviceMatch[2].length >= 2) {
       const dev = zhDeviceMatch[1]
       const val = zhDeviceMatch[2].trim()
-      results.push({
+      keep({
         content: `${dev}使用 ${val}`,
         category: 'device',
         importance: 0.85,
@@ -64,7 +79,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
 
     const enDeviceMatch = /^my\s+(phone|tablet|laptop|pc|desktop|os|editor|ide|package manager)\s+is\s+(.+)$/i.exec(s)
     if (enDeviceMatch && enDeviceMatch[1] && enDeviceMatch[2]) {
-      results.push({
+      keep({
         content: `${enDeviceMatch[1]} is ${enDeviceMatch[2].trim()}`,
         category: 'device',
         importance: 0.85,
@@ -76,7 +91,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
     const zhLocationMatch = /^我(?:现在|目前|已经|最近|刚)?(?:搬到了|搬到|定居在|定居到|住在|居住在|常驻在)\s*(.+)$/i.exec(s)
     if (zhLocationMatch && zhLocationMatch[1] && zhLocationMatch[1].length >= 2) {
       const loc = zhLocationMatch[1].replace(/[，,].*$/, '').trim()
-      results.push({
+      keep({
         content: `现居 ${loc}`,
         category: 'profile',
         importance: 0.8,
@@ -86,7 +101,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
 
     const enLocationMatch = /^i\s+(?:now\s+)?(?:live in|moved to|relocated to)\s+(.+)$/i.exec(s)
     if (enLocationMatch && enLocationMatch[1]) {
-      results.push({
+      keep({
         content: `Lives in ${enLocationMatch[1].trim()}`,
         category: 'profile',
         importance: 0.8,
@@ -97,7 +112,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
     // Pattern 4: Name / Preferred Addressing
     const nameMatch = /^(?:叫我|称呼我为|我的名字是)\s*[:：]?\s*(.+)$/i.exec(s)
     if (nameMatch && nameMatch[1] && nameMatch[1].length >= 1 && nameMatch[1].length <= 20) {
-      results.push({
+      keep({
         content: `Call them: ${nameMatch[1].trim()}`,
         category: 'profile',
         importance: 0.9,
@@ -108,7 +123,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
     // Pattern 5: Allergies & Health constraints
     const allergyMatch = /^我(?:对)?(.+?)(?:严重)?过敏$/i.exec(s)
     if (allergyMatch && allergyMatch[1]) {
-      results.push({
+      keep({
         content: `健康约束：对${allergyMatch[1].trim()}过敏`,
         category: 'habit',
         importance: 0.9,
@@ -119,7 +134,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
     // Pattern 6: Standing Behavioral Preferences ("我平时喜欢...", "我习惯用...", "我不喜欢/讨厌...")
     const zhPrefMatch = /^我(?:平时|日常|通常|一般)?(?:最喜欢|挺喜欢|特别喜欢|很喜欢|偏好|偏爱|喜欢)\s*(.+)$/i.exec(s)
     if (zhPrefMatch && zhPrefMatch[1] && zhPrefMatch[1].length >= 2) {
-      results.push({
+      keep({
         content: `偏好：喜欢${zhPrefMatch[1].trim()}`,
         category: 'preference',
         importance: 0.7,
@@ -129,7 +144,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
 
     const zhDislikeMatch = /^我(?:平时|日常|通常|一般)?(?:最讨厌|特别讨厌|很讨厌|反感|排斥|不喜欢|不爱)\s*(.+)$/i.exec(s)
     if (zhDislikeMatch && zhDislikeMatch[1] && zhDislikeMatch[1].length >= 2) {
-      results.push({
+      keep({
         content: `偏好：不喜欢${zhDislikeMatch[1].trim()}`,
         category: 'preference',
         importance: 0.7,
@@ -139,7 +154,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
 
     const zhHabitMatch = /^我(?:平时|日常|通常|一般)?(?:习惯用|习惯|只用|只喝|不喝|戒了)\s*(.+)$/i.exec(s)
     if (zhHabitMatch && zhHabitMatch[1] && zhHabitMatch[1].length >= 2) {
-      results.push({
+      keep({
         content: `习惯：${s}`,
         category: 'habit',
         importance: 0.7,
@@ -149,7 +164,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
 
     const enPrefMatch = /^i\s+(?:usually\s+|always\s+)?(prefer|like|love|dislike|hate)\s+(.+)$/i.exec(s)
     if (enPrefMatch && enPrefMatch[1] && enPrefMatch[2]) {
-      results.push({
+      keep({
         content: `Preference: ${enPrefMatch[1]} ${enPrefMatch[2].trim()}`,
         category: 'preference',
         importance: 0.7,
@@ -160,7 +175,7 @@ export function extractPassiveMemories(text: string): ExtractedMemory[] {
     // Pattern 7: Standing communication guidelines ("以后回答时不要用表情符号", "以后默认用中文回答")
     const guidelineMatch = /^(?:(?:以后|今后)(?:(?:跟我)?(?:回答|说话)时)?|(?:跟我)?(?:回答|说话)时)(?:请|千万|务必|一律)?(不要|别|必须|记得|默认)\s*(.+)$/i.exec(s)
     if (guidelineMatch && guidelineMatch[1] && guidelineMatch[2]) {
-      results.push({
+      keep({
         content: `沟通规范：${s}`,
         category: 'preference',
         importance: 0.85,

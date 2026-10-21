@@ -79,3 +79,17 @@ test('Concept synonym expansion retrieves and ranks non-literal semantic matches
 
   store.close()
 })
+
+test('a value that reads like a phone, a mail or a card is not kept', () => {
+  // a phone number said in passing would travel to every device and into the prompt
+  assert.deepEqual(extractPassiveMemories('我手机是 74955953457'), [])
+  assert.deepEqual(extractPassiveMemories('我电脑是 74955953457@qq.com'), [])
+  // a line that carries both keeps the harmless half
+  const mixed = extractPassiveMemories('我的邮箱是 lanrhyme@example.com，电脑是 MacBook Pro')
+  assert.equal(mixed.length, 1)
+  assert.equal(mixed[0].content, '电脑使用 MacBook Pro')
+  // short digits are device names, not secrets
+  assert.equal(extractPassiveMemories('我手机是 Pixel 8').length, 1)
+  assert.equal(extractPassiveMemories('我住在北京市海淀区 100871').length, 1)
+  assert.equal(extractPassiveMemories('我电脑是 2008 年买的').length, 1)
+})

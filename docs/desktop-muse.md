@@ -177,7 +177,15 @@ tell it something you will expect it to know next time, and every chat's prompt
 carries the newest ones (`memory.db` here, with the account's other devices when
 one is signed in). A fact that changes replaces the old one: when you say that you
 moved or that the device changed, the old line is archived and the new one takes
-its place, in the prompt and in the search, on every device. *Change look* has the dragon, an emoji on a colour,
+its place, in the prompt and in the search, on every device. What you state in
+passing is kept without your asking for it: where you live, what you call your
+computer, what you are allergic to, how you like to be addressed. Commands,
+questions and the things of the moment are left alone, and a value that reads
+like a phone number, an e-mail address or a card is never kept — it would travel
+to every device of the account without being asked for. The search knows the
+words that mean the same thing (a computer is also a PC, a workstation, a 台式机;
+a hot drink is also 咖啡, 茶, a 拿铁), so a question in other words still finds
+the line. *Change look* has the dragon, an emoji on a colour,
 and **Draw one**, the avatar studio: describe the character, pick a style (the 3D
 toy look by default), see what it costs against today's allowance, *Draw four*,
 and the four candidates come up in a 2×2 grid with *Option 1–4*; *This one* draws the

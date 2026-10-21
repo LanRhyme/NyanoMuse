@@ -85,4 +85,19 @@ class MemoryExtractorTest {
         assertTrue("Semantic query '电脑' should recall 'PC'", pcMatches.isNotEmpty())
         assertEquals("mem_pc", pcMatches[0].item.id)
     }
+
+    @Test
+    fun testAValueThatReadsLikeAPhoneOrAMailIsNotKept() {
+        // a phone number said in passing would travel to every device and into the prompt
+        assertEquals(0, MemoryExtractor.extractPassiveMemories("我手机是 74955953457").size)
+        assertEquals(0, MemoryExtractor.extractPassiveMemories("我电脑是 74955953457@qq.com").size)
+        // a line that carries both keeps the harmless half
+        val mixed = MemoryExtractor.extractPassiveMemories("我的邮箱是 lanrhyme@example.com，电脑是 MacBook Pro")
+        assertEquals(1, mixed.size)
+        assertEquals("电脑使用 MacBook Pro", mixed[0].content)
+        // short digits are device names, not secrets
+        assertEquals(1, MemoryExtractor.extractPassiveMemories("我手机是 Pixel 8").size)
+        assertEquals(1, MemoryExtractor.extractPassiveMemories("我住在北京市海淀区 100871").size)
+        assertEquals(1, MemoryExtractor.extractPassiveMemories("我电脑是 2008 年买的").size)
+    }
 }

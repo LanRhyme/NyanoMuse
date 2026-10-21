@@ -94,6 +94,15 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         }
     }
 
+    // nanoMuse: passive extraction writes the structured store only — a fact picked up from
+    // what the person said is not an entry they asked to keep in a daily file, and the
+    // desktop writes no file for one either
+    fun writeMemoryStructured(content: String, source: String = "extracted"): Boolean {
+        if (content.isBlank()) return false
+        val ctx = context ?: return false
+        return io.github.nanomuse.memory.StructuredMemory.writeWithConflict(ctx, content, null, source)
+    }
+
     // -- memory_get --
 
     /**

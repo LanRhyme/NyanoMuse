@@ -38,6 +38,10 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Desktop
 
+- **A fact the person states in passing is kept without them asking.** When a message says where they live, what they call their computer, what they are allergic to, or how they like to be addressed, the line is written to the memory store and travels with the account. Commands, questions and the things of the moment ("open this file", "what time is it") are left alone, and a value that reads like a phone number, an e-mail address or a card is never kept — it would travel to every device without being asked for. A line that starts with 记住 still works, and its source in the panel is *extracted* rather than *you*.
+
+- **A question in other words finds the memory.** The search expands the words it knows into the ones that mean the same thing (a computer is also a PC, a workstation, a 台式机; a hot drink is also 咖啡, 茶, a 拿铁), so "what editor do you use" finds the line that says Neovim even when the words differ. A near match counts for half an exact one, so the ordering stays sensible.
+
 - **The Memory panel lists every memory, with the filters and the actions.** The list has the hot and the cold memories, a category each, a search that reaches what the list leaves out, and the row actions: pin, archive, edit, delete. A memory can be pinned, archived, edited or deleted, and the count of the archived ones is shown under the list.
 
 - **A fact that changes replaces the old one instead of standing beside it.** When the person tells the agent that they moved, that they are called something else, or that the device changed, the old memory is archived and the new one takes its place, in the prompt and in the search. The `remember` tool takes the id of the memory it replaces, and the prompt carries the ids so it can.
@@ -73,6 +77,10 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **The bundled runtime kept its library links.** Staging the PyInstaller output preserved relative library aliases and macOS framework links instead of copying their targets into duplicate files and directories.
 
 ### Android
+
+- **A fact the person states in passing is kept without them asking.** When a message says where they live, what they call their computer, what they are allergic to, or how they like to be addressed, the line is written to the memory store and travels with the account. Commands, questions and the things of the moment are left alone, and a value that reads like a phone number, an e-mail address or a card is never kept. The write happens off the main thread, and the store only: unlike a memory the agent is asked to keep, one picked up in passing does not add a line to the day's file.
+
+- **A question in other words finds the memory.** The search expands the words it knows into the ones that mean the same thing (a computer is also a PC, a workstation, a 台式机; a hot drink is also 咖啡, 茶, a 拿铁), so "what editor do you use" finds the line that says Neovim even when the words differ. A near match counts for half an exact one, so the ordering stays sensible.
 
 - **The memory screen lists every memory, with the filters and the actions.** The Settings screen has the hot and the cold memories, a category each, a search that reaches what the list leaves out, and the row actions: pin, archive, edit, delete. The files behind it (`GLOBAL.md`, the daily logs) stay in a drawer of their own.
 

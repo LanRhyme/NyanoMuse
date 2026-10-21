@@ -87,6 +87,8 @@ export const HYPERNYM_EXPANSIONS: Record<string, readonly string[]> = {
   '热饮': ['拿铁', '咖啡', '美式', '茶', '红茶', '绿茶', '乌龙茶', '奶茶', '可乐', '水'],
   '饮品': ['拿铁', '咖啡', '美式', '茶', '红茶', '绿茶', '乌龙茶', '奶茶', '可乐', '水'],
   '饮料': ['拿铁', '咖啡', '美式', '茶', '红茶', '绿茶', '乌龙茶', '奶茶', '可乐', '水'],
+  // the single characters only ever fire for a one-word query ("喝" on its own): a
+  // Chinese sentence is cut into bigrams, which never leave a lone 吃 or 喝 behind
   '喝': ['拿铁', '咖啡', '美式', '茶', '红茶', '绿茶', '乌龙茶', '奶茶', '可乐', '水'],
   '饮食': ['菜', '饭', '面', '早饭', '午饭', '晚饭', '早餐', '午餐', '晚餐', '零食', '甜品'],
   '食物': ['菜', '饭', '面', '早饭', '午饭', '晚饭', '早餐', '午餐', '晚餐', '零食', '甜品'],

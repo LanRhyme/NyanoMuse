@@ -84,6 +84,8 @@ object MemoryTokenizer {
         "热饮" to listOf("拿铁", "咖啡", "美式", "茶", "红茶", "绿茶", "乌龙茶", "奶茶", "可乐", "水"),
         "饮品" to listOf("拿铁", "咖啡", "美式", "茶", "红茶", "绿茶", "乌龙茶", "奶茶", "可乐", "水"),
         "饮料" to listOf("拿铁", "咖啡", "美式", "茶", "红茶", "绿茶", "乌龙茶", "奶茶", "可乐", "水"),
+        // the single characters only ever fire for a one-word query ("喝" on its own): a
+        // Chinese sentence is cut into bigrams, which never leave a lone 吃 or 喝 behind
         "喝" to listOf("拿铁", "咖啡", "美式", "茶", "红茶", "绿茶", "乌龙茶", "奶茶", "可乐", "水"),
         "饮食" to listOf("菜", "饭", "面", "早饭", "午饭", "晚饭", "早餐", "午餐", "晚餐", "零食", "甜品"),
         "食物" to listOf("菜", "饭", "面", "早饭", "午饭", "晚饭", "早餐", "午餐", "晚餐", "零食", "甜品"),

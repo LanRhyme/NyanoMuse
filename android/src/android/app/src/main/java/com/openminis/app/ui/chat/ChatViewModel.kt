@@ -7126,11 +7126,17 @@ class ChatViewModel(
             io.github.nanomuse.chat.RoutineWakes.claim(activeSessionId, persistedUser.id) // nanoMuse: a routine's prompt is marked as such on its row
 
             // Passive preference extraction: ONLY inspect user messages (prevent tool injection)
+            // nanoMuse: off the main thread (the store write is disk IO), and the structured
+            // store only — a fact picked up in passing is not a daily-file entry
             if (memoryRepository != null && trimmed.isNotBlank()) {
                 try {
                     val extracted = io.github.nanomuse.memory.MemoryExtractor.extractPassiveMemories(trimmed)
-                    for (item in extracted) {
-                        memoryRepository.writeMemory(item.content, source = "extracted")
+                    if (extracted.isNotEmpty()) {
+                        withContext(Dispatchers.IO) {
+                            for (item in extracted) {
+                                memoryRepository.writeMemoryStructured(item.content)
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "passive memory extraction error", e)
