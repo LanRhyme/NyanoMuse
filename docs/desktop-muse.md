@@ -174,7 +174,9 @@ many are archived; a field to add one, *Import memory* (a sheet: paste what
 another assistant knew, one line per memory), and the agent's description when the
 account has one. The agent writes memory itself with the `remember` tool when you
 tell it something you will expect it to know next time, and every chat's prompt
-carries the newest ones (`memory.db` here, with the account's other devices when
+dynamically injects the pinned core facts (capped at 6 items to preserve attention) followed by
+top-k relevant memories matching the current question within a strict 2000-character budget, pointing to
+`recall_memory` for deeper searches (`memory.db` here, with the account's other devices when
 one is signed in). A fact that changes replaces the old one: when you say that you
 moved or that the device changed, the old line is archived and the new one takes
 its place, in the prompt and in the search, on every device. What you state in

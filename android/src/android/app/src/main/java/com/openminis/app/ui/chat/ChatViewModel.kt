@@ -105,6 +105,42 @@ class ChatViewModel(
     companion object {
         internal const val TAG = "ChatViewModel"
 
+        internal val COMPACT_REQUIRED_HEADINGS = listOf(
+            "### 任务状态与目标",
+            "### 核心决策与约束",
+            "### 文件产物与代码变动",
+            "### 踩坑与禁止事项",
+        )
+
+        internal val COMPACT_SUMMARY_SYSTEM_PROMPT: String = """
+            You are a context compaction engine. Your summary will REPLACE the original messages in the conversation context window. The agent will read your summary as past context, then proceed based on the user's NEXT message — your summary is background, not a standing work order. Write the summary in the same language the user used in the conversation.
+
+            MUST PRESERVE (never omit or shorten):
+            - All file paths, directory names, URLs, UUIDs, and identifiers — copy verbatim
+            - Commands executed and their outcomes (success/failure/output)
+            - What was requested and what was done (record as past events, not as ongoing goals)
+            - Key decisions made and their rationale
+            - Errors encountered and how they were resolved
+            - Important constraints, rules, or user preferences mentioned
+            - Any tool calls and their results that affect current state
+
+            STRUCTURE YOUR SUMMARY IN FOUR CLEAR MARKDOWN SECTIONS:
+            ### 任务状态与目标
+            - Record the overall objective, what has been completed, and current progress. Use past tense — record facts, not ongoing self-invented work orders.
+
+            ### 核心决策与约束
+            - Record key architectural and implementation decisions, user instructions, negative constraints, and established patterns.
+
+            ### 文件产物与代码变动
+            - List all files created, modified, read, or deleted with verbatim absolute paths, and key functions/symbols touched.
+
+            ### 踩坑与禁止事项
+            - Record failed attempts, errors encountered, root causes, and explicit things NOT to repeat.
+
+            PRIORITIZE recent context over older history — recent decisions and recent file/path references are most useful for continuity.
+            Do NOT translate or alter code snippets, file paths, identifiers, or error messages. Be concise, dense, and structured.
+        """.trimIndent()
+
         // ── [T-android-compact-runaway] Compaction budgets ──────────────
         //
         // Compaction had no ceiling of any kind. Its only time bound was the
@@ -3656,34 +3692,7 @@ class ChatViewModel(
      * System prompt for the single-shot summarisation call. Matches iOS
      * wording so cross-device summaries stay stylistically aligned.
      */
-    private val compactSummarySystemPrompt: String = """
-        You are a context compaction engine. Your summary will REPLACE the original messages in the conversation context window. The agent will read your summary as past context, then proceed based on the user's NEXT message — your summary is background, not a standing work order. Write the summary in the same language the user used in the conversation.
-
-        MUST PRESERVE (never omit or shorten):
-        - All file paths, directory names, URLs, UUIDs, and identifiers — copy verbatim
-        - Commands executed and their outcomes (success/failure/output)
-        - What was requested and what was done (record as past events, not as ongoing goals)
-        - Key decisions made and their rationale
-        - Errors encountered and how they were resolved
-        - Important constraints, rules, or user preferences mentioned
-        - Any tool calls and their results that affect current state
-
-        STRUCTURE YOUR SUMMARY IN FOUR CLEAR MARKDOWN SECTIONS:
-        ### 任务状态与目标
-        - Record the overall objective, what has been completed, and current progress. Use past tense — record facts, not ongoing self-invented work orders.
-
-        ### 核心决策与约束
-        - Record key architectural and implementation decisions, user instructions, negative constraints, and established patterns.
-
-        ### 文件产物与代码变动
-        - List all files created, modified, read, or deleted with verbatim absolute paths, and key functions/symbols touched.
-
-        ### 踩坑与禁止事项
-        - Record failed attempts, errors encountered, root causes, and explicit things NOT to repeat.
-
-        PRIORITIZE recent context over older history — recent decisions and recent file/path references are most useful for continuity.
-        Do NOT translate or alter code snippets, file paths, identifiers, or error messages. Be concise, dense, and structured.
-    """.trimIndent()
+    internal val compactSummarySystemPrompt: String get() = COMPACT_SUMMARY_SYSTEM_PROMPT
 
     // T203 part 2: these MUST be declared before `init { loadSession() }` below.
     // viewModelScope.launch defaults to Dispatchers.Main.immediate, which runs

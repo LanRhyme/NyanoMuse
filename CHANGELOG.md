@@ -38,6 +38,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Desktop
 
+- **System prompt carries query-aware relevant memories with bounded pinned passport.** The model context dynamically retrieves top-k relevant memories matching the user's latest query rather than dumping an unbounded list of facts; pinned core facts form a stable prefix capped at 6 items, with prompt budget ceiling preserved and deeper search delegated to `recall_memory`
+
 - **A fact the person states in passing is kept without them asking.** When a message says where they live, what they call their computer, what they are allergic to, or how they like to be addressed, the line is written to the memory store and travels with the account. Commands, questions and the things of the moment ("open this file", "what time is it") are left alone, and a value that reads like a phone number, an e-mail address or a card is never kept — it would travel to every device without being asked for. A line that starts with 记住 still works, and its source in the panel is *extracted* rather than *you*.
 
 - **A question in other words finds the memory.** The search expands the words it knows into the ones that mean the same thing (a computer is also a PC, a workstation, a 台式机; a hot drink is also 咖啡, 茶, a 拿铁), so "what editor do you use" finds the line that says Neovim even when the words differ. A near match counts for half an exact one, so the ordering stays sensible.
@@ -77,6 +79,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **The bundled runtime kept its library links.** Staging the PyInstaller output preserved relative library aliases and macOS framework links instead of copying their targets into duplicate files and directories.
 
 ### Android
+
+- **Query-aware memory injection and 4-faceted structured compaction prompt.** The system prompt dynamically retrieves top-k relevant memories matching the user's active message, with pinned memories capped at 6 items and 800 characters to prevent attention dilution; conversation compaction structures summaries into four strict markdown sections (任务状态与目标, 核心决策与约束, 文件产物与代码变动, 踩坑与禁止事项) to prevent drift and preserve verbatim paths
 
 - **A fact the person states in passing is kept without them asking.** When a message says where they live, what they call their computer, what they are allergic to, or how they like to be addressed, the line is written to the memory store and travels with the account. Commands, questions and the things of the moment are left alone, and a value that reads like a phone number, an e-mail address or a card is never kept. The write happens off the main thread, and the store only: unlike a memory the agent is asked to keep, one picked up in passing does not add a line to the day's file.
 

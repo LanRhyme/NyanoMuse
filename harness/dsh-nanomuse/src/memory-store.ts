@@ -221,10 +221,6 @@ export class MemoryStore {
     return this.db.prepare(sql).all() as unknown as MemoryRecord[]
   }
 
-  getPinnedMemories(): MemoryRecord[] {
-    return this.db.prepare('SELECT * FROM memories WHERE deleted = 0 AND is_pinned = 1 ORDER BY updated_at DESC;').all() as unknown as MemoryRecord[]
-  }
-
   get(id: string): MemoryRecord | null {
     const row = this.db.prepare('SELECT * FROM memories WHERE id = ?;').get(id) as Record<string, unknown> | undefined
     if (!row) return null

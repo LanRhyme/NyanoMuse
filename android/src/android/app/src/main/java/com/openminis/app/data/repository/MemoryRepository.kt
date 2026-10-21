@@ -7,6 +7,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import io.github.nanomuse.memory.MemoryMatch
 
 // nanoMuse: support optional Context for LocalMemoryDb dual-write and retrieval
 class MemoryRepository(private val memoryDir: File, private val context: Context? = null) {
@@ -25,10 +26,11 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         private const val MAX_SEARCH_LINES = 60
         private const val MAX_LOOKBACK_DAYS = 30
         private const val MAX_RECENT_FILES = 3
-        // structured memories in the prompt: the same cap the desktop uses, so a long
-        // store cannot push the system prompt past a few thousand characters.
-        private const val MAX_INJECTED_MEMORIES = 30
-        private const val MAX_INJECTED_CHARS = 3000
+        // structured memories in the prompt: Tier 3 Query-Aware Attention Injection limits
+        const val MAX_PINNED_MEMORIES = 6
+        const val MAX_PINNED_CHARS = 800
+        const val MAX_INJECTED_MEMORIES = 8
+        const val MAX_INJECTED_CHARS = 2000
 
         /**
          * [XSessionDiag] Vocabulary that suggests an injected daily log describes
@@ -47,8 +49,92 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         // several seconds when expanded. 30KB is the comfort budget for
         // an agent tool result that needs to be both rendered AND fed
         // back into the next LLM call. Counted as UTF-8 bytes (matches
-        // what the provider sees over the wire).
         private const val MAX_OUTPUT_BYTES = 30 * 1024  // 30 KB
+
+        /**
+         * Pure memory selection logic for system prompt injection.
+         * Tier 3: Query-Aware Attention Injection
+         * - Stable Pinned Passport (capped by count and chars to prevent attention dilution)
+         * - Volatile Query-Aware Top-K (fetches real entities via resolveEntityFn)
+         * - Fallback filling unpinned hot memories up to maxTotalCount
+         * - Character budget ceiling (maxTotalChars)
+         */
+        fun selectMemoriesForPrompt(
+            hotMemories: List<io.github.nanomuse.memory.MemoryEntity>,
+            cleanQuery: String? = null,
+            searchFn: ((String, Int) -> List<MemoryMatch>)? = null,
+            resolveEntityFn: ((String) -> io.github.nanomuse.memory.MemoryEntity?)? = null,
+            maxPinnedCount: Int = MAX_PINNED_MEMORIES,
+            maxPinnedChars: Int = MAX_PINNED_CHARS,
+            maxTotalCount: Int = MAX_INJECTED_MEMORIES,
+            maxTotalChars: Int = MAX_INJECTED_CHARS,
+        ): List<io.github.nanomuse.memory.MemoryEntity> {
+            val chosen = mutableListOf<io.github.nanomuse.memory.MemoryEntity>()
+            val chosenIds = mutableSetOf<String>()
+
+            // 1. Stable Pinned Passport (capped by count and char budget)
+            var pinnedChars = 0
+            for (m in hotMemories.filter { it.isPinned }) {
+                if (chosen.size >= maxPinnedCount || pinnedChars >= maxPinnedChars) break
+                if (pinnedChars + m.content.length > maxPinnedChars && chosen.isNotEmpty()) continue
+                chosen.add(m)
+                chosenIds.add(m.id)
+                pinnedChars += m.content.length
+            }
+
+            // 2. Volatile Query-Aware Top-K (if query is present)
+            if (!cleanQuery.isNullOrBlank() && searchFn != null) {
+                try {
+                    val matches = searchFn(cleanQuery, maxTotalCount)
+                    for (m in matches) {
+                        if (chosen.size >= maxTotalCount) break
+                        if (!chosenIds.contains(m.item.id)) {
+                            chosenIds.add(m.item.id)
+                            val entity = hotMemories.find { it.id == m.item.id }
+                                ?: resolveEntityFn?.invoke(m.item.id)
+                                ?: io.github.nanomuse.memory.MemoryEntity(
+                                    id = m.item.id,
+                                    content = m.item.content,
+                                    searchText = m.item.searchText ?: "",
+                                    category = "preference",
+                                    source = "extracted",
+                                    isPinned = m.item.isPinned,
+                                    isArchived = false,
+                                    importance = m.item.importance,
+                                    useCount = 0,
+                                    lastUsedAt = 0,
+                                    confidence = 1f,
+                                    createdAt = m.item.updatedAt,
+                                    updatedAt = m.item.updatedAt,
+                                    deleted = false,
+                                )
+                            chosen.add(entity)
+                        }
+                    }
+                } catch (_: Exception) {
+                }
+            }
+
+            // 3. Fallback: If still under quota, fill with newest unpinned hot memories
+            for (m in hotMemories) {
+                if (chosen.size >= maxTotalCount) break
+                if (!m.isPinned && !chosenIds.contains(m.id)) {
+                    chosenIds.add(m.id)
+                    chosen.add(m)
+                }
+            }
+
+            // 4. Character budget ceiling
+            val finalItems = mutableListOf<io.github.nanomuse.memory.MemoryEntity>()
+            var chars = 0
+            for (m in chosen) {
+                if (finalItems.size >= maxTotalCount || chars >= maxTotalChars) break
+                if (chars + m.content.length > maxTotalChars && finalItems.isNotEmpty()) continue
+                finalItems.add(m)
+                chars += m.content.length
+            }
+            return finalItems
+        }
     }
 
     init {
@@ -313,66 +399,18 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         if (hotMemories.isNotEmpty()) {
             sb.append("\nStructured long-term memories (to update or supersede a memory, give its [id] in memory_write's replaces_id):\n")
 
-            // 1. Stable Pinned Passport (always present first, keeps cache prefix byte-stable)
-            val pinned = hotMemories.filter { it.isPinned }
-            val chosen = mutableListOf<io.github.nanomuse.memory.MemoryEntity>()
-            chosen.addAll(pinned)
-            val chosenIds = chosen.map { it.id }.toMutableSet()
-
-            // 2. Volatile Query-Aware Top-K: If query is available, search relevant memories
             val cleanQuery = query?.trim()
-            if (!cleanQuery.isNullOrEmpty() && store != null) {
-                try {
-                    val matches = store.search(cleanQuery, limit = 8, includeArchived = false)
-                    for (m in matches) {
-                        if (chosen.size >= 10) break
-                        if (!chosenIds.contains(m.item.id)) {
-                            chosenIds.add(m.item.id)
-                            hotMemories.find { it.id == m.item.id }?.let { chosen.add(it) }
-                                ?: chosen.add(
-                                    io.github.nanomuse.memory.MemoryEntity(
-                                        id = m.item.id,
-                                        content = m.item.content,
-                                        searchText = m.item.searchText ?: "",
-                                        category = "preference",
-                                        source = "extracted",
-                                        isPinned = m.item.isPinned,
-                                        isArchived = false,
-                                        importance = m.item.importance,
-                                        useCount = 0,
-                                        lastUsedAt = 0,
-                                        confidence = 1f,
-                                        createdAt = m.item.updatedAt,
-                                        updatedAt = m.item.updatedAt,
-                                        deleted = false
-                                    )
-                                )
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Dynamic query memory search failed", e)
-                }
-            }
+            val selected = selectMemoriesForPrompt(
+                hotMemories = hotMemories,
+                cleanQuery = cleanQuery,
+                searchFn = store?.let { s -> { q, limit -> s.search(q, limit = limit, includeArchived = false) } },
+                resolveEntityFn = store?.let { s -> { id -> s.get(id) } },
+            )
 
-            // 3. Fallback: If still under quota, fill with newest hot memories
-            for (m in hotMemories) {
-                if (chosen.size >= 8) break
-                if (!chosenIds.contains(m.id)) {
-                    chosenIds.add(m.id)
-                    chosen.add(m)
-                }
-            }
-
-            var chars = 0
-            var shown = 0
-            for (m in chosen) {
-                if (shown >= MAX_INJECTED_MEMORIES || chars >= 2000) break
-                if (chars + m.content.length > 2000) continue
+            for (m in selected) {
                 sb.append("- [").append(m.id).append("] ").append(m.content).append("\n")
-                chars += m.content.length + m.id.length + 4
-                shown++
             }
-            val left = hotMemories.size - shown
+            val left = hotMemories.size - selected.size
             if (left > 0) {
                 sb.append("(").append(left).append(" more in the memory store; search them with memory_get.)\n")
             }

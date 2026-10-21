@@ -10,6 +10,8 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from './cloud.ts'
 import { AREAS, languageName, type MemoryItem } from './rooms.ts'
+import { selectMemoriesForPrompt, MEMORY_PROMPT_LIMITS, type SelectedMemoriesResult } from './rooms-memory-prompt.ts'
+export { selectMemoriesForPrompt, MEMORY_PROMPT_LIMITS, type SelectedMemoriesResult }
 
 export const name = 'nanomuse-rooms-tools'
 export const inject = ['tools', 'nanomuseRooms', 'nanomuseCloud']
@@ -218,54 +220,22 @@ export function apply(ctx: Context): void {
             if (memory.length) {
               lines.push('', 'What you remember about the person (their Memory; add to it with remember, search deeper with recall_memory). If any fact here has changed or is contradicted by the person, call remember with replaces_id="[id]" to supersede it:')
 
-              // Safe session ID resolution with fallback
+              // Runtime architecture & timing note:
+              // 1. @deepseek-ai/dsh-agent `assembleContextFor(agent, signal)` returns `{ agent, scope: agent, signal }`.
+              //    Agent instance exposes `readonly session: Session` with `get id(): SessionId`, so `context.agent.session.id`
+              //    reliably resolves the active session ID at runtime.
+              // 2. Event ordering: `user/message` event is broadcast on the session eventbus synchronously upon user send,
+              //    updating `record.request` and `lastActiveRequest` before the model turn prompt context assembly runs.
               const sid = (context as { agent?: { session?: { id?: string } }; scope?: { session?: { id?: string } } })?.agent?.session?.id
                 ?? (context as { scope?: { session?: { id?: string } } })?.scope?.session?.id
               const currentQuery = rooms.latestQueryForSession(sid).trim()
 
-              // 1. Pinned memories (stable core passport, always injected first)
-              const chosenItems: MemoryItem[] = memory.filter((m) => m.is_pinned)
-              const chosenIds = new Set(chosenItems.map((m) => m.id))
-
-              // 2. Query-Aware Dynamic Top-K: If query is available, search relevant memories
-              if (currentQuery) {
-                const matches = rooms.searchMemory(currentQuery, { limit: 8, includeArchived: false })
-                for (const match of matches) {
-                  if (chosenItems.length >= 10) break
-                  if (!chosenIds.has(match.item.id)) {
-                    chosenIds.add(match.item.id)
-                    chosenItems.push({
-                      id: match.item.id,
-                      at: match.item.updated_at,
-                      text: match.item.content,
-                      source: (match.item.source === 'person' || match.item.source === 'import' || match.item.source === 'extracted' ? match.item.source : 'agent') as MemoryItem['source'],
-                      is_pinned: Boolean(match.item.is_pinned),
-                    })
-                  }
-                }
-              }
-
-              // 3. Fallback: If still under quota, fill with newest hot memories
-              for (const item of memory) {
-                if (chosenItems.length >= 8) break
-                if (!chosenIds.has(item.id)) {
-                  chosenIds.add(item.id)
-                  chosenItems.push(item)
-                }
-              }
-
-              let charCount = 0
-              let injected = 0
-              for (const item of chosenItems) {
-                if (charCount >= 2000) break
-                if (charCount + item.text.length > 2000) continue
-                lines.push(`- [${item.id}] ${item.text}`)
-                charCount += item.text.length + item.id.length + 4
-                injected++
-              }
-              if (memory.length > injected) {
-                lines.push(`(${memory.length - injected} more memories in store, search with recall_memory)`)
-              }
+              const selected = selectMemoriesForPrompt(
+                memory,
+                currentQuery,
+                (q, opts) => rooms.searchMemory(q, opts),
+              )
+              lines.push(...selected.lines)
             } else {
               lines.push('', 'You remember nothing about the person yet; when they tell you something they will expect you to know next time, keep it with remember.')
             }
@@ -278,3 +248,5 @@ export function apply(ctx: Context): void {
     )
   })
 }
+
+
