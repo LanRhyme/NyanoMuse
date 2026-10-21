@@ -1754,7 +1754,7 @@ class Connections:
         self._publish()
 
     async def deepseek_status(self) -> dict[str, Any]:
-        s = self.svc.app.config
+        s = self.svc.settings
         provider = (s.llm.provider or "").lower()
         model = (s.llm.model or "").lower()
         base_url = (s.llm.base_url or "").lower()
@@ -1772,9 +1772,9 @@ class Connections:
 
         if not resolved_key and s.llm.endpoint:
             ep = self.endpoints.get(s.llm.endpoint)
-            if ep and ep.api_key:
+            if ep and ep.get("api_key"):
                 try:
-                    resolved_key = self.vault.resolve(ep.api_key) or ""
+                    resolved_key = self.vault.resolve(str(ep["api_key"])) or ""
                 except VaultError:
                     resolved_key = ""
 
@@ -1790,10 +1790,14 @@ class Connections:
 
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=6.0) as client:
                 res = await client.get(
                     balance_url,
-                    headers={"Authorization": f"Bearer {resolved_key}", "Accept": "application/json"},
+                    headers={
+                        "Authorization": f"Bearer {resolved_key}",
+                        "Accept": "application/json",
+                    },
                 )
                 if res.status_code == 200:
                     data = res.json()

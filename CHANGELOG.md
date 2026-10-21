@@ -32,6 +32,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Web
 
+- **The DeepSeek status no longer errors out.** The page asked the runtime for the provider's balance and the request failed with an internal error, because the handler read the settings from a place the app does not keep them.
+
 - **Each Feed section showed its own load error and retry.** Posts, activity, Next up and calendar requests kept their last successful content when a refresh failed; retrying one section no longer refetched the others.
 
 ### Desktop
