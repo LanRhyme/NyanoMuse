@@ -18,7 +18,7 @@
  */
 import { createElement as h, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { call, type Translate } from './api.ts'
-import { IconMore, IconPlus, IconSearch } from './icons.tsx'
+import { IconHome, IconMore, IconPlus, IconSearch } from './icons.tsx'
 import { composing } from './keys.ts'
 import { useLive } from './live.ts'
 import { useRooms } from './rooms.ts'
@@ -271,7 +271,7 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
 
   const q = query.trim().toLowerCase()
   const chats = visible
-    .filter((s) => (!s.blank || s.id === current || sync.sessions.has(s.id)))
+    .filter((s) => s.id !== mainId && (!s.blank || s.id === current || sync.sessions.has(s.id)))
     .filter((s) => q === '' || s.displayTitle.toLowerCase().includes(q))
     .sort((a, b) => {
       const pa = pinnedSet.has(a.id) ? 1 : 0
@@ -294,6 +294,17 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
       h('button', { type: 'button', className: 'nm-chats-new-btn', onClick: handleNewChat, title: t('chNewSide') },
         h(IconPlus, { size: 15 }),
         h('span', null, t('chNewSide'))),
+      mainId && (q === '' || t('chMainChat').toLowerCase().includes(q))
+        ? h('button', {
+            type: 'button',
+            className: `nm-chats-main-btn${current === mainId ? ' nm-selected' : ''}`,
+            onClick: () => { if (mainId) actions.openSession(mainId) },
+            title: t('chMainChat'),
+          },
+            h('span', { className: 'nm-chats-main-icon' }, h(IconHome, { size: 16 })),
+            h('span', { className: 'nm-chat-title' }, t('chMainChat')),
+            current === mainId ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null)
+        : null,
       h('div', { className: 'nm-chats-search-row' },
         h('label', { className: 'nm-chats-search' },
           h(IconSearch, { size: 15 }),

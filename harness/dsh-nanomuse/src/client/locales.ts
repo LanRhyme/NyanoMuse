@@ -257,6 +257,7 @@ export const en = {
   // the chats column
   chSearch: 'Search chats',
   chNewSide: 'New chat',
+  chMainChat: 'Main chat',
   chBlank: 'New chat',
   chEmpty: 'No chats yet. Press + to start a conversation.',
   chNoMatch: 'No matching chats',
@@ -1719,6 +1720,7 @@ export const zh: typeof en = {
   // the chats column
   chSearch: '搜索会话',
   chNewSide: '新建会话',
+  chMainChat: '主聊天',
   chBlank: '新会话',
   chEmpty: '还没有历史会话，点击上方开启新对话',
   chNoMatch: '没有匹配的会话',
