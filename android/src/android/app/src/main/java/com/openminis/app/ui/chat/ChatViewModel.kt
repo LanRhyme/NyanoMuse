@@ -2218,6 +2218,13 @@ class ChatViewModel(
         noinline onFinished: ((Boolean) -> Unit)?,
         markStarted: () -> Unit,
     ) {
+        // nanoMuse: Main Chat bypasses compactAll in favor of token sliding window + memory distillation
+        val mainChatId = io.github.nanomuse.home.MainChat.persisted(context)
+        if (mainChatId != null && activeSessionId == mainChatId) {
+            AppLogger.info(TAG, "[Compact] compactAll bypassed for Main Chat (sliding window active)")
+            return
+        }
+
         AppLogger.info(TAG, "[Compact] compactAll() invoked streaming=${_isStreaming.value} compacting=${_isCompacting.value} historySize=${agentHistory.size} anchorOverride=$anchorIdxOverride inLoop=$allowDuringProcessing")
         if (_isStreaming.value && !allowDuringProcessing) {
             AppLogger.info(TAG, "[Compact] aborted: stream in progress")
@@ -2826,6 +2833,25 @@ class ChatViewModel(
         dropOrphanedToolParts(effectiveAgentHistoryUncounted())
 
     private fun effectiveAgentHistoryUncounted(): List<LLMMessage> {
+        // nanoMuse: Main Chat (the persistent home conversation) bypasses compounding compact
+        // markers in favor of token sliding window + asynchronous memory distillation.
+        val mainChatId = io.github.nanomuse.home.MainChat.persisted(context)
+        if (mainChatId != null && activeSessionId == mainChatId) {
+            val window = currentModel?.contextWindowTokens ?: 128_000
+            return io.github.nanomuse.companion.MainChatContextPolicy.applySlidingWindow(
+                history = agentHistory.toList(),
+                contextWindow = window,
+                onOverflow = { dropped ->
+                    io.github.nanomuse.companion.MainChatMemoryDistiller.distillAsync(
+                        context = context,
+                        sessionId = mainChatId,
+                        messages = dropped,
+                        chatRepository = chatRepository
+                    )
+                }
+            )
+        }
+
         val summary = _compactSummary.value
         val marker = _cachedLatestMarker
         // No compact in play → return full history untouched.

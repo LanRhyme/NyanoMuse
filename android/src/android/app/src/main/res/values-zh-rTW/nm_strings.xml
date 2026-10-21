@@ -1156,4 +1156,19 @@
     <string name="nm_memory_source_import">匯入</string>
     <string name="nm_memory_search_placeholder">搜尋記憶…</string>
     <string name="nm_memory_search_no_results">沒有符合的記憶</string>
+
+    <!-- Companion proactive & emotions -->
+    <string name="nm_companion_channel_name">%1$s: 伴侶主動陪伴</string>
+    <string name="nm_companion_channel_description">接收主動問候、日常關心與情緒提醒</string>
+    <string name="nm_companion_mood_happy">元氣滿滿</string>
+    <string name="nm_companion_mood_curious">好奇探頭</string>
+    <string name="nm_companion_mood_longing">想老大了</string>
+    <string name="nm_companion_mood_sleepy">困倦打哈欠</string>
+    <string name="nm_companion_settings_title">伴侶與情緒系統</string>
+    <string name="nm_companion_proactive_toggle">伴侶主動對話</string>
+    <string name="nm_companion_proactive_desc">允許 nanoMuse 結合心境主動發起關心與問候</string>
+    <string name="nm_companion_quiet_hours">夜間免打擾時段</string>
+    <string name="nm_companion_quiet_hours_desc">%1$02d:00 至 %2$02d:00 期間保持靜默</string>
+    <string name="nm_companion_cooldown">最小觸發間隔</string>
+    <string name="nm_companion_daily_limit">每日主動上限</string>
 </resources>

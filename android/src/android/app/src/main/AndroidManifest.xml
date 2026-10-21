@@ -517,6 +517,17 @@
             android:name=".scheduled.ScheduledTaskAlarmReceiver"
             android:exported="false" />
 
+        <!-- nanoMuse: companion periodic proactive evaluation receiver -->
+        <receiver
+            android:name="io.github.nanomuse.companion.CompanionAlarmReceiver"
+            android:exported="true"
+            android:permission="${applicationId}.permission.ALARM">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- nanoMuse: Allow / Deny buttons on the approval notification -->
         <receiver
             android:name="io.github.nanomuse.guard.RiskApprovalReceiver"

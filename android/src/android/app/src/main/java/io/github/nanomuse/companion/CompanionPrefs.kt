@@ -44,6 +44,9 @@ object CompanionPrefs {
     fun isEnabled(prefs: SharedPreferences): Boolean =
         prefs.getBoolean(KEY_PROACTIVE_ENABLED, DEFAULT_PROACTIVE_ENABLED)
 
+    fun isEnabled(context: Context): Boolean =
+        isEnabled(prefs(context))
+
     fun setEnabled(prefs: SharedPreferences, enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PROACTIVE_ENABLED, enabled).apply()
     }

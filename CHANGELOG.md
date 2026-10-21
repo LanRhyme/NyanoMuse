@@ -82,6 +82,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 - **AI output completion notifications with high-priority heads-up banner, excerpt and haptics.** Background and cross-screen agent loop completions now post via an `IMPORTANCE_HIGH` heads-up notification channel carrying real assistant reply excerpts and subtle haptic vibration, suppressing redundant popups when actively viewing the session and clearing on chat resume
 
+- **Proactive companion dialogue, mood visualization and Main Chat context sliding window.** Proactive check-ins dispatched quietly via inexact background alarms (`CompanionAlarmReceiver`) and headless chat execution (`CompanionWake`), bypassing compounding `compactAll` summaries in Main Chat with an active token sliding window and asynchronous memory distillation into structured facts and companion bonds, with customizable settings and localized copy across seventeen languages
+
 - **Default launch navigation resolves to the last active conversation.** Restarting or switching back to the app reliably restores the most recently active session across draft promotion and multi-device sync instead of rigidly pinning to the initial main session
 
 - **Companion pure-function emotion state machine and rate-limited preferences.** A deterministic PAD emotion engine (`CompanionEmotion`) computes mood states (happy, curious, longing, sleepy) directly from wall clock circadian rhythms, real user message idle durations and active day intimacy without mutable state drift, governed by quiet hours, daily quotas, cooldown intervals and daily interaction caching in `nanomuse` preferences

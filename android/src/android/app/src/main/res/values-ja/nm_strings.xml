@@ -1186,4 +1186,19 @@
     <string name="nm_memory_source_import">インポート</string>
     <string name="nm_memory_search_placeholder">メモリを検索…</string>
     <string name="nm_memory_search_no_results">条件に一致するメモリはありません</string>
+
+    <!-- Companion proactive & emotions -->
+    <string name="nm_companion_channel_name">%1$s: コンパニオン対話</string>
+    <string name="nm_companion_channel_description">自発的な挨拶、気遣い、気分の近況</string>
+    <string name="nm_companion_mood_happy">元気いっぱい</string>
+    <string name="nm_companion_mood_curious">興味津々</string>
+    <string name="nm_companion_mood_longing">寂しがり中</string>
+    <string name="nm_companion_mood_sleepy">うとうとお休み</string>
+    <string name="nm_companion_settings_title">伴侶と感情システム</string>
+    <string name="nm_companion_proactive_toggle">自発的な会話</string>
+    <string name="nm_companion_proactive_desc">nanoMuse が心境に合わせて挨拶や声かけを行うことを許可します</string>
+    <string name="nm_companion_quiet_hours">おやすみ時間帯</string>
+    <string name="nm_companion_quiet_hours_desc">%1$02d:00 から %2$02d:00 までは通知しません</string>
+    <string name="nm_companion_cooldown">最小間隔</string>
+    <string name="nm_companion_daily_limit">1日の上限回数</string>
 </resources>

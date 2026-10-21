@@ -1186,4 +1186,19 @@
     <string name="nm_memory_source_import">Import</string>
     <string name="nm_memory_search_placeholder">Cari memori…</string>
     <string name="nm_memory_search_no_results">Tiada memori sepadan dengan carian anda</string>
+
+    <!-- Companion proactive & emotions -->
+    <string name="nm_companion_channel_name">%1$s: Dialog Teman</string>
+    <string name="nm_companion_channel_description">Sapaan proaktif, pertanyaan khabar dan kemas kini emosi</string>
+    <string name="nm_companion_mood_happy">Ceria dan bertenaga</string>
+    <string name="nm_companion_mood_curious">Ingin tahu dan menyapa</string>
+    <string name="nm_companion_mood_longing">Merinduimu</string>
+    <string name="nm_companion_mood_sleepy">Mengantuk dan berehat</string>
+    <string name="nm_companion_settings_title">Teman &amp; Emosi</string>
+    <string name="nm_companion_proactive_toggle">Dialog Proaktif Teman</string>
+    <string name="nm_companion_proactive_desc">Benarkan nanoMuse menyapa dan mengambil berat secara lembut</string>
+    <string name="nm_companion_quiet_hours">Waktu Tenang</string>
+    <string name="nm_companion_quiet_hours_desc">Tempoh senyap dari %1$02d:00 hingga %2$02d:00</string>
+    <string name="nm_companion_cooldown">Selang Minimum</string>
+    <string name="nm_companion_daily_limit">Had Harian</string>
 </resources>

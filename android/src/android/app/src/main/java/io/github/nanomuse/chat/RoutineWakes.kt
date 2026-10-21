@@ -23,7 +23,12 @@ import java.util.Locale
  * same conversation is never mistaken for a routine's.
  */
 object RoutineWakes {
-    data class Wake(val label: String, val at: Long) {
+    data class Wake(
+        val label: String,
+        val at: Long,
+        val framingOverride: String? = null,
+        val isCompanion: Boolean = false,
+    ) {
         /** "08:00", in the phone's clock. */
         val time: String get() = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(at))
     }
@@ -52,6 +57,20 @@ object RoutineWakes {
         val wake = Wake(label.trim().take(60), System.currentTimeMillis())
         synchronized(lock) { pending[sessionId] = wake }
         SessionAddenda.add(sessionId, ADDENDUM_TAG, framing(wake), turns = 1)
+        if (app == null) app = context.applicationContext
+    }
+
+    /** nanoMuse: The companion engine is about to send a proactive dialogue into [sessionId]. */
+    fun armCompanion(context: Context, sessionId: String, label: String, framingInstruction: String) {
+        val wake = Wake(label.trim().take(60), System.currentTimeMillis(), framingInstruction, isCompanion = true)
+        synchronized(lock) { pending[sessionId] = wake }
+        val promptFraming = buildString {
+            appendLine("## This turn is your own proactive companion thought, not a user request (nanoMuse)")
+            appendLine("Nobody asked you anything; you proactively reached out to the user right now.")
+            appendLine("Atmosphere/Intent: $framingInstruction")
+            appendLine("Stay strictly in persona. Do NOT sound like an assistant or customer service. Keep it under 40 Chinese characters or 20 words.")
+        }
+        SessionAddenda.add(sessionId, ADDENDUM_TAG, promptFraming, turns = 1)
         if (app == null) app = context.applicationContext
     }
 
@@ -90,7 +109,11 @@ object RoutineWakes {
             val out = LinkedHashMap<String, Wake>()
             for (id in o.keys()) {
                 val w = o.optJSONObject(id) ?: continue
-                out[id] = Wake(w.optString("label"), w.optLong("at"))
+                out[id] = Wake(
+                    label = w.optString("label"),
+                    at = w.optLong("at"),
+                    isCompanion = w.optBoolean("companion", false),
+                )
             }
             out
         }.getOrDefault(emptyMap())
@@ -98,7 +121,11 @@ object RoutineWakes {
 
     private fun save(context: Context, map: Map<String, Wake>) {
         val o = JSONObject()
-        for ((id, w) in map) o.put(id, JSONObject().put("label", w.label).put("at", w.at))
+        for ((id, w) in map) {
+            val item = JSONObject().put("label", w.label).put("at", w.at)
+            if (w.isCompanion) item.put("companion", true)
+            o.put(id, item)
+        }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, o.toString()).apply()
     }
 }

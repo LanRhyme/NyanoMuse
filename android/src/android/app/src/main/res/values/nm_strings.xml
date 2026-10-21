@@ -1168,4 +1168,19 @@
     <string name="nm_memory_source_import">Import</string>
     <string name="nm_memory_search_placeholder">Search memory…</string>
     <string name="nm_memory_search_no_results">No memories match your query</string>
+
+    <!-- Companion proactive & emotions -->
+    <string name="nm_companion_channel_name">%1$s: Companion Dialogue</string>
+    <string name="nm_companion_channel_description">Proactive companion greetings, check-ins, and emotional updates</string>
+    <string name="nm_companion_mood_happy">Cheerful &amp; Energetic</string>
+    <string name="nm_companion_mood_curious">Curious &amp; Check-in</string>
+    <string name="nm_companion_mood_longing">Missing you</string>
+    <string name="nm_companion_mood_sleepy">Sleepy &amp; Resting</string>
+    <string name="nm_companion_settings_title">Companion &amp; Emotion</string>
+    <string name="nm_companion_proactive_toggle">Proactive Companion Dialogue</string>
+    <string name="nm_companion_proactive_desc">Allow nanoMuse to gently reach out with greetings and check-ins</string>
+    <string name="nm_companion_quiet_hours">Quiet Hours</string>
+    <string name="nm_companion_quiet_hours_desc">Silent period from %1$02d:00 to %2$02d:00</string>
+    <string name="nm_companion_cooldown">Minimum Interval</string>
+    <string name="nm_companion_daily_limit">Daily Maximum</string>
 </resources>

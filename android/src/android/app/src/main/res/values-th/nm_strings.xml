@@ -1186,4 +1186,19 @@
     <string name="nm_memory_source_import">นำเข้า</string>
     <string name="nm_memory_search_placeholder">ค้นหาความทรงจำ…</string>
     <string name="nm_memory_search_no_results">ไม่พบความทรงจำที่ตรงกับคำค้น</string>
+
+    <!-- Companion proactive & emotions -->
+    <string name="nm_companion_channel_name">%1$s: บทสนทนาคู่หู</string>
+    <string name="nm_companion_channel_description">การทักทายเชิงรุก ความห่วงใย และอัปเดตอารมณ์</string>
+    <string name="nm_companion_mood_happy">ร่าเริงและเต็มไปด้วยพลัง</string>
+    <string name="nm_companion_mood_curious">อยากรู้อยากเห็นและแวะมาดู</string>
+    <string name="nm_companion_mood_longing">คิดถึงคุณ</string>
+    <string name="nm_companion_mood_sleepy">ง่วงนอนและกำลังพักผ่อน</string>
+    <string name="nm_companion_settings_title">คู่หูและอารมณ์</string>
+    <string name="nm_companion_proactive_toggle">บทสนทนาคู่หูเชิงรุก</string>
+    <string name="nm_companion_proactive_desc">อนุญาตให้ nanoMuse เริ่มทักทายและถามไถ่ด้วยความห่วงใยอย่างอ่อนโยน</string>
+    <string name="nm_companion_quiet_hours">ช่วงเวลาเงียบ</string>
+    <string name="nm_companion_quiet_hours_desc">ช่วงเวลาเงียบตั้งแต่ %1$02d:00 ถึง %2$02d:00</string>
+    <string name="nm_companion_cooldown">ช่วงเวลาขั้นต่ำ</string>
+    <string name="nm_companion_daily_limit">ขีดจำกัดรายวัน</string>
 </resources>

@@ -1190,4 +1190,19 @@
     <string name="nm_memory_source_import">Import</string>
     <string name="nm_memory_search_placeholder">Maghanap ng memory…</string>
     <string name="nm_memory_search_no_results">Walang memory na tumutugma sa iyong paghahanap</string>
+
+    <!-- Companion proactive & emotions -->
+    <string name="nm_companion_channel_name">%1$s: Diyalogo ng Kasama</string>
+    <string name="nm_companion_channel_description">Mga maagap na pagbati, pangungumusta at emosyonal na update</string>
+    <string name="nm_companion_mood_happy">Masayahin at masigla</string>
+    <string name="nm_companion_mood_curious">Nagtatanong at mausisa</string>
+    <string name="nm_companion_mood_longing">Nangungulila sa iyo</string>
+    <string name="nm_companion_mood_sleepy">Inaantok at namamahinga</string>
+    <string name="nm_companion_settings_title">Kasama at Emosyon</string>
+    <string name="nm_companion_proactive_toggle">Maagap na Diyalogo ng Kasama</string>
+    <string name="nm_companion_proactive_desc">Pahintulutan ang nanoMuse na maingat na mangumusta at magtanong</string>
+    <string name="nm_companion_quiet_hours">Mga Oras ng Katahimikan</string>
+    <string name="nm_companion_quiet_hours_desc">Tahimik na panahon mula %1$02d:00 hanggang %2$02d:00</string>
+    <string name="nm_companion_cooldown">Pinakamababang Agwat</string>
+    <string name="nm_companion_daily_limit">Pang-araw-araw na Limitasyon</string>
 </resources>

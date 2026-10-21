@@ -660,6 +660,7 @@ class MinisApp : Application(), ImageLoaderFactory {
         io.github.nanomuse.guard.Grants.init(this)
         io.github.nanomuse.feed.FeedFlow.init(this) // nanoMuse
         io.github.nanomuse.chat.RoutineWakes.init(this) // nanoMuse: which chat rows a routine sent
+        io.github.nanomuse.companion.CompanionAlarmReceiver.scheduleNext(this) // nanoMuse: companion periodic proactive evaluation
         io.github.nanomuse.avatar.AvatarStore.init(this) // nanoMuse: the user's own face, if any
         io.github.nanomuse.cloud.ProfileSync.init(this) // nanoMuse: the name and face the account's devices share
         io.github.nanomuse.cloud.ConfigSync.init(this) // NyanoMuse: E2EE providers, models and soul config sync

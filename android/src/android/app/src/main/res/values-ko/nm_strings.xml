@@ -1186,4 +1186,19 @@
     <string name="nm_memory_source_import">가져오기</string>
     <string name="nm_memory_search_placeholder">메모리 검색…</string>
     <string name="nm_memory_search_no_results">검색과 일치하는 메모리가 없습니다</string>
+
+    <!-- Companion proactive & emotions -->
+    <string name="nm_companion_channel_name">%1$s: 반려 대화</string>
+    <string name="nm_companion_channel_description">자발적인 인사, 안부 묻기 및 감정 알림</string>
+    <string name="nm_companion_mood_happy">활기 가득</string>
+    <string name="nm_companion_mood_curious">호기심 가득</string>
+    <string name="nm_companion_mood_longing">보고 싶어함</string>
+    <string name="nm_companion_mood_sleepy">졸려서 휴식 중</string>
+    <string name="nm_companion_settings_title">반려 및 감정 시스템</string>
+    <string name="nm_companion_proactive_toggle">자발적 반려 대화</string>
+    <string name="nm_companion_proactive_desc">nanoMuse가 기분에 맞춰 먼저 안부를 묻고 대화를 시작하도록 허용합니다</string>
+    <string name="nm_companion_quiet_hours">방해 금지 시간</string>
+    <string name="nm_companion_quiet_hours_desc">%1$02d:00부터 %2$02d:00까지는 알리지 않습니다</string>
+    <string name="nm_companion_cooldown">최소 간격</string>
+    <string name="nm_companion_daily_limit">일일 최대 횟수</string>
 </resources>

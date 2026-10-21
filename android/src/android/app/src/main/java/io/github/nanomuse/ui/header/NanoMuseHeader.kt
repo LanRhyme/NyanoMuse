@@ -61,9 +61,10 @@ fun rememberNanoMuseStatusLine(
     // The clips, after the poses: "Animating 2/4" until the video model is through.
     val motion by io.github.nanomuse.avatar.AvatarMotion.progress.collectAsState()
     val motionStatus = motion?.takeIf { it.running }?.let { stringResource(R.string.nm_avatar_status_animating, it.done + 1, it.total) }
+    val context = androidx.compose.ui.platform.LocalContext.current
     return when {
         mood == AgentMood.WAITING && pendingRisk != null -> stringResource(R.string.nm_risk_needs_approval)
-        mood == AgentMood.WAITING -> stringResource(R.string.nm_status_waiting)
+        mood == AgentMood.WAITING -> io.github.nanomuse.companion.CompanionStatus.currentMoodSubtitle(context)
         avatarStatus != null -> avatarStatus
         isStreaming && toolRunning && !toolTitle.isNullOrBlank() -> toolTitle
         isStreaming && replying -> stringResource(R.string.nm_status_replying)

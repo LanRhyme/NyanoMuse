@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Link // nanoMuse: the Connectors row
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Face
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Feedback
@@ -130,6 +131,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     var showFeedbackSheet by remember { mutableStateOf(false) }
     var showExecutionModeSheet by remember { mutableStateOf(false) }
+    var showCompanionSettings by remember { mutableStateOf(false) }
     var currentExecMode by remember { mutableStateOf(com.openminis.app.sandbox.ExecutionMode.getMode(context)) }
     // nanoMuse: Muse's settings page — the round back glyph, the title centred,
     // white cards of outlined-glyph rows on the grey canvas, no section headers
@@ -246,6 +248,13 @@ fun SettingsScreen(
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.nm_connectors_title), icon = Icons.Outlined.Link, onClick = onConnectorsClick)
                 io.github.nanomuse.ui.muse.MuseRowDivider()
                 io.github.nanomuse.ui.muse.MuseRow(title = stringResource(R.string.settings_env_vars), icon = Icons.Outlined.Terminal, onClick = onEnvVarsClick)
+                io.github.nanomuse.ui.muse.MuseRowDivider()
+                io.github.nanomuse.ui.muse.MuseRow(
+                    title = stringResource(R.string.nm_companion_settings_title),
+                    icon = Icons.Outlined.FavoriteBorder,
+                    value = stringResource(if (io.github.nanomuse.companion.CompanionPrefs.isEnabled(context)) R.string.nm_hands_on else R.string.nm_hands_off),
+                    onClick = { showCompanionSettings = true },
+                )
             }
             io.github.nanomuse.ui.muse.MuseGap()
 
@@ -450,6 +459,12 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    if (showCompanionSettings) {
+        io.github.nanomuse.companion.ui.CompanionSettingsSheet(
+            onDismiss = { showCompanionSettings = false },
+        )
     }
 }
 

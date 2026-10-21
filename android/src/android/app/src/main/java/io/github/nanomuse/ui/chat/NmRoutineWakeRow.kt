@@ -29,6 +29,17 @@ fun NmRoutineWakeRow(messageId: String, bubble: @Composable () -> Unit) {
         bubble()
         return
     }
+    if (wake.isCompanion) {
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+            Text(
+                text = "${wake.label} · ${wake.time}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
+        }
+        return
+    }
     Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
         Text(
             text = stringResource(R.string.nm_routine_wake_caption, wake.label, wake.time),

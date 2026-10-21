@@ -31,8 +31,8 @@ object CompanionNotifications {
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
 
         val name = io.github.nanomuse.identity.NanoMuseIdentity.name(context)
-        val channelName = "$name: 伴侣主动陪伴"
-        val channelDesc = "接收来自 $name 的主动问候、关心与情绪提醒"
+        val channelName = context.getString(R.string.nm_companion_channel_name, name)
+        val channelDesc = context.getString(R.string.nm_companion_channel_description)
 
         val channel = NotificationChannel(
             CHANNEL_ID,
@@ -73,10 +73,10 @@ object CompanionNotifications {
 
         val agentName = io.github.nanomuse.identity.NanoMuseIdentity.name(context)
         val moodSubtitle = when (mood) {
-            CompanionEmotion.PrimaryMood.HAPPY -> "✨ 元气满满"
-            CompanionEmotion.PrimaryMood.CURIOUS -> "🐾 好奇探头"
-            CompanionEmotion.PrimaryMood.LONGING -> "💙 想你啦"
-            CompanionEmotion.PrimaryMood.SLEEPY -> "🌙 困倦打哈欠"
+            CompanionEmotion.PrimaryMood.HAPPY -> context.getString(R.string.nm_companion_mood_happy)
+            CompanionEmotion.PrimaryMood.CURIOUS -> context.getString(R.string.nm_companion_mood_curious)
+            CompanionEmotion.PrimaryMood.LONGING -> context.getString(R.string.nm_companion_mood_longing)
+            CompanionEmotion.PrimaryMood.SLEEPY -> context.getString(R.string.nm_companion_mood_sleepy)
         }
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
