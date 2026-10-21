@@ -17,14 +17,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -434,59 +437,74 @@ private fun FeedSettingsSheet(onDismiss: () -> Unit, onEditRoutine: (String) -> 
     val generating by FeedFlow.generating.collectAsState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = ChatColors.background) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text(stringResource(R.string.nm_feed_settings_title), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(4.dp))
-            Text(stringResource(R.string.nm_feed_intro_desc), fontSize = 13.sp, lineHeight = 18.sp, color = ChatColors.secondaryText)
-            Spacer(Modifier.height(14.dp))
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MuseTones.action,
-                    unfocusedBorderColor = MuseTones.hairline,
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 22.sp),
-            )
-            Spacer(Modifier.height(16.dp))
-            Surface(shape = RoundedCornerShape(14.dp), color = MuseTones.fill, modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    Row(Modifier.padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.nm_feed_routine_switch), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
-                            val time = task?.let { "%02d:%02d".format(java.util.Locale.ROOT, it.timeOfDayHour, it.timeOfDayMinute) }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(stringResource(R.string.nm_feed_settings_title), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.nm_feed_intro_desc), fontSize = 13.sp, lineHeight = 18.sp, color = ChatColors.secondaryText)
+                Spacer(Modifier.height(14.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 120.dp, max = 220.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MuseTones.action,
+                        unfocusedBorderColor = MuseTones.hairline,
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 22.sp),
+                )
+                Spacer(Modifier.height(16.dp))
+                Surface(shape = RoundedCornerShape(14.dp), color = MuseTones.fill, modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        Row(Modifier.padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.nm_feed_routine_switch), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                                val time = task?.let { "%02d:%02d".format(java.util.Locale.ROOT, it.timeOfDayHour, it.timeOfDayMinute) }
+                                Text(
+                                    if (time != null) stringResource(R.string.nm_feed_routine_time, time) else stringResource(R.string.nm_feed_routine_needs_model),
+                                    fontSize = 12.sp,
+                                    color = ChatColors.secondaryText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable(enabled = task != null) { task?.let { onEditRoutine(it.id) } },
+                                )
+                            }
+                            Switch(checked = task?.enabled == true, enabled = task != null, onCheckedChange = { FeedFlow.setEnabled(context, it) })
+                        }
+                        HorizontalDivider(color = MuseTones.hairline, modifier = Modifier.padding(horizontal = 14.dp))
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !generating) { FeedFlow.generateNow(context); onDismiss() }
+                                .padding(horizontal = 14.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                if (time != null) stringResource(R.string.nm_feed_routine_time, time) else stringResource(R.string.nm_feed_routine_needs_model),
-                                fontSize = 12.sp,
-                                color = ChatColors.secondaryText,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.clickable(enabled = task != null) { task?.let { onEditRoutine(it.id) } },
+                                stringResource(if (generating) R.string.nm_feed_generating else R.string.nm_feed_write_now),
+                                fontSize = 15.sp,
+                                color = if (generating) ChatColors.secondaryText else MuseTones.action,
+                                fontWeight = FontWeight.Medium,
                             )
                         }
-                        Switch(checked = task?.enabled == true, enabled = task != null, onCheckedChange = { FeedFlow.setEnabled(context, it) })
-                    }
-                    HorizontalDivider(color = MuseTones.hairline, modifier = Modifier.padding(horizontal = 14.dp))
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !generating) { FeedFlow.generateNow(context); onDismiss() }
-                            .padding(horizontal = 14.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            stringResource(if (generating) R.string.nm_feed_generating else R.string.nm_feed_write_now),
-                            fontSize = 15.sp,
-                            color = if (generating) ChatColors.secondaryText else MuseTones.action,
-                            fontWeight = FontWeight.Medium,
-                        )
                     }
                 }
+                Spacer(Modifier.height(18.dp))
             }
-            Spacer(Modifier.height(18.dp))
             Button(
                 onClick = { FeedStore.savePreferences(text); FeedFlow.acknowledgeIntro(context); onDismiss() },
                 shape = CircleShape,
