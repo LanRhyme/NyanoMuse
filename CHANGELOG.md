@@ -82,6 +82,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Bounded scroll layout and pinned save button for Feed settings sheet.** Feed preferences editing in `FeedSettingsSheet` now constrains `OutlinedTextField` height between 120dp and 220dp with internal scrolling, wraps the upper form in a non-greedy scrollable column with IME padding, and pins the Save button firmly at the bottom so long text and soft keyboard cannot push actions off-screen
+
 - **AI output completion notifications with high-priority heads-up banner, excerpt and haptics.** Background and cross-screen agent loop completions now post via an `IMPORTANCE_HIGH` heads-up notification channel carrying real assistant reply excerpts and subtle haptic vibration, suppressing redundant popups when actively viewing the session and clearing on chat resume
 
 - **Proactive companion dialogue, drawer Main Chat shortcut, and 1M-context sliding window.** Proactive check-ins dispatched via inexact background alarms (`CompanionAlarmReceiver`) and headless chat execution (`CompanionWake`), filtering routine wakes from idle time and canonicalizing scenario tags; Main Chat bypasses compounding `compactAll` summaries with a dynamic token sliding window scaling from 64k to 256k tokens for 1M context models (trading per-turn token volume for zero detail loss until memory distillation triggers on overflow), deduplicated dropped JSONL archive with 5MB rotation, persistent Main Chat entry pinned in the drawer, customizable scenario settings and complete localized copy across seventeen languages
