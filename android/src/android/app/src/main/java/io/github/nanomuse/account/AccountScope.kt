@@ -92,4 +92,14 @@ object AccountScope {
         "minis-global/nanomuse/avatar",
         "minis-global/shared",
     )
+
+    /**
+     * The structured memory store belongs to the account too, but `databases/` is not under
+     * `files/`: it moves by file name, and its two side files go with it.
+     */
+    val memoryDbFiles: List<String> = listOf(
+        "nanomuse_memory.db",
+        "nanomuse_memory.db-wal",
+        "nanomuse_memory.db-shm",
+    )
 }

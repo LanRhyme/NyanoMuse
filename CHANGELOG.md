@@ -66,6 +66,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Memories follow the account between this phone and the computer.** Every write here is queued as one operation with an id of its own and sent to the relay, which gives it a sequence number the other devices apply in order; only the text and its flags travel, and each device builds its own index, so a change made offline waits and goes up on the next sync. The searchable store moves with its account on a switch or a sign-out, like the memory files do. A keyword lookup still finds the memories the prompt leaves out for age.
+
 - **Structured memories now reach the agent, and `memory_get` reads them.** `memory_write` also stores the line in a local SQLite table with a bigram index, and the system prompt appends the newest 30 of them, capped at 3000 characters, after `GLOBAL.md`. A keyword lookup returns the table's matches before the file ones, so a fact saved through the tool is found by keyword as well as by exact text.
 
 - **Responses API requests no longer failed on repeated tool-call ids in accumulated or restored history.** Later copies receive deterministic request-unique suffixes while every tool output remains paired with its call. For [#501](https://github.com/nano-muse/nanoMuse/issues/501).

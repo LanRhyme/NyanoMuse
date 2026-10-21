@@ -68,6 +68,7 @@ any other `401`) first, `account_deleted` second.
 | Chats made while signed out | the same | nobody (`""`) | aside while signed in, back when signed out | aside | back / back | stay | gone |
 | Sync mappings (cids, cursor, known mids) | `nanomuse_sync.db` | account | out with the chats / stay | stay for the account that left | stay / out | out | gone |
 | What the muse remembers (SOUL.md, USER.md, GLOBAL.md, diary) | `minis-global/memory/` | account | out / aside | aside; the new account's back or empty | aside / out | out | gone |
+| Structured memories (the searchable store, C15) | `databases/nanomuse_memory.db` | account | out / aside with the account's files | aside; the new account's back or empty | aside / out | out | gone |
 | Feed posts and preferences | `minis-global/nanomuse/feed/`, `feed-preferences.md` | account | out / aside | aside | aside / out | out | gone |
 | Goals | `minis-global/nanomuse/goals.json` | account | out / aside | aside | aside / out | out | gone |
 | Routines (the scheduled tasks, the feed's and the goals' included) | `minis_scheduled_tasks_prefs` | account | alarms off, out / aside (`routines.json`) | aside | alarms off, aside / out | out | gone |

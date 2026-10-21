@@ -1,6 +1,7 @@
 package io.github.nanomuse.sync
 
 import java.io.IOException
+import org.json.JSONObject
 
 /*
  * The shapes of contract C7 (conversation sync across the account's devices), as the relay
@@ -89,6 +90,29 @@ data class OutMessage(
 data class Rejection(val mid: String?, val cid: String?, val reason: String, val cidMain: String?)
 
 data class PushResult(val cursor: Long, val accepted: Int, val rejected: List<Rejection>)
+
+/* C15: the account's memories, one operation per change. The payload is the memory's own
+ * state (text, category, flags); it stays a JSONObject here so this file does not depend on
+ * the memory store, and the store fills it in. */
+
+/** One queued change on its way up. */
+data class OutMemoryOp(val opId: String, val opType: String, val clientTime: Long, val payload: JSONObject)
+
+/** What the relay gave one op: the account-wide seq every device sorts by. */
+data class AssignedMemoryOp(val opId: String, val seq: Long)
+
+data class MemoryPushResult(val cursor: Long, val accepted: Int, val assigned: List<AssignedMemoryOp>)
+
+/** One change from another device. */
+data class RemoteMemoryOp(
+    val opId: String,
+    val seq: Long,
+    val opType: String,
+    val payload: JSONObject,
+    val clientTime: Long,
+)
+
+data class MemoryPullResult(val cursor: Long, val more: Boolean, val ops: List<RemoteMemoryOp>)
 
 /** `GET /v1/sync/state`; [working] is who is on which conversation right now (relay 0.20, empty before). */
 data class SyncState(

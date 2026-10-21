@@ -42,6 +42,14 @@ interface SyncApi {
     @Throws(SyncException::class)
     fun wipe()
 
+    /** Memory changes (C15): the queued ops go up, the relay gives each an account-wide seq. */
+    @Throws(SyncException::class)
+    fun pushMemory(device: String, ops: List<OutMemoryOp>): MemoryPushResult
+
+    /** The account's memory changes after [since], in seq order (C15). */
+    @Throws(SyncException::class)
+    fun pullMemory(since: Long, limit: Int = 200): MemoryPullResult
+
     companion object {
         const val SCOPE_ALL = "all"
         const val SCOPE_MAIN = "main"
@@ -144,6 +152,50 @@ object SyncJson {
         )
     }
 
+    fun memoryPushBody(device: String, ops: List<OutMemoryOp>): JSONObject {
+        val arr = JSONArray()
+        for (op in ops) {
+            arr.put(
+                JSONObject()
+                    .put("op_id", op.opId)
+                    .put("op_type", op.opType)
+                    .put("client_time", op.clientTime)
+                    .put("payload", op.payload),
+            )
+        }
+        return JSONObject().put("device", device).put("ops", arr)
+    }
+
+    fun memoryPushResult(o: JSONObject): MemoryPushResult {
+        val arr = o.optJSONArray("assigned") ?: JSONArray()
+        return MemoryPushResult(
+            cursor = o.optLong("cursor", 0),
+            accepted = o.optInt("accepted", 0),
+            assigned = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.mapNotNull {
+                val opId = it.optString("op_id")
+                if (opId.isBlank()) null else AssignedMemoryOp(opId, it.optLong("seq", 0))
+            }.filter { it.seq > 0 },
+        )
+    }
+
+    fun memoryPullResult(o: JSONObject): MemoryPullResult {
+        val arr = o.optJSONArray("ops") ?: JSONArray()
+        return MemoryPullResult(
+            cursor = o.optLong("cursor", 0),
+            more = o.optBoolean("more", false),
+            ops = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.mapNotNull {
+                val opId = it.optString("op_id")
+                if (opId.isBlank()) null else RemoteMemoryOp(
+                    opId = opId,
+                    seq = it.optLong("seq", 0),
+                    opType = it.optString("op_type", "upsert_memory"),
+                    payload = it.optJSONObject("payload") ?: JSONObject(),
+                    clientTime = it.optLong("client_time", 0),
+                )
+            },
+        )
+    }
+
     fun state(o: JSONObject): SyncState {
         val counts = o.optJSONObject("counts") ?: JSONObject()
         return SyncState(
@@ -200,6 +252,12 @@ class RelaySyncApi(
     override fun wipe() {
         call("DELETE", "/v1/sync/changes")
     }
+
+    override fun pushMemory(device: String, ops: List<OutMemoryOp>): MemoryPushResult =
+        SyncJson.memoryPushResult(call("POST", "/v1/sync/memory/push", SyncJson.memoryPushBody(device, ops)))
+
+    override fun pullMemory(since: Long, limit: Int): MemoryPullResult =
+        SyncJson.memoryPullResult(call("GET", "/v1/sync/memory/pull?since=$since&limit=$limit"))
 
     private fun call(method: String, path: String, body: JSONObject? = null): JSONObject {
         val builder = Request.Builder().url(baseUrl + path)

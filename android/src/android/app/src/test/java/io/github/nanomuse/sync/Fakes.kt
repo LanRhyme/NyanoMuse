@@ -263,7 +263,48 @@ class FakeRelay(private val names: Map<String, String> = emptyMap()) : SyncApi {
     override fun wipe() {
         check()
         wipes++
-        convs.clear(); msgs.clear()
+        convs.clear(); msgs.clear(); memOps.clear()
+    }
+
+    // ── C15: the memory oplog, with the same idempotent ids and one seq counter ──
+
+    class MemOp(val opId: String, val opType: String, val clientTime: Long, val payload: JSONObject, val seq: Long)
+
+    val memOps = LinkedHashMap<String, MemOp>()
+    /** How many ops each push carried. */
+    val memPushes = mutableListOf<Int>()
+
+    override fun pushMemory(device: String, ops: List<OutMemoryOp>): MemoryPushResult {
+        check()
+        if (!enabled) throw SyncException(409, "sync_off", "sync is off")
+        memPushes += ops.size
+        var accepted = 0
+        val assigned = mutableListOf<AssignedMemoryOp>()
+        for (op in ops) {
+            val known = memOps[op.opId]
+            if (known != null) {
+                assigned += AssignedMemoryOp(op.opId, known.seq)
+                continue
+            }
+            val s = ++seq
+            memOps[op.opId] = MemOp(op.opId, op.opType, op.clientTime, op.payload, s)
+            assigned += AssignedMemoryOp(op.opId, s)
+            accepted++
+        }
+        return MemoryPushResult(seq, accepted, assigned)
+    }
+
+    override fun pullMemory(since: Long, limit: Int): MemoryPullResult {
+        check()
+        if (!enabled) throw SyncException(409, "sync_off", "sync is off")
+        val page = memOps.values.filter { it.seq > since }.sortedBy { it.seq }
+        val more = page.size > limit
+        val rows = if (more) page.take(limit) else page
+        return MemoryPullResult(
+            cursor = if (more && rows.isNotEmpty()) rows.last().seq else seq,
+            more = more,
+            ops = rows.map { RemoteMemoryOp(it.opId, it.seq, it.opType, it.payload, it.clientTime) },
+        )
     }
 
     /** A device [device] starting a chat on the relay directly (what another client would do). */

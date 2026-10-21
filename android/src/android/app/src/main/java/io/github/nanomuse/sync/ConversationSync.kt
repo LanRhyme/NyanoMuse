@@ -212,7 +212,10 @@ object ConversationSync {
         val ctx = context.applicationContext
         if (!active(ctx)) return
         pushJob?.cancel()
-        scope.launch { run(ctx) { it.push() } }
+        scope.launch {
+            run(ctx) { it.push() }
+            memorySoon(ctx)
+        }
     }
 
     /**
@@ -248,6 +251,8 @@ object ConversationSync {
                 it.push()
                 runCatching { it.working(sessionId, false) }
             }
+            // a turn often ends with a memory written (`memory_write`): it travels on the same beat
+            memorySoon(ctx)
         }
     }
 
@@ -267,6 +272,23 @@ object ConversationSync {
                 it.push()
                 runCatching { seedPresence(it, it.state().working) }
             }
+            memorySoon(ctx)
+        }
+    }
+
+    /**
+     * Memory changes with the account (C15), on the same beats as a conversation sync. Best
+     * effort: a failure leaves the ops queued for the next beat, and it never blocks a chat.
+     */
+    private fun memorySoon(ctx: Context) {
+        if (!active(ctx)) return
+        scope.launch {
+            runCatching {
+                val token = NanoMuseCloud.apiKey(ctx) ?: return@runCatching
+                val api = RelaySyncApi(NanoMuseCloud.baseUrl(ctx), token, "nanoMuse-Android/${BuildConfig.VERSION_NAME}")
+                val db = io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx)
+                io.github.nanomuse.memory.MemorySync(db) { AppLogger.debug(TAG, it) }.run(api, Hub.deviceId(ctx))
+            }.onFailure { AppLogger.warning(TAG, "memory sync failed: ${it.message}") }
         }
     }
 
@@ -367,7 +389,10 @@ object ConversationSync {
         ticker = scope.launch {
             while (isActive) {
                 delay(PULL_EVERY_MS)
-                if (active(ctx)) run(ctx) { applyPull(it.pull()) }
+                if (active(ctx)) {
+                    run(ctx) { applyPull(it.pull()) }
+                    memorySoon(ctx)
+                }
             }
         }
     }

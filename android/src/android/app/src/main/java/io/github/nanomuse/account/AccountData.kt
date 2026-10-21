@@ -111,6 +111,13 @@ object AccountData {
             if (!src.exists()) continue
             if (keep) move(src, File(stash, rel)) else src.deleteRecursively()
         }
+        // nanoMuse: the structured memories go with the account as well
+        io.github.nanomuse.memory.LocalMemoryDb.closeInstance()
+        for (name in AccountScope.memoryDbFiles) {
+            val src = ctx.getDatabasePath(name)
+            if (!src.exists()) continue
+            if (keep) move(src, File(stash, "databases/$name")) else src.delete()
+        }
         // the preferences that are the account's: remembered on the side, then gone from the file
         val p = prefs(ctx)
         val mine = p.all.filterKeys { AccountScope.isAccountPref(it) }
@@ -146,6 +153,13 @@ object AccountData {
                 val dst = File(ctx.filesDir, rel)
                 dst.deleteRecursively()
                 move(src, dst)
+            }
+            // nanoMuse: this account's structured memories come back before anything reads them
+            io.github.nanomuse.memory.LocalMemoryDb.closeInstance()
+            for (name in AccountScope.memoryDbFiles) {
+                val src = File(stash, "databases/$name")
+                if (!src.exists()) continue
+                move(src, ctx.getDatabasePath(name))
             }
             runCatching {
                 val saved = File(stash, "prefs.json").takeIf { it.exists() }?.let { JSONObject(it.readText()) }

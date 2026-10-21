@@ -226,7 +226,8 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
 
         val dbMatches = context?.let { ctx ->
             try {
-                io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).search(keywords, 10)
+                // nanoMuse: archived memories are out of the prompt by design, but a lookup still finds them
+                io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).search(keywords, 10, includeArchived = true)
             } catch (e: Exception) {
                 Log.w(TAG, "LocalMemoryDb search failed", e)
                 emptyList()
@@ -285,6 +286,7 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
             try { globalFile.readText() } catch (_: Exception) { "" }
         } else ""
 
+        // nanoMuse: the prompt carries GLOBAL.md and the newest structured memories, within a budget
         val hotMemories = context?.let { ctx ->
             try {
                 io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).getHotMemories(50)
