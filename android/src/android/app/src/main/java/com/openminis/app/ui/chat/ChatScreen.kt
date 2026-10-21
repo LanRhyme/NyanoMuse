@@ -776,6 +776,7 @@ fun ChatScreen(
     val tHangDiagAppContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
     androidx.compose.runtime.DisposableEffect(sessionId) {
         ChatViewModelStore.setActiveSession(sessionId)
+        (tHangDiagAppContext as? com.openminis.app.MinisApp)?.backgroundTaskNotifier?.cancelNotification(sessionId)
         // [T-HANG-DIAG] enter / dispose markers around the ChatScreen lifetime
         // so we can correlate "user tapped session X" → loadSession timings
         // and any subsequent hang record. Removable by grepping out
