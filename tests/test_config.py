@@ -8,6 +8,9 @@ from nanomuse.config import Settings, load_settings
 
 
 def test_env_expansion_and_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    # the data dir too: the app's own settings live there, and the real one on this
+    # machine is the developer's, not the test's
+    monkeypatch.setenv("NANOMUSE_DATA_DIR", str(tmp_path / "data"))
     cfg = tmp_path / "config.toml"
     cfg.write_text(
         """
@@ -65,6 +68,9 @@ def test_defaults_without_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("NANOMUSE_CONFIG", raising=False)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-from-env")
     monkeypatch.setenv("HOME", str(tmp_path))
+    # the data dir is a fixed path, so HOME alone does not keep the real app's
+    # settings out of this
+    monkeypatch.setenv("NANOMUSE_DATA_DIR", str(tmp_path / "data"))
     s = load_settings()
     assert s.llm.api_key == "sk-from-env"
     assert s.source == "defaults+env"
