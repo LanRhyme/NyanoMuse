@@ -572,4 +572,76 @@ class LocalMemoryDb(context: Context, name: String = DATABASE_NAME) : SQLiteOpen
         }
         return list
     }
+
+    fun getAllMemories(includeArchived: Boolean = true): List<MemoryEntity> {
+        val db = readableDatabase
+        val sql = if (includeArchived) {
+            "SELECT * FROM memories WHERE deleted = 0 ORDER BY is_pinned DESC, updated_at DESC"
+        } else {
+            "SELECT * FROM memories WHERE deleted = 0 AND is_archived = 0 ORDER BY is_pinned DESC, updated_at DESC"
+        }
+        val cursor = db.rawQuery(sql, null)
+        val list = mutableListOf<MemoryEntity>()
+        cursor.use {
+            while (it.moveToNext()) {
+                list.add(
+                    MemoryEntity(
+                        id = it.getString(it.getColumnIndexOrThrow("id")),
+                        content = it.getString(it.getColumnIndexOrThrow("content")),
+                        searchText = it.getString(it.getColumnIndexOrThrow("search_text")),
+                        category = it.getString(it.getColumnIndexOrThrow("category")),
+                        source = it.getString(it.getColumnIndexOrThrow("source")),
+                        isPinned = it.getInt(it.getColumnIndexOrThrow("is_pinned")) == 1,
+                        isArchived = it.getInt(it.getColumnIndexOrThrow("is_archived")) == 1,
+                        importance = it.getFloat(it.getColumnIndexOrThrow("importance")),
+                        useCount = it.getInt(it.getColumnIndexOrThrow("use_count")),
+                        lastUsedAt = it.getLong(it.getColumnIndexOrThrow("last_used_at")),
+                        confidence = it.getFloat(it.getColumnIndexOrThrow("confidence")),
+                        createdAt = it.getLong(it.getColumnIndexOrThrow("created_at")),
+                        updatedAt = it.getLong(it.getColumnIndexOrThrow("updated_at")),
+                        deleted = it.getInt(it.getColumnIndexOrThrow("deleted")) == 1,
+                        seq = it.getLong(it.getColumnIndexOrThrow("seq"))
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    fun activeCount(): Int {
+        val cursor = readableDatabase.rawQuery("SELECT COUNT(*) FROM memories WHERE deleted = 0 AND is_archived = 0", null)
+        return cursor.use { if (it.moveToFirst()) it.getInt(0) else 0 }
+    }
+
+    fun togglePin(id: String, isPinned: Boolean? = null): Boolean {
+        val existing = get(id) ?: return false
+        val newVal = isPinned ?: !existing.isPinned
+        upsert(
+            id = id,
+            content = existing.content,
+            category = existing.category,
+            source = existing.source,
+            isPinned = newVal,
+            isArchived = existing.isArchived,
+            importance = existing.importance,
+            confidence = existing.confidence
+        )
+        return true
+    }
+
+    fun toggleArchive(id: String, isArchived: Boolean? = null): Boolean {
+        val existing = get(id) ?: return false
+        val newVal = isArchived ?: !existing.isArchived
+        upsert(
+            id = id,
+            content = existing.content,
+            category = existing.category,
+            source = existing.source,
+            isPinned = existing.isPinned,
+            isArchived = newVal,
+            importance = existing.importance,
+            confidence = existing.confidence
+        )
+        return true
+    }
 }

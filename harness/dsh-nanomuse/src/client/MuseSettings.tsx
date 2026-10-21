@@ -19,7 +19,7 @@ import { call, type CloudStatus, type Translate, failureText } from './api.ts'
 import { Avatar } from './Avatar.tsx'
 import { openLink } from './bridge.ts'
 import { settingsBus } from './bus.ts'
-import { IconArchive, IconChevronLeft, IconChevronRight, IconClose, IconCpu, IconDatabase, IconDevices, IconFolder, IconHand, IconHelp, IconImage, IconKey, IconLink, IconLogOut, IconMessage, IconMic, IconPuzzle, IconScale, IconSettings, IconShield, IconSliders, IconSparkle, IconUser, IconVideo, IconWallet } from './icons.tsx'
+import { IconArchive, IconBrain, IconChevronLeft, IconChevronRight, IconClose, IconCpu, IconDatabase, IconDevices, IconFolder, IconHand, IconHelp, IconImage, IconKey, IconLink, IconLogOut, IconMessage, IconMic, IconPuzzle, IconScale, IconSettings, IconShield, IconSliders, IconSparkle, IconUser, IconVideo, IconWallet } from './icons.tsx'
 import { openShortcutsReference } from './keys.ts'
 import { useLive } from './live.ts'
 import type { RenderSlot } from './MuseSidebar.tsx'
@@ -35,11 +35,12 @@ export const WALLET_SECTION = 'nanomuse-wallet'
 export const STORAGE_SECTION = 'nanomuse-storage'
 export const CHANNELS_SECTION = 'nanomuse-channels'
 export const HARNESS_SECTION = 'nanomuse-harness'
+export const MEMORY_SECTION = 'nanomuse-memory'
 /** Desk-B's Media page (image and video models), as registered in `index.ts`. */
 const MEDIA_SECTION = 'nanomuse-media'
 /** Settings → Models (0.1.41): the four slots, right after General. */
 const MODELS_SECTION = 'nanomuse-models'
-const PRIMARY: readonly string[] = ['general', MODELS_SECTION, 'nanomuse-connectors', COMPUTER_SECTION, MEDIA_SECTION, 'nanomuse-files', 'nanomuse-dictation', WALLET_SECTION, STORAGE_SECTION, 'nanomuse-permissions', CHANNELS_SECTION, 'nanomuse-devices', DATA_SECTION, HELP_SECTION, LEGAL_SECTION]
+const PRIMARY: readonly string[] = ['general', MODELS_SECTION, MEMORY_SECTION, 'nanomuse-connectors', COMPUTER_SECTION, MEDIA_SECTION, 'nanomuse-files', 'nanomuse-dictation', WALLET_SECTION, STORAGE_SECTION, 'nanomuse-permissions', CHANNELS_SECTION, 'nanomuse-devices', DATA_SECTION, HELP_SECTION, LEGAL_SECTION]
 
 export interface SectionRow {
   id: string
@@ -73,6 +74,7 @@ function navIcon(id: string): ReactNode {
     case 'nanomuse-cloud': return h(IconUser, { size: 16 })
     case 'models': return h(IconDatabase, { size: 16 })
     case MODELS_SECTION: return h(IconDatabase, { size: 16 })
+    case MEMORY_SECTION: return h(IconBrain, { size: 16 })
     case 'agent-presets': return h(IconSparkle, { size: 16 })
     case 'nanomuse-devices': return h(IconDevices, { size: 16 })
     case COMPUTER_SECTION: return h(IconHand, { size: 16 })

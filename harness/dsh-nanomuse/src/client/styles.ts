@@ -1141,6 +1141,61 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-lib-col-top { heig
 .nm-pill-danger { background: #d93025; color: #fff; }
 .nm-sheet-steps { margin: 0 0 12px; padding-left: 20px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.6; }
 
+/* ---- Modernized Memory Settings Page ---- */
+.nm-mem-page { display: flex; flex-direction: column; gap: 16px; width: 100%; box-sizing: border-box; }
+.nm-mem-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.nm-mem-stat-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--nm-card); box-shadow: 0 0 0 1px var(--nm-divider); }
+.nm-mem-stat-val { font-size: 20px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+.nm-mem-stat-lbl { font-size: 11.5px; color: var(--dsw-alias-label-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.nm-mem-controls { display: flex; flex-direction: column; gap: 10px; }
+.nm-mem-bar { display: flex; gap: 8px; align-items: center; }
+.nm-mem-search-box { position: relative; flex: 1; display: flex; align-items: center; }
+.nm-mem-search-box .nm-mem-input { padding-right: 28px; }
+.nm-mem-search-clear { position: absolute; right: 6px; background: none; border: none; cursor: pointer; color: var(--dsw-alias-label-tertiary); display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 50%; }
+.nm-mem-search-clear:hover { color: var(--dsw-alias-label-primary); }
+
+.nm-mem-pills-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.nm-mem-divider-v { width: 1px; height: 16px; background: var(--nm-divider); margin: 0 4px; }
+
+.nm-mem-create-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--nm-card); box-shadow: 0 0 0 1px var(--nm-divider); }
+.nm-mem-create-row { display: flex; gap: 8px; align-items: center; }
+.nm-mem-cat-select { height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--nm-field-border); background: var(--nm-card); color: var(--dsw-alias-label-primary); font: inherit; font-size: 12.5px; outline: none; }
+
+.nm-mem-stream { display: flex; flex-direction: column; gap: 10px; }
+.nm-mem-card { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 16px; background: var(--nm-card); box-shadow: 0 0 0 1px var(--nm-divider); transition: all 180ms ease; }
+.nm-mem-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px var(--nm-divider); }
+.nm-mem-card.is-pinned { box-shadow: 0 0 0 1.5px var(--nm-accent, #6b7a99); }
+.nm-mem-card.is-archived { opacity: 0.72; background: color-mix(in srgb, var(--nm-card) 92%, transparent); }
+
+.nm-mem-card-head { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.nm-mem-cat-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+.nm-mem-cat-preference { background: rgba(107, 122, 153, 0.16); color: #52678f; }
+.nm-mem-cat-habit { background: rgba(95, 141, 117, 0.16); color: #437a5f; }
+.nm-mem-cat-device { background: rgba(160, 120, 85, 0.16); color: #8c633a; }
+.nm-mem-cat-profile { background: rgba(158, 107, 122, 0.16); color: #8e5466; }
+.nm-mem-cat-custom { background: rgba(127, 110, 149, 0.16); color: #6f5986; }
+body[data-ds-dark-theme] .nm-mem-cat-preference { background: rgba(107, 122, 153, 0.28); color: #a4b4d6; }
+body[data-ds-dark-theme] .nm-mem-cat-habit { background: rgba(95, 141, 117, 0.28); color: #92cbb0; }
+body[data-ds-dark-theme] .nm-mem-cat-device { background: rgba(160, 120, 85, 0.28); color: #deb892; }
+body[data-ds-dark-theme] .nm-mem-cat-profile { background: rgba(158, 107, 122, 0.28); color: #dca3b2; }
+body[data-ds-dark-theme] .nm-mem-cat-custom { background: rgba(127, 110, 149, 0.28); color: #c4b5de; }
+
+.nm-mem-src-pill { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 999px; font-size: 11px; color: var(--dsw-alias-label-tertiary); background: var(--nm-divider); }
+.nm-mem-pin-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 999px; font-size: 11px; color: var(--nm-accent); font-weight: 500; }
+.nm-mem-time { margin-left: auto; font-size: 11.5px; color: var(--dsw-alias-label-tertiary); }
+
+.nm-mem-card-body { font-size: 13.5px; line-height: 1.5; color: var(--dsw-alias-label-primary); white-space: pre-wrap; word-break: break-word; user-select: text; }
+
+.nm-mem-card-actions { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.nm-mem-act-btn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 8px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; transition: background 120ms ease; }
+.nm-mem-act-btn:hover { background: var(--nm-divider); color: var(--dsw-alias-label-primary); }
+.nm-mem-act-btn.is-active { color: var(--nm-accent); }
+.nm-mem-act-btn.is-danger:hover { color: #d93025; background: rgba(217, 48, 37, 0.1); }
+
+.nm-mem-footer-card { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 14px; background: var(--nm-card); box-shadow: 0 0 0 1px var(--nm-divider); margin-top: 8px; }
+
+
 /* ---- the trajectory of a hands run, in the chat (Trajectory.tsx) ------- */
 /* The phone stage's hues: Muse's action blue and its cyan, for the marks drawn on a step's picture. */
 .nm-traj { --nm-traj-accent: #0a66e4; --nm-traj-cyan: #06b6d4; display: block; margin: 8px 0 10px; }

@@ -2077,8 +2077,23 @@ export default class NanomuseRooms extends Service {
           await sc.openWorkspacePath({ path: folder, action: 'reveal' }, new AbortController().signal)
           return send(res, 204)
         }
-        case '/memory/add':
-          return send(res, 200, { item: await this.remember(String(body.text ?? ''), 'person') })
+        case '/memory/add': {
+          const category = (body.category as MemoryRecord['category']) || 'preference'
+          const text = String(body.text ?? '').replace(/\s+/g, ' ').trim().slice(0, MEMORY_LINE)
+          if (!text) return send(res, 400, { error: { message: 'text is required' } })
+          if (this.memoryStore) {
+            const record = this.memoryStore.upsert({
+              content: text,
+              category,
+              source: 'person',
+            })
+            this.memoryStore.archiveStale(MEMORY_HOT_LIMIT)
+            this.refreshMemoryStore()
+            await this.save()
+            return send(res, 200, { item: record })
+          }
+          return send(res, 200, { item: await this.remember(text, 'person') })
+        }
         case '/avatar/adopted': {
           // A look changed from the chat (the phone's AvatarFlow, here src/client/AvatarChat.tsx): the same
           // memory line the phone leaves, and — when the chat is idle — the agent says so in its own words.
@@ -2115,6 +2130,71 @@ export default class NanomuseRooms extends Service {
               updated_at: m.item.updated_at,
             })),
           })
+        case '/memory/list': {
+          const all = this.memoryStore
+            ? this.memoryStore.getAll(true)
+            : this.store.memory.map((m) => ({
+                id: m.id,
+                content: m.text,
+                category: 'preference' as const,
+                source: m.source,
+                is_pinned: 0,
+                is_archived: 0,
+                importance: 0.5,
+                use_count: 0,
+                last_used_at: 0,
+                confidence: 1,
+                created_at: m.at,
+                updated_at: m.at,
+                deleted: 0,
+              }))
+          const activeCount = this.memoryStore?.activeCount() ?? this.store.memory.length
+          const archivedCount = this.memoryStore?.archivedCount() ?? 0
+          return send(res, 200, { items: all, activeCount, archivedCount })
+        }
+        case '/memory/update': {
+          const id = String(body.id ?? '')
+          if (!id) return send(res, 400, { error: { message: 'id required' } })
+          const content = typeof body.content === 'string' ? body.content.trim() : undefined
+          const category = body.category as MemoryRecord['category'] | undefined
+          const is_pinned = typeof body.is_pinned !== 'undefined' ? (body.is_pinned ? 1 : 0) : undefined
+          const is_archived = typeof body.is_archived !== 'undefined' ? (body.is_archived ? 1 : 0) : undefined
+          if (this.memoryStore) {
+            const existing = this.memoryStore.get(id)
+            if (!existing) return send(res, 404, { error: { message: 'not found' } })
+            const updated = this.memoryStore.upsert({
+              id,
+              content: content ?? existing.content,
+              category: category ?? existing.category,
+              is_pinned: is_pinned ?? existing.is_pinned,
+              is_archived: is_archived ?? existing.is_archived,
+            })
+            this.refreshMemoryStore()
+            await this.save()
+            return send(res, 200, { item: updated })
+          }
+          return send(res, 200)
+        }
+        case '/memory/pin': {
+          const id = String(body.id ?? '')
+          if (this.memoryStore && id) {
+            const isPinned = typeof body.is_pinned !== 'undefined' ? Boolean(body.is_pinned) : undefined
+            this.memoryStore.togglePin(id, isPinned)
+            this.refreshMemoryStore()
+            await this.save()
+          }
+          return send(res, 204)
+        }
+        case '/memory/archive': {
+          const id = String(body.id ?? '')
+          if (this.memoryStore && id) {
+            const isArchived = typeof body.is_archived !== 'undefined' ? Boolean(body.is_archived) : undefined
+            this.memoryStore.toggleArchive(id, isArchived)
+            this.refreshMemoryStore()
+            await this.save()
+          }
+          return send(res, 204)
+        }
         case '/data/export':
           return send(res, 200, { path: await this.exportData() })
         case '/data/reset':

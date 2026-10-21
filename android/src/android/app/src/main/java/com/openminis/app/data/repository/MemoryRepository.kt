@@ -612,4 +612,100 @@ class MemoryRepository(private val memoryDir: File, private val context: Context
         }
         return result
     }
+
+    // -- Structured Memory (LocalMemoryDb) helpers --
+
+    fun getAllStructuredMemories(includeArchived: Boolean = true): List<io.github.nanomuse.memory.MemoryEntity> {
+        val ctx = context ?: return emptyList()
+        return try {
+            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).getAllMemories(includeArchived)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get all memories", e)
+            emptyList()
+        }
+    }
+
+    fun searchStructuredMemories(query: String, limit: Int = 20, includeArchived: Boolean = true): List<io.github.nanomuse.memory.MemoryMatch> {
+        val ctx = context ?: return emptyList()
+        return try {
+            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).search(query, limit, includeArchived)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to search memories", e)
+            emptyList()
+        }
+    }
+
+    fun activeStructuredCount(): Int {
+        val ctx = context ?: return 0
+        return try {
+            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).activeCount()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get active count", e)
+            0
+        }
+    }
+
+    fun archivedStructuredCount(): Int {
+        val ctx = context ?: return 0
+        return try {
+            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).archivedCount()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get archived count", e)
+            0
+        }
+    }
+
+    fun upsertStructuredMemory(
+        id: String? = null,
+        content: String,
+        category: String = "preference",
+        source: String = "manual",
+        isPinned: Boolean = false,
+        isArchived: Boolean = false,
+    ): io.github.nanomuse.memory.MemoryEntity? {
+        val ctx = context ?: return null
+        return try {
+            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).upsert(
+                id = id,
+                content = content,
+                category = category,
+                source = source,
+                isPinned = isPinned,
+                isArchived = isArchived
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to upsert memory", e)
+            null
+        }
+    }
+
+    fun togglePin(id: String, isPinned: Boolean? = null): Boolean {
+        val ctx = context ?: return false
+        return try {
+            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).togglePin(id, isPinned)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to toggle pin", e)
+            false
+        }
+    }
+
+    fun toggleArchive(id: String, isArchived: Boolean? = null): Boolean {
+        val ctx = context ?: return false
+        return try {
+            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).toggleArchive(id, isArchived)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to toggle archive", e)
+            false
+        }
+    }
+
+    fun deleteStructuredMemory(id: String): Boolean {
+        val ctx = context ?: return false
+        return try {
+            io.github.nanomuse.memory.LocalMemoryDb.getInstance(ctx).delete(id)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete structured memory", e)
+            false
+        }
+    }
 }

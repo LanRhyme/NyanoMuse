@@ -1,10 +1,11 @@
 package com.openminis.app.ui.settings
 
-import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
-
+import android.content.Context
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,21 +18,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,19 +54,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.openminis.app.R
+import com.openminis.app.data.MemoryGlobalPrefs
 import com.openminis.app.data.repository.MemoryRepository
-import com.openminis.app.ui.components.DialogTextField
+import com.openminis.app.ui.components.MinisTextButton
+import io.github.nanomuse.memory.MemoryEntity
+import io.github.nanomuse.ui.home.MuseTones
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * Settings-level memory file management.
- * Lists GLOBAL.md + daily logs in grouped card style.
- * Tapping a file navigates to a full-page editor.
- * GLOBAL.md cannot be deleted.
- * Mirrors iOS MemoryManagementView.
+ * Modernized Settings-level Memory Management Screen.
+ * Backed by LocalMemoryDb (structured cards, CJK instant search, hot/cold filtering, category filtering)
+ * with a collapsible bottom drawer for underlying GLOBAL.md and daily logs.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,26 +83,58 @@ fun MemoryManagementScreen(
     onBack: () -> Unit,
     onFileClick: (fileName: String, isGlobal: Boolean) -> Unit = { _, _ -> },
 ) {
-    var files by remember { mutableStateOf<List<MemoryRepository.MemoryFileInfo>>(emptyList()) }
-    var deleteFileName by remember { mutableStateOf<String?>(null) }
-    val context = androidx.compose.ui.platform.LocalContext.current
-    // [T-memory-global-toggle-settings-ui-android] Global default for
-    // newly-created sessions. Stored separately from per-session
-    // memoryEnabled (which lives in the sessions DB row) so toggling
-    // here never retroactively rewrites existing chats. Read once on
-    // entry; the Switch's onCheckedChange writes back synchronously
-    // and updates the local state mirror.
+    val context = LocalContext.current
     var globalMemoryOn by remember {
-        mutableStateOf(com.openminis.app.data.MemoryGlobalPrefs.isGlobalEnabled(context))
+        mutableStateOf(MemoryGlobalPrefs.isGlobalEnabled(context))
     }
 
-    LaunchedEffect(Unit) {
+    var memories by remember { mutableStateOf<List<MemoryEntity>>(emptyList()) }
+    var activeCount by remember { mutableStateOf(0) }
+    var archivedCount by remember { mutableStateOf(0) }
+    var files by remember { mutableStateOf<List<MemoryRepository.MemoryFileInfo>>(emptyList()) }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var statusFilter by remember { mutableStateOf("all") } // all, active, archived
+    var categoryFilter by remember { mutableStateOf("all") } // all, preference, habit, device, profile, custom
+
+    var editingMemory by remember { mutableStateOf<MemoryEntity?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var deleteConfirmMemory by remember { mutableStateOf<MemoryEntity?>(null) }
+    var deleteFileName by remember { mutableStateOf<String?>(null) }
+    var legacyExpanded by remember { mutableStateOf(false) }
+
+    fun refresh() {
+        memories = memoryRepository.getAllStructuredMemories(includeArchived = true)
+        activeCount = memoryRepository.activeStructuredCount()
+        archivedCount = memoryRepository.archivedStructuredCount()
         files = memoryRepository.listAllFiles()
     }
 
+    LaunchedEffect(Unit) {
+        refresh()
+    }
+
+    // Filter memories based on search query, status, and category
+    val filteredMemories = remember(memories, searchQuery, statusFilter, categoryFilter) {
+        val baseList = if (searchQuery.isNotBlank()) {
+            val matchIds = memoryRepository.searchStructuredMemories(searchQuery, limit = 100, includeArchived = true)
+                .map { it.item.id }
+                .toSet()
+            memories.filter { it.id in matchIds }
+        } else {
+            memories
+        }
+
+        baseList.filter { item ->
+            if (statusFilter == "active" && item.isArchived) return@filter false
+            if (statusFilter == "archived" && !item.isArchived) return@filter false
+            if (categoryFilter != "all" && item.category != categoryFilter) return@filter false
+            true
+        }.sortedWith(compareByDescending<MemoryEntity> { it.isPinned }.thenByDescending { it.updatedAt })
+    }
+
     SettingsScaffold(title = stringResource(R.string.memory_title), onBack = onBack) {
-        // Always-visible global toggle — sits above the file list so the
-        // user finds it whether or not any memory files exist yet.
+        // 1. Global toggle
         SettingsSection(
             header = stringResource(R.string.settings_memory_global_header),
             footer = stringResource(R.string.settings_memory_global_footer),
@@ -92,53 +145,328 @@ fun MemoryManagementScreen(
                 checked = globalMemoryOn,
                 onCheckedChange = { newValue ->
                     globalMemoryOn = newValue
-                    com.openminis.app.data.MemoryGlobalPrefs.setGlobalEnabled(context, newValue)
+                    MemoryGlobalPrefs.setGlobalEnabled(context, newValue)
                 },
                 showDivider = false,
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
 
-        if (files.isEmpty()) {
-            Column(
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 2. Dashboard summary cards (Active / Archived / Total)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            MemoryStatCard(
+                modifier = Modifier.weight(1f),
+                count = activeCount,
+                label = stringResource(R.string.memory_filter_active),
+                tint = if (MuseTones.isDark) Color(0xFFA4B4D6) else Color(0xFF52678F)
+            )
+            MemoryStatCard(
+                modifier = Modifier.weight(1f),
+                count = archivedCount,
+                label = stringResource(R.string.memory_filter_archived),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            MemoryStatCard(
+                modifier = Modifier.weight(1f),
+                count = activeCount + archivedCount,
+                label = stringResource(R.string.memory_filter_all),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 3. Search Bar & Add Button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(stringResource(R.string.memory_search_placeholder), fontSize = 13.5.sp) },
+                leadingIcon = {
+                    Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MuseTones.surface,
+                    unfocusedContainerColor = MuseTones.surface,
+                    focusedBorderColor = MuseTones.action,
+                    unfocusedBorderColor = MuseTones.hairline,
+                )
+            )
+
+            IconButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MuseTones.surface)
+                    .border(1.dp, MuseTones.hairline, RoundedCornerShape(12.dp))
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.memory_add), tint = MuseTones.action)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 4. Status Filter Pills
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            FilterChip(
+                selected = statusFilter == "all",
+                onClick = { statusFilter = "all" },
+                label = { Text(stringResource(R.string.memory_filter_all), fontSize = 12.sp) },
+                shape = CircleShape,
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MuseTones.fill,
+                    containerColor = MuseTones.surface,
+                )
+            )
+            FilterChip(
+                selected = statusFilter == "active",
+                onClick = { statusFilter = "active" },
+                label = { Text("${stringResource(R.string.memory_filter_active)} ($activeCount)", fontSize = 12.sp) },
+                shape = CircleShape,
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MuseTones.fill,
+                    containerColor = MuseTones.surface,
+                )
+            )
+            FilterChip(
+                selected = statusFilter == "archived",
+                onClick = { statusFilter = "archived" },
+                label = { Text("${stringResource(R.string.memory_filter_archived)} ($archivedCount)", fontSize = 12.sp) },
+                shape = CircleShape,
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MuseTones.fill,
+                    containerColor = MuseTones.surface,
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 5. Category Filter Pills
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val categories = listOf("all", "preference", "habit", "device", "profile", "custom")
+            categories.forEach { cat ->
+                val label = when (cat) {
+                    "preference" -> stringResource(R.string.memory_cat_preference)
+                    "habit" -> stringResource(R.string.memory_cat_habit)
+                    "device" -> stringResource(R.string.memory_cat_device)
+                    "profile" -> stringResource(R.string.memory_cat_profile)
+                    "custom" -> stringResource(R.string.memory_cat_custom)
+                    else -> stringResource(R.string.memory_cat_all)
+                }
+                FilterChip(
+                    selected = categoryFilter == cat,
+                    onClick = { categoryFilter = cat },
+                    label = { Text(label, fontSize = 12.sp) },
+                    shape = CircleShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MuseTones.fill,
+                        containerColor = MuseTones.surface,
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 6. Memory Cards Stream
+        if (filteredMemories.isEmpty()) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                contentAlignment = Alignment.Center
             ) {
-                Text(stringResource(R.string.memory_empty_title), style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    stringResource(R.string.memory_empty_description),
+                    text = if (searchQuery.isNotBlank()) stringResource(R.string.memory_search_no_results) else stringResource(R.string.memory_empty_title),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
-            SettingsSection(
-                header = stringResource(R.string.memory_section_files),
-                footer = stringResource(R.string.memory_section_footer),
-            ) {
-                files.forEachIndexed { index, file ->
-                    MemoryFileRow(
-                        file = file,
-                        onClick = { onFileClick(file.name, file.isGlobal) },
-                        onDelete = if (!file.isGlobal) { { deleteFileName = file.name } } else null,
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                filteredMemories.forEach { mem ->
+                    MemoryCardItem(
+                        memory = mem,
+                        onTogglePin = {
+                            memoryRepository.togglePin(mem.id, !mem.isPinned)
+                            refresh()
+                        },
+                        onToggleArchive = {
+                            memoryRepository.toggleArchive(mem.id, !mem.isArchived)
+                            refresh()
+                        },
+                        onEdit = { editingMemory = mem },
+                        onDelete = { deleteConfirmMemory = mem }
                     )
-                    if (index < files.size - 1) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(start = 16.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 7. Collapsible Underlying Files Section (GLOBAL.md & Daily Logs)
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MuseTones.surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MuseTones.hairline),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { legacyExpanded = !legacyExpanded }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.memory_section_underlying_files),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium
                         )
+                        Text(
+                            text = stringResource(R.string.memory_underlying_files_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = if (legacyExpanded) Icons.Outlined.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                AnimatedVisibility(visible = legacyExpanded) {
+                    Column {
+                        HorizontalDivider(color = MuseTones.hairline)
+                        if (files.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.memory_empty_title),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        } else {
+                            files.forEachIndexed { index, file ->
+                                MemoryFileRow(
+                                    file = file,
+                                    onClick = { onFileClick(file.name, file.isGlobal) },
+                                    onDelete = if (!file.isGlobal) { { deleteFileName = file.name } } else null,
+                                )
+                                if (index < files.size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 16.dp),
+                                        color = MuseTones.hairline
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 
-    // Delete confirmation
+    // Dialog: Add new memory
+    if (showAddDialog) {
+        EditMemoryDialog(
+            initialContent = "",
+            initialCategory = "preference",
+            title = stringResource(R.string.memory_add),
+            onDismiss = { showAddDialog = false },
+            onSave = { content, category ->
+                memoryRepository.upsertStructuredMemory(
+                    content = content,
+                    category = category,
+                    source = "manual"
+                )
+                showAddDialog = false
+                refresh()
+            }
+        )
+    }
+
+    // Dialog: Edit existing memory
+    editingMemory?.let { target ->
+        EditMemoryDialog(
+            initialContent = target.content,
+            initialCategory = target.category,
+            title = stringResource(R.string.memory_edit),
+            onDismiss = { editingMemory = null },
+            onSave = { content, category ->
+                memoryRepository.upsertStructuredMemory(
+                    id = target.id,
+                    content = content,
+                    category = category,
+                    source = target.source,
+                    isPinned = target.isPinned,
+                    isArchived = target.isArchived
+                )
+                editingMemory = null
+                refresh()
+            }
+        )
+    }
+
+    // Dialog: Confirm structured memory delete
+    deleteConfirmMemory?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteConfirmMemory = null },
+            title = { Text(stringResource(R.string.memory_delete_structured_title)) },
+            text = { Text(stringResource(R.string.memory_delete_structured_text)) },
+            confirmButton = {
+                MinisTextButton(onClick = {
+                    memoryRepository.deleteStructuredMemory(target.id)
+                    deleteConfirmMemory = null
+                    refresh()
+                }) {
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                MinisTextButton(onClick = { deleteConfirmMemory = null }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+
+    // Dialog: Confirm legacy file delete
     if (deleteFileName != null) {
         AlertDialog(
             onDismissRequest = { deleteFileName = null },
@@ -165,6 +493,262 @@ fun MemoryManagementScreen(
 }
 
 @Composable
+private fun MemoryStatCard(
+    count: Int,
+    label: String,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = MuseTones.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MuseTones.hairline)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = tint
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun MemoryCardItem(
+    memory: MemoryEntity,
+    onTogglePin: () -> Unit,
+    onToggleArchive: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val isDark = MuseTones.isDark
+    val (catBg, catText) = when (memory.category) {
+        "habit" -> if (isDark) Color(0xFF1E3027) to Color(0xFF92CBB0) else Color(0xFFEBF4EF) to Color(0xFF437A5F)
+        "device" -> if (isDark) Color(0xFF33271D) to Color(0xFFDEB892) else Color(0xFFF7F2EB) to Color(0xFF8C633A)
+        "profile" -> if (isDark) Color(0xFF331E26) to Color(0xFFDCA3B2) else Color(0xFFF8EEF1) to Color(0xFF8E5466)
+        "custom" -> if (isDark) Color(0xFF282035) to Color(0xFFC4B5DE) else Color(0xFFF2EEF8) to Color(0xFF6F5986)
+        else -> if (isDark) Color(0xFF232B3A) to Color(0xFFA4B4D6) else Color(0xFFEEF2F8) to Color(0xFF52678F)
+    }
+
+    val catName = when (memory.category) {
+        "habit" -> stringResource(R.string.memory_cat_habit)
+        "device" -> stringResource(R.string.memory_cat_device)
+        "profile" -> stringResource(R.string.memory_cat_profile)
+        "custom" -> stringResource(R.string.memory_cat_custom)
+        else -> stringResource(R.string.memory_cat_preference)
+    }
+
+    val sourceLabel = when (memory.source) {
+        "person", "manual" -> stringResource(R.string.memory_source_manual)
+        "import" -> stringResource(R.string.memory_source_import)
+        else -> stringResource(R.string.memory_source_agent)
+    }
+
+    val dateStr = remember(memory.updatedAt) {
+        val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        fmt.format(Date(memory.updatedAt))
+    }
+
+    val borderColor = if (memory.isPinned) MuseTones.action else MuseTones.hairline
+    val borderWidth = if (memory.isPinned) 1.5.dp else 1.dp
+    val alpha = if (memory.isArchived) 0.72f else 1f
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MuseTones.surface.copy(alpha = alpha),
+        border = androidx.compose.foundation.BorderStroke(borderWidth, borderColor),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Header Row: Category pill, Source pill, Pin badge, Timestamp
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(catBg)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(text = catName, color = catText, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(MuseTones.fill)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(text = sourceLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.5.sp)
+                }
+
+                if (memory.isPinned) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(Icons.Outlined.PushPin, contentDescription = null, tint = MuseTones.action, modifier = Modifier.size(12.dp))
+                        Text(text = stringResource(R.string.memory_pin), color = MuseTones.action, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Text(
+                    text = dateStr,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Body
+            Text(
+                text = memory.content,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Actions row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(onClick = onTogglePin, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.PushPin,
+                        contentDescription = if (memory.isPinned) stringResource(R.string.memory_unpin) else stringResource(R.string.memory_pin),
+                        tint = if (memory.isPinned) MuseTones.action else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                IconButton(onClick = onToggleArchive, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Archive,
+                        contentDescription = if (memory.isArchived) stringResource(R.string.memory_restore) else stringResource(R.string.memory_archive),
+                        tint = if (memory.isArchived) MuseTones.action else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = stringResource(R.string.memory_edit),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = stringResource(R.string.common_delete),
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditMemoryDialog(
+    initialContent: String,
+    initialCategory: String,
+    title: String,
+    onDismiss: () -> Unit,
+    onSave: (content: String, category: String) -> Unit,
+) {
+    var content by remember { mutableStateOf(initialContent) }
+    var category by remember { mutableStateOf(initialCategory) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Category chips selector
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val categories = listOf("preference", "habit", "device", "profile", "custom")
+                    categories.forEach { cat ->
+                        val label = when (cat) {
+                            "habit" -> stringResource(R.string.memory_cat_habit)
+                            "device" -> stringResource(R.string.memory_cat_device)
+                            "profile" -> stringResource(R.string.memory_cat_profile)
+                            "custom" -> stringResource(R.string.memory_cat_custom)
+                            else -> stringResource(R.string.memory_cat_preference)
+                        }
+                        FilterChip(
+                            selected = category == cat,
+                            onClick = { category = cat },
+                            label = { Text(label, fontSize = 11.5.sp) },
+                            shape = CircleShape,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MuseTones.fill,
+                                containerColor = MuseTones.surface,
+                            )
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = { content = it },
+                    placeholder = { Text(stringResource(R.string.memory_add_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 6,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MuseTones.action,
+                        unfocusedBorderColor = MuseTones.hairline,
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            MinisTextButton(
+                onClick = { if (content.isNotBlank()) onSave(content.trim(), category) },
+                enabled = content.isNotBlank()
+            ) {
+                Text(stringResource(R.string.common_save))
+            }
+        },
+        dismissButton = {
+            MinisTextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}
+
+@Composable
 private fun MemoryFileRow(
     file: MemoryRepository.MemoryFileInfo,
     onClick: () -> Unit,
@@ -183,24 +767,6 @@ private fun MemoryFileRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // [T-android-memory-row-date-wrap] The name+size group flexes and
-                // truncates; the date never wraps.
-                //
-                // Previously neither child had a weight, so the name group claimed
-                // its full intrinsic width and the date was left with the
-                // remainder. A daily-log name is itself a date ("2026-08-16.md"),
-                // which is long enough that the 16-char "yyyy-MM-dd HH:mm" stamp no
-                // longer fit — it wrapped to two lines and made that one row
-                // visibly taller than its neighbours (user-reported).
-                //
-                // Giving the name group weight(1f, fill = false) lets it shrink
-                // only as far as needed, and maxLines/ellipsis on the NAME means
-                // the truncation lands on the element that can afford it. softWrap
-                // = false on the date is the actual guarantee of a uniform row
-                // height — the date is short, fixed-width, and the one thing that
-                // must never reflow. Deliberately NOT solved by shortening the
-                // format: the time is real information, and dropping it would only
-                // move the threshold rather than remove it.
                 Row(
                     modifier = Modifier.weight(1f, fill = false),
                     verticalAlignment = Alignment.CenterVertically,
@@ -243,13 +809,7 @@ private fun MemoryFileRow(
                 )
             }
         }
-        // [T-memory-file-delete-entrypoint] Daily logs are deletable per the
-        // repository contract, but the row previously accepted onDelete and
-        // never rendered it — the confirm dialog was unreachable, so users
-        // could not delete memory files at all (iOS exposes this via
-        // List .onDelete swipe). An always-visible trash button is the
-        // Android-convention equivalent; GLOBAL.md passes onDelete = null
-        // and keeps its chevron-only layout.
+
         if (onDelete != null) {
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                 Icon(
@@ -272,15 +832,6 @@ private fun MemoryFileRow(
 /**
  * Full-page memory file editor, matching iOS MemoryFileEditView.
  * Monospaced text. The Save button stays ALWAYS visible.
- *
- * [T-global-memory-save-always-visible] Previously the Save action was
- * gated on a `hasChanges` flag that only flipped true inside the field's
- * onValueChange. Programmatic content changes (paste, IME commit, state
- * restore) don't always route through onValueChange, so Save could fail
- * to appear after a paste until the user typed another key — the exact
- * symptom reported on iOS/macOS (XIN msg 41384). Keeping Save permanently
- * visible removes the dependency entirely; saveFile is idempotent so a
- * no-op Save on unchanged content is harmless.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -293,21 +844,15 @@ fun MemoryFileEditScreen(
     var content by remember { mutableStateOf("") }
     var saveError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    // [T-memory-save-toast-feedback] Confirm Save actually committed by
-    // flashing a toast — previously the Save tap silently closed nothing,
-    // showed no state change, and the user had no signal that the edit
-    // landed (user-reported confusion). Reuses the existing
-    // memory_save_toast string already wired for the per-chat memory
-    // detail editor's SavedToast so the wording stays consistent.
     val savedToastText = stringResource(R.string.memory_save_toast)
 
     LaunchedEffect(fileName) {
         content = memoryRepository.readFile(fileName)
     }
 
-    Scaffold(
+    androidx.compose.material3.Scaffold(
         topBar = {
-            io.github.nanomuse.ui.muse.MuseTopAppBar( // nanoMuse: Muse's bar (drop-in for TopAppBar)
+            io.github.nanomuse.ui.muse.MuseTopAppBar(
                 title = { Text(fileName) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -315,8 +860,6 @@ fun MemoryFileEditScreen(
                     }
                 },
                 actions = {
-                    // [T-global-memory-save-always-visible] Always render Save —
-                    // no hasChanges gate (see KDoc above).
                     MinisTextButton(onClick = {
                         try {
                             memoryRepository.saveFile(fileName, content)
@@ -330,7 +873,7 @@ fun MemoryFileEditScreen(
                             saveError = e.message
                         }
                     }) {
-                        Text("Save")
+                        Text(stringResource(R.string.common_save))
                     }
                 },
             )
@@ -344,12 +887,9 @@ fun MemoryFileEditScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Editor
-            DialogTextField(
+            com.openminis.app.ui.components.DialogTextField(
                 value = content,
-                onValueChange = {
-                    content = it
-                },
+                onValueChange = { content = it },
                 singleLine = false,
                 textStyle = MaterialTheme.typography.bodySmall.copy(
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
@@ -358,7 +898,6 @@ fun MemoryFileEditScreen(
                 modifier = Modifier.weight(1f),
             )
 
-            // Footer text
             if (isGlobal) {
                 Text(
                     stringResource(R.string.memory_global_footer),
@@ -381,3 +920,4 @@ fun MemoryFileEditScreen(
         }
     }
 }
+

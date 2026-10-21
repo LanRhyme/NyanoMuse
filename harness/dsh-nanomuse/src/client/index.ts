@@ -46,7 +46,8 @@ import { MuseHeader, type UseSessionStatus } from './MuseHeader.tsx'
 import { CONNECTORS_SECTION, makeConnectorsSection } from './Connectors.tsx'
 import { DICTATION_SECTION, FILES_SECTION, makeDictationSection, makeFilesSection, makePermissionsSection, PERMISSIONS_SECTION } from './Pages.tsx'
 import { makeTurnError } from './RefusalCard.tsx'
-import { CHANNELS_SECTION, COMPUTER_SECTION, createShellStore, DATA_SECTION, HARNESS_SECTION, HELP_SECTION, LEGAL_SECTION, makeGeneralSection, makeHarnessSection, MuseSettings, STORAGE_SECTION, WALLET_SECTION, type MuseSettingsProps, type OnboardingStep, type SectionRow } from './MuseSettings.tsx'
+import { CHANNELS_SECTION, COMPUTER_SECTION, createShellStore, DATA_SECTION, HARNESS_SECTION, HELP_SECTION, LEGAL_SECTION, makeGeneralSection, makeHarnessSection, MEMORY_SECTION, MuseSettings, STORAGE_SECTION, WALLET_SECTION, type MuseSettingsProps, type OnboardingStep, type SectionRow } from './MuseSettings.tsx'
+import { makeMemorySection } from './Memory.tsx'
 import { MuseSidebar, type MuseSidebarProps, type PanelMeta } from './MuseSidebar.tsx'
 import { makeOnboarding, type OnboardingOwnerProps } from './Onboarding.tsx'
 import { DEVICES_PANEL, FEED_PANEL, GOALS_PANEL, IDEAS_PANEL, ISSUES_URL, LIBRARY_PANEL } from './panels.ts'
@@ -579,6 +580,10 @@ export function apply(ctx: ClientContext): void {
   const ModelsSection = makeModelsSection(t)
   slots.inject('settings.section', () =>
     slots.register({ name: 'settings.section', id: MODELS_SECTION, order: 5, label: () => t('mlTitle'), locale: 'nanomuse' }, ModelsSection))
+  // Settings → Memory: Modernized Morandi memory management center
+  const MemorySection = makeMemorySection(t)
+  slots.inject('settings.section', () =>
+    slots.register({ name: 'settings.section', id: MEMORY_SECTION, order: 6, label: () => t('navMemory'), locale: 'nanomuse' }, MemorySection))
   // Settings → Media (desk-b): the image and video models, the face's clips.
   const MediaSection = makeMediaSection(t)
   slots.inject('settings.section', () =>

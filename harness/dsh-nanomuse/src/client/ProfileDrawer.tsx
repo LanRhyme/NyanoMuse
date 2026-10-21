@@ -14,7 +14,7 @@ import { createElement as h, Fragment, useEffect, useRef, useState, type FormEve
 import { call, type Translate, failureText } from './api.ts'
 import { Avatar } from './Avatar.tsx'
 import { profileBus, settingsBus, useProfileOpen } from './bus.ts'
-import { IconAlarm, IconBell, IconCheck, IconChevronDown, IconChevronRight, IconClock, IconClose, IconList, IconPencil, IconShare, IconShield, IconSparkle, IconSpinner, IconSquare } from './icons.tsx'
+import { IconAlarm, IconBell, IconCheck, IconChevronDown, IconChevronRight, IconClock, IconClose, IconDoc, IconList, IconPencil, IconShare, IconShield, IconSparkle, IconSpinner, IconSquare } from './icons.tsx'
 import { AvatarShareSheet } from './AvatarShare.tsx'
 import { studioBus } from './AvatarStudio.tsx'
 import { prefillComposer } from './composer.ts'
@@ -313,10 +313,24 @@ function Identity({ t, name, onEditName }: { t: Translate; name: string; onEditN
       h('div', { className: 'nm-pf-doc-title' }, 'SOUL'),
       h('div', { className: 'nm-pf-doc-sub' }, t('pfDocOpen')),
       h('div', { className: 'nm-pf-doc-foot' }, h('span', null, stamp(rooms.docs.soulAt)), h('span', { 'aria-hidden': true }, '♥'))),
-    h('button', { type: 'button', className: 'nm-pf-doc nm-pf-doc-memory', onClick: () => openDoc('memory') },
-      h('div', { className: 'nm-pf-doc-title' }, t('pfMemory')),
-      h('div', { className: 'nm-pf-doc-sub' }, rooms.memory.length ? t('pfMemoryCount', { n: rooms.memory.length }) : t('pfDocOpen')),
-      h('div', { className: 'nm-pf-doc-foot' }, h('span', null, stamp(memoryAt)), h('span', { 'aria-hidden': true }, '♥'))),
+    h('div', { style: { display: 'flex', gap: 6, width: '100%' } },
+      h('button', {
+        type: 'button',
+        className: 'nm-pf-doc nm-pf-doc-memory',
+        style: { flex: 1, marginBottom: 8 },
+        onClick: () => { profileBus.close(); settingsBus.openSection?.('nanomuse-memory') },
+      },
+        h('div', { className: 'nm-pf-doc-title' }, t('pfMemory')),
+        h('div', { className: 'nm-pf-doc-sub' }, rooms.memory.length ? t('pfMemoryCount', { n: rooms.memory.length }) : t('pfDocOpen')),
+        h('div', { className: 'nm-pf-doc-foot' }, h('span', null, stamp(memoryAt)), h('span', { 'aria-hidden': true }, '♥'))),
+      h('button', {
+        type: 'button',
+        className: 'nm-icon-btn',
+        style: { height: 'auto', marginBottom: 8, padding: '0 12px', borderRadius: 14, background: 'var(--nm-card)' },
+        title: t('memOpenDoc'),
+        'aria-label': t('memOpenDoc'),
+        onClick: () => openDoc('memory'),
+      }, h(IconDoc, { size: 15 }))),
     h('p', { className: 'nm-pf-empty' }, t('pfHandleWithCare', { name })),
     live.profile.avatar === 'face' ? h('p', { className: 'nm-pf-empty' }, t('pfFaceNote')) : null)
 }

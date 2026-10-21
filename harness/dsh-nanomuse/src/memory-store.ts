@@ -487,6 +487,22 @@ export class MemoryStore {
     return res.c
   }
 
+  togglePin(id: string, isPinned?: boolean | number): boolean {
+    const existing = this.get(id)
+    if (!existing) return false
+    const val = typeof isPinned !== 'undefined' ? (isPinned ? 1 : 0) : (existing.is_pinned ? 0 : 1)
+    this.upsert({ id, content: existing.content, is_pinned: val })
+    return true
+  }
+
+  toggleArchive(id: string, isArchived?: boolean | number): boolean {
+    const existing = this.get(id)
+    if (!existing) return false
+    const val = typeof isArchived !== 'undefined' ? (isArchived ? 1 : 0) : (existing.is_archived ? 0 : 1)
+    this.upsert({ id, content: existing.content, is_archived: val })
+    return true
+  }
+
   /**
    * Migrate and demote excess memories to Cold (is_archived = 1) if active exceeds limit.
    */
