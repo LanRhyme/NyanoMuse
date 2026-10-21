@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { MemoryStore } from '../src/memory-store.ts'
-import { selectMemoriesForPrompt, MEMORY_PROMPT_LIMITS } from '../src/rooms-memory-prompt.ts'
+import { latestUserQuery, selectMemoriesForPrompt, MEMORY_PROMPT_LIMITS } from '../src/rooms-memory-prompt.ts'
 
 test('selectMemoriesForPrompt: caps pinned memories to prevent attention dilution', () => {
   // Construct 10 pinned memories
@@ -109,4 +109,31 @@ test('selectMemoriesForPrompt: enforces max total character budget', () => {
   assert.equal(res.items.length, 1)
   assert.equal(res.items[0].id, 'm1')
   assert.ok(res.lines.some((l) => l.includes('(1 more memories in store, search with recall_memory)')))
+})
+
+test('latestUserQuery: the live session log wins over the stale activity record', () => {
+
+  // the harness appends its own user-role snapshots AFTER the person's line
+  // (runtime context, source kind "runtime-context") — they must not become the query
+  const history = [
+    { role: 'user', content: '上一轮的问题', source: { kind: 'user' } },
+    { role: 'assistant', content: '上一轮的回答', source: { kind: 'model' } },
+    { role: 'user', content: '这一轮真正的问题', source: { kind: 'user' } },
+    { role: 'user', content: 'Current runtime context. This snapshot supersedes ...', source: { kind: 'runtime-context' } },
+  ]
+  assert.equal(latestUserQuery(history), '这一轮真正的问题')
+
+  // no snapshot after the line: the line itself
+  assert.equal(latestUserQuery([{ role: 'user', content: '只有一句', source: { kind: 'user' } }]), '只有一句')
+
+  // content blocks are flattened
+  assert.equal(
+    latestUserQuery([{ role: 'user', content: [{ type: 'text', text: '分块内容' }, { type: 'image' }], source: { kind: 'user' } }]),
+    '分块内容',
+  )
+
+  // nothing human in the window: empty (the caller falls back)
+  assert.equal(latestUserQuery([{ role: 'user', content: '运行时快照', source: { kind: 'runtime-context' } }]), '')
+  assert.equal(latestUserQuery([]), '')
+  assert.equal(latestUserQuery(undefined), '')
 })

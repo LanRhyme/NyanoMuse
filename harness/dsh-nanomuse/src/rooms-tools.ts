@@ -10,7 +10,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from './cloud.ts'
 import { AREAS, languageName, type MemoryItem } from './rooms.ts'
-import { selectMemoriesForPrompt } from './rooms-memory-prompt.ts'
+import { latestUserQuery, selectMemoriesForPrompt } from './rooms-memory-prompt.ts'
 
 export const name = 'nanomuse-rooms-tools'
 export const inject = ['tools', 'nanomuseRooms', 'nanomuseCloud']
@@ -219,15 +219,28 @@ export function apply(ctx: Context): void {
             if (memory.length) {
               lines.push('', 'What you remember about the person (their Memory; add to it with remember, search deeper with recall_memory). If any fact here has changed or is contradicted by the person, call remember with replaces_id="[id]" to supersede it:')
 
-              // Runtime architecture & timing note:
-              // 1. @deepseek-ai/dsh-agent `assembleContextFor(agent, signal)` returns `{ agent, scope: agent, signal }`.
-              //    Agent instance exposes `readonly session: Session` with `get id(): SessionId`, so `context.agent.session.id`
-              //    reliably resolves the active session ID at runtime.
-              // 2. Event ordering: `user/message` event is broadcast on the session eventbus synchronously upon user send,
-              //    updating `record.request` and `lastActiveRequest` before the model turn prompt context assembly runs.
-              const sid = (context as { agent?: { session?: { id?: string } }; scope?: { session?: { id?: string } } })?.agent?.session?.id
-                ?? (context as { scope?: { session?: { id?: string } } })?.scope?.session?.id
-              const currentQuery = rooms.latestQueryForSession(sid).trim()
+              // Runtime architecture note:
+              // `assembleContextFor(agent, signal)` (dsh-agent) passes `{ agent, scope: agent, signal }`,
+              // and the Agent exposes `readonly session: Session`, so `context.agent.session` is the live
+              // session at assembly time.
+              //
+              // The query comes from the session log's LAST USER MESSAGE, not from the activity record:
+              // measured on the device, the `user/message` session event lands AFTER this turn's prompt
+              // assembly, so the event-driven record is one turn stale. `deriveMessages()` is synchronous
+              // and already holds the current message (the turn is driven by it). The event-driven record
+              // stays as the fallback for when the session cannot be read.
+              type LiveSession = { id?: string; deriveMessages?: () => Array<{ role?: string; content?: unknown }> }
+              const sid = (context as { agent?: { session?: LiveSession }; scope?: LiveSession })?.agent?.session?.id
+                ?? (context as { scope?: LiveSession })?.scope?.id
+              const liveSession = (context as { agent?: { session?: LiveSession } })?.agent?.session
+                ?? (context as { scope?: LiveSession })?.scope
+              let currentQuery = ''
+              try {
+                currentQuery = latestUserQuery(liveSession?.deriveMessages?.())
+              } catch {
+                // the event-driven record below is the fallback
+              }
+              if (!currentQuery) currentQuery = rooms.latestQueryForSession(sid).trim()
 
               const selected = selectMemoriesForPrompt(
                 memory,

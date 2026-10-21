@@ -21,6 +21,38 @@ export interface SelectedMemoriesResult {
  * - Fallback to recent hot memories up to MAX_TOTAL_COUNT
  * - Character budget ceiling (MAX_TOTAL_CHARS)
  */
+/**
+ * The person's latest message, read from the live session history at assembly time.
+ *
+ * The event-driven activity record is one turn stale (measured on the device: the
+ * `user/message` session event lands after this turn's prompt assembly), so the truth
+ * is the session log. The agent loop appends its own user-role snapshots after the
+ * person's line (the runtime context, source kind "runtime-context"), so only a
+ * message whose source is the human counts.
+ */
+export function latestUserQuery(history: readonly { role?: string; content?: unknown; source?: { kind?: string } }[] | undefined): string {
+  if (!history?.length) return ''
+  for (let i = history.length - 1; i >= 0 && i >= history.length - 20; i--) {
+    const m = history[i]
+    if (m?.role !== 'user' || m.source?.kind !== 'user') continue
+    const text = typeof m.content === 'string' ? m.content : textOfContent(m.content)
+    const line = text.replace(/\s+/g, ' ').trim()
+    if (line) return line
+  }
+  return ''
+}
+
+/** Text of a content-block list, tolerant of the shapes the harness hands over. */
+function textOfContent(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map((block) => (block && typeof block === 'object' && 'type' in block && (block as { type?: string }).type === 'text' && 'text' in block && typeof (block as { text?: unknown }).text === 'string' ? (block as { text: string }).text : ''))
+    .filter(Boolean)
+    .join('\n')
+    .trim()
+}
+
 export function selectMemoriesForPrompt(
   memory: readonly MemoryItem[],
   query?: string | null,
