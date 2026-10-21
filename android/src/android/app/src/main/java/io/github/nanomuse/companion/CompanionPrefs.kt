@@ -20,6 +20,7 @@ object CompanionPrefs {
     const val KEY_QUIET_END_HOUR = "companion_quiet_end_hour"
     const val KEY_MIN_INTERVAL_HOURS = "companion_min_interval_hours"
     const val KEY_DAILY_MAX_COUNT = "companion_daily_max_count"
+    const val KEY_PREFERRED_SCENARIOS = "companion_preferred_scenarios"
     const val KEY_PROACTIVE_MODEL_BINDING = "companion_proactive_model_binding"
 
     // Runtime rate-limiting & caching keys
@@ -35,6 +36,7 @@ object CompanionPrefs {
     const val DEFAULT_QUIET_END_HOUR = 8
     const val DEFAULT_MIN_INTERVAL_HOURS = 4
     const val DEFAULT_DAILY_MAX_COUNT = 3
+    val DEFAULT_PREFERRED_SCENARIOS: Set<String> = setOf("morning", "evening", "curious", "longing")
 
     fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -57,6 +59,13 @@ object CompanionPrefs {
 
     fun getDailyMaxCount(prefs: SharedPreferences): Int =
         prefs.getInt(KEY_DAILY_MAX_COUNT, DEFAULT_DAILY_MAX_COUNT)
+
+    fun getPreferredScenarios(prefs: SharedPreferences): Set<String> =
+        prefs.getStringSet(KEY_PREFERRED_SCENARIOS, DEFAULT_PREFERRED_SCENARIOS) ?: DEFAULT_PREFERRED_SCENARIOS
+
+    fun setPreferredScenarios(prefs: SharedPreferences, scenarios: Set<String>) {
+        prefs.edit().putStringSet(KEY_PREFERRED_SCENARIOS, scenarios).apply()
+    }
 
     fun getLastProactiveTime(prefs: SharedPreferences): Long =
         prefs.getLong(KEY_LAST_PROACTIVE_TIME, 0L)
@@ -104,30 +113,50 @@ object CompanionPrefs {
     }
 
     /**
-     * Pure condition check: can the companion trigger a proactive dialogue right now?
+     * Pure condition check on raw primitive values: can a proactive trigger fire?
+     */
+    fun checkCanTrigger(
+        enabled: Boolean,
+        now: Long,
+        hourOfDay: Int,
+        quietStart: Int,
+        quietEnd: Int,
+        todayCount: Int,
+        dailyMaxCount: Int,
+        lastProactiveTime: Long,
+        minIntervalHours: Int
+    ): Boolean {
+        if (!enabled) return false
+        if (isQuietHours(hourOfDay, quietStart, quietEnd)) return false
+        if (todayCount >= dailyMaxCount) return false
+
+        val minIntervalMs = minIntervalHours * 3600_000L
+        if (lastProactiveTime > 0L && now - lastProactiveTime < minIntervalMs) return false
+
+        return true
+    }
+
+    /**
+     * Convenience wrapper that extracts state from SharedPreferences and delegates to [checkCanTrigger].
      */
     fun canTriggerProactive(
         prefs: SharedPreferences,
         now: Long,
         timeZone: TimeZone = TimeZone.getDefault()
     ): Boolean {
-        if (!isEnabled(prefs)) return false
-
         val cal = Calendar.getInstance(timeZone).apply { timeInMillis = now }
         val hour = cal.get(Calendar.HOUR_OF_DAY)
-        val quietStart = getQuietStartHour(prefs)
-        val quietEnd = getQuietEndHour(prefs)
-        if (isQuietHours(hour, quietStart, quietEnd)) return false
-
-        val todayCount = getTodayTriggerCount(prefs, now, timeZone)
-        val maxCount = getDailyMaxCount(prefs)
-        if (todayCount >= maxCount) return false
-
-        val lastTime = getLastProactiveTime(prefs)
-        val minIntervalMs = getMinIntervalHours(prefs) * 3600_000L
-        if (now - lastTime < minIntervalMs) return false
-
-        return true
+        return checkCanTrigger(
+            enabled = isEnabled(prefs),
+            now = now,
+            hourOfDay = hour,
+            quietStart = getQuietStartHour(prefs),
+            quietEnd = getQuietEndHour(prefs),
+            todayCount = getTodayTriggerCount(prefs, now, timeZone),
+            dailyMaxCount = getDailyMaxCount(prefs),
+            lastProactiveTime = getLastProactiveTime(prefs),
+            minIntervalHours = getMinIntervalHours(prefs)
+        )
     }
 
     /**

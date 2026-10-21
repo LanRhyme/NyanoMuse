@@ -81,8 +81,28 @@ class CompanionPrefsTest {
     }
 
     @Test
+    fun testNeverProactiveBeforeSentinelWorksEvenAtLowNow() {
+        // Sentinel test: if lastProactiveTime is 0L, even if now is a small timestamp (e.g. 1000L),
+        // it must allow triggering and NOT be blocked by cooldown.
+        val smallNow = 1000L // 1 second past epoch
+        assertTrue(
+            CompanionPrefs.checkCanTrigger(
+                enabled = true,
+                now = smallNow,
+                hourOfDay = 14,
+                quietStart = 23,
+                quietEnd = 8,
+                todayCount = 0,
+                dailyMaxCount = 3,
+                lastProactiveTime = 0L,
+                minIntervalHours = 4
+            )
+        )
+    }
+
+    @Test
     fun testTodayTriggerCountResetAcrossDays() {
-        val day1 = 1700000000000L // arbitrary fixed time
+        val day1 = 1700000000000L
         CompanionPrefs.recordProactiveTriggered(prefs, day1, utc)
         assertEquals(1, CompanionPrefs.getTodayTriggerCount(prefs, day1, utc))
 
@@ -101,7 +121,7 @@ class CompanionPrefsTest {
             set(Calendar.YEAR, 2026)
             set(Calendar.MONTH, Calendar.OCTOBER)
             set(Calendar.DAY_OF_MONTH, 21)
-            set(Calendar.HOUR_OF_DAY, 14) // 14:00 daytime (outside quiet hours 23..8)
+            set(Calendar.HOUR_OF_DAY, 14) // 14:00 daytime
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
@@ -134,7 +154,6 @@ class CompanionPrefsTest {
         assertEquals(3, CompanionPrefs.getTodayTriggerCount(prefs, t8, utc))
 
         // Now max count (3) reached: even after cooldown, should NOT trigger on same day
-        val t12 = t8 + 4 * 3600_000L // 02:00 next day, but if quiet hours or if we test before midnight
         assertFalse(CompanionPrefs.canTriggerProactive(prefs, t8 + 1000L, utc))
     }
 
@@ -160,5 +179,14 @@ class CompanionPrefsTest {
         // Next day cache is stale
         val nextDay = t0 + 24 * 3600_000L
         assertNull(CompanionPrefs.getCachedActiveDays(prefs, nextDay, utc))
+    }
+
+    @Test
+    fun testPreferredScenarios() {
+        assertEquals(CompanionPrefs.DEFAULT_PREFERRED_SCENARIOS, CompanionPrefs.getPreferredScenarios(prefs))
+
+        val custom = setOf("morning", "evening")
+        CompanionPrefs.setPreferredScenarios(prefs, custom)
+        assertEquals(custom, CompanionPrefs.getPreferredScenarios(prefs))
     }
 }

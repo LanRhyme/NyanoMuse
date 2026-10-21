@@ -80,6 +80,12 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **AI output completion notifications with high-priority heads-up banner, excerpt and haptics.** Background and cross-screen agent loop completions now post via an `IMPORTANCE_HIGH` heads-up notification channel carrying real assistant reply excerpts and subtle haptic vibration, suppressing redundant popups when actively viewing the session and clearing on chat resume
+
+- **Default launch navigation resolves to the last active conversation.** Restarting or switching back to the app reliably restores the most recently active session across draft promotion and multi-device sync instead of rigidly pinning to the initial main session
+
+- **Companion pure-function emotion state machine and rate-limited preferences.** A deterministic PAD emotion engine (`CompanionEmotion`) computes mood states (happy, curious, longing, sleepy) directly from wall clock circadian rhythms, real user message idle durations and active day intimacy without mutable state drift, governed by quiet hours, daily quotas, cooldown intervals and daily interaction caching in `nanomuse` preferences
+
 - **Query-aware memory injection and 4-faceted structured compaction prompt.** The system prompt dynamically retrieves top-k relevant memories matching the user's active message, with pinned memories capped at 6 items and 800 characters to prevent attention dilution; conversation compaction structures summaries into four strict markdown sections (任务状态与目标, 核心决策与约束, 文件产物与代码变动, 踩坑与禁止事项) to prevent drift and preserve verbatim paths
 
 - **A fact the person states in passing is kept without them asking.** When a message says where they live, what they call their computer, what they are allergic to, or how they like to be addressed, the line is written to the memory store and travels with the account. Commands, questions and the things of the moment are left alone, and a value that reads like a phone number, an e-mail address or a card is never kept. The write happens off the main thread, and the store only: unlike a memory the agent is asked to keep, one picked up in passing does not add a line to the day's file.
