@@ -61,3 +61,16 @@ class SyncClient:
     async def wipe(self) -> dict[str, Any]:
         """Empty the account's store; the switch stays where it is."""
         return await self.cloud._request("DELETE", "/v1/sync/changes")
+
+    async def push_memory(self, device: str, ops: list[dict[str, Any]]) -> dict[str, Any]:
+        """``{cursor, accepted, assigned[{op_id, seq}]}``: the queued memory changes go up
+        and the relay gives each an account-wide seq (C15)."""
+        return await self.cloud._request(
+            "POST", "/v1/sync/memory/push", {"device": device, "ops": ops}
+        )
+
+    async def pull_memory(self, since: int = 0, limit: int = 200) -> dict[str, Any]:
+        """``{cursor, more, ops[]}``: the account's memory changes after ``since`` (C15)."""
+        return await self.cloud._request(
+            "GET", f"/v1/sync/memory/pull?since={int(since)}&limit={int(limit)}"
+        )

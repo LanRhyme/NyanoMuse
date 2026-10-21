@@ -70,6 +70,7 @@ from nanomuse.logger import logger
 from nanomuse.schema import Message
 from nanomuse.server.events import MAIN_THREAD, now_iso
 from nanomuse.sync.client import SyncClient
+from nanomuse.sync.memory_sync import MemorySync
 
 if TYPE_CHECKING:
     from nanomuse.server.service import MuseService, Thread
@@ -129,6 +130,7 @@ class ConversationSync:
         self.client = SyncClient(svc.hub.cloud)
         self._push_task: asyncio.Task[None] | None = None
         self._pull_task: asyncio.Task[int] | None = None
+        self._memory_task: asyncio.Task[None] | None = None
         self._timer: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task[Any]] = set()
@@ -314,6 +316,7 @@ class ConversationSync:
             await asyncio.sleep(PULL_EVERY_S)
             if self.active:
                 self.pull_soon()
+                self.memory_soon()
 
     def account_changed(self, account_id: str) -> None:
         """Signed in (again). A different account (C10 rule 4) starts from cursor 0 — a fresh
@@ -659,6 +662,35 @@ class ConversationSync:
             logger.exception("sync pull")
         return 0
 
+    # ------------------------------------------------------------------ memory (C15)
+    def memory_soon(self) -> None:
+        """The account's memories travel too: the queued changes go up, the account's newer
+        ones come down. Best effort, on the same beats as a pull, and never on a turn's path."""
+        if not self.active or self._stopped or self._applying:
+            return
+        if self._memory_task is not None and not self._memory_task.done():
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        self._memory_task = loop.create_task(self._memory_run(), name="sync-memory")
+
+    async def _memory_run(self) -> None:
+        store = getattr(getattr(self.svc, "app", None), "memory", None)
+        if store is None:
+            return
+        key = self.svc.hub._key()
+        if not key:
+            return
+        self.client.cloud.api_key = key
+        try:
+            await MemorySync(store, self.client, self.svc.hub.device_id).run()
+        except CloudError as exc:
+            logger.debug("sync: memory not synced: {}", exc.describe())
+        except Exception:  # noqa: BLE001
+            logger.exception("sync memory")
+
     def _note_error(self, exc: CloudError) -> None:
         """Rule 7: network errors are silent (the next trigger tries again); ``sync_off`` flips
         the switch here; a refused key pauses until the next sign-in."""
@@ -727,10 +759,13 @@ class ConversationSync:
             return {"pushed": 0}
         async with self._lock:
             try:
-                return await self._push_locked()
+                out = await self._push_locked()
             except CloudError as exc:
                 self._note_error(exc)
                 raise
+        # a turn often ends with a memory written; it travels on the same beat
+        self.memory_soon()
+        return out
 
     async def _push_locked(self) -> dict[str, Any]:
         self.client.cloud.api_key = self.svc.hub._key()

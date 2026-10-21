@@ -38,6 +38,26 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def _epoch_ms(iso: str) -> int:
+    """ISO time to Unix milliseconds: the wire speaks milliseconds."""
+    if not iso:
+        return 0
+    try:
+        return int(datetime.fromisoformat(iso).timestamp() * 1000)
+    except ValueError:
+        return 0
+
+
+def _iso_ms(ms: int) -> str:
+    """Unix milliseconds to the ISO time this store keeps."""
+    if not ms:
+        return ""
+    try:
+        return datetime.fromtimestamp(int(ms) / 1000, UTC).isoformat(timespec="seconds")
+    except (OverflowError, OSError, ValueError):
+        return ""
+
+
 @dataclass
 class MemoryItem:
     id: str
@@ -120,6 +140,9 @@ class MemoryStore:
             self._conn.execute(
                 "ALTER TABLE memories ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"
             )
+        if "seq" not in columns:
+            # the relay's sequence number of the change this row carries (C15)
+            self._conn.execute("ALTER TABLE memories ADD COLUMN seq INTEGER NOT NULL DEFAULT 0")
         self._conn.execute(
             """
             CREATE TABLE IF NOT EXISTS memory_log (
@@ -148,6 +171,23 @@ class MemoryStore:
             )
             """
         )
+        # every change made here, until the relay gives it a seq (C15)
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_ops (
+                op_id TEXT PRIMARY KEY,
+                seq INTEGER NOT NULL DEFAULT 0,
+                op_type TEXT NOT NULL,
+                memory_id TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                client_time INTEGER NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+            """
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_memory_ops_pending ON memory_ops(seq, created_at)"
+        )
         self._conn.commit()
 
     def close(self) -> None:
@@ -170,6 +210,9 @@ class MemoryStore:
             source=source,
         )
         self._insert(item)
+        self._record_op(
+            "upsert_memory", item.id, item.content, item.category, item.source, item.created_at
+        )
         self._conn.commit()
         return item
 
@@ -183,12 +226,22 @@ class MemoryStore:
         item = self.get(memory_id)
         if item is None:
             return None
+        before = item.content
         item.content = content
         item.category = category or item.category
         item.updated_at = _now()
         self._conn.execute(
             "UPDATE memories SET content = ?, category = ?, updated_at = ? WHERE id = ?",
             (item.content, item.category, item.updated_at, item.id),
+        )
+        self._record_op(
+            "upsert_memory",
+            item.id,
+            item.content,
+            item.category,
+            item.source,
+            item.updated_at,
+            before_content=before,
         )
         self._conn.commit()
         return item
@@ -211,7 +264,19 @@ class MemoryStore:
         return [self._row(r) for r in rows]
 
     def forget(self, memory_id: str) -> bool:
+        item = self.get(memory_id)
         cur = self._conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+        if cur.rowcount and item is not None:
+            self._record_op(
+                "delete_memory",
+                item.id,
+                "",
+                item.category,
+                item.source,
+                _now(),
+                before_content=item.content,
+                deleted=True,
+            )
         self._conn.commit()
         return cur.rowcount > 0
 
@@ -232,17 +297,210 @@ class MemoryStore:
         if not items:
             return 0
         self._conn.executemany("DELETE FROM memories WHERE id = ?", [(m.id,) for m in items])
+        for m in items:
+            self._record_op(
+                "delete_memory",
+                m.id,
+                "",
+                m.category,
+                m.source,
+                _now(),
+                before_content=m.content,
+                deleted=True,
+            )
         self._log("forget", items, None, f"matched {query!r}")
         self._conn.commit()
         return len(items)
 
     def clear(self) -> int:
+        items = self.all()
         cur = self._conn.execute("DELETE FROM memories")
+        for m in items:
+            self._record_op(
+                "delete_memory",
+                m.id,
+                "",
+                m.category,
+                m.source,
+                _now(),
+                before_content=m.content,
+                deleted=True,
+            )
         self._conn.commit()
         return cur.rowcount
 
     def count(self) -> int:
         return int(self._conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0])
+
+    # ------------------------------------------------------------------ oplog (C15)
+    def _record_op(
+        self,
+        op_type: str,
+        memory_id: str,
+        content: str,
+        category: str,
+        source: str,
+        updated_at: str,
+        before_content: str = "",
+        deleted: bool = False,
+    ) -> None:
+        """Queue one change for the relay. The op carries an id of its own (C15)."""
+        now_ms = _epoch_ms(_now())
+        payload = {
+            "id": memory_id,
+            "content": content,
+            "before_content": before_content,
+            "category": category or "general",
+            "source": source or "agent",
+            "is_pinned": False,
+            "is_archived": False,
+            "importance": 0.5,
+            "updated_at": _epoch_ms(updated_at) or now_ms,
+            "deleted": bool(deleted),
+        }
+        self._conn.execute(
+            """INSERT INTO memory_ops (op_id, seq, op_type, memory_id, payload, client_time, created_at)
+               VALUES (?, 0, ?, ?, ?, ?, ?)""",
+            (
+                uuid.uuid4().hex,
+                op_type,
+                memory_id,
+                json.dumps(payload, ensure_ascii=False),
+                now_ms,
+                now_ms,
+            ),
+        )
+
+    def pending_ops(self, limit: int = 100) -> list[dict[str, Any]]:
+        """The changes made here that the relay has not taken yet, oldest first."""
+        rows = self._conn.execute(
+            "SELECT op_id, op_type, payload, client_time FROM memory_ops "
+            "WHERE seq = 0 ORDER BY created_at ASC, rowid ASC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+        return [
+            {
+                "op_id": str(r["op_id"]),
+                "op_type": str(r["op_type"]),
+                "client_time": int(r["client_time"]),
+                "payload": json.loads(str(r["payload"])),
+            }
+            for r in rows
+        ]
+
+    def mark_accepted(self, assigned: list[tuple[str, int]]) -> None:
+        """The relay took these: the op has a seq, and so does the row it describes."""
+        for op_id, seq in assigned:
+            self._conn.execute("UPDATE memory_ops SET seq = ? WHERE op_id = ?", (int(seq), op_id))
+            row = self._conn.execute(
+                "SELECT memory_id FROM memory_ops WHERE op_id = ?", (op_id,)
+            ).fetchone()
+            if row is None:
+                continue
+            memory_id = str(row["memory_id"])
+            pending = self._conn.execute(
+                "SELECT 1 FROM memory_ops WHERE memory_id = ? AND seq = 0 LIMIT 1", (memory_id,)
+            ).fetchone()
+            if not pending:
+                self._conn.execute(
+                    "UPDATE memories SET seq = ? WHERE id = ?", (int(seq), memory_id)
+                )
+
+    def has_op(self, op_id: str) -> bool:
+        if not op_id:
+            return False
+        row = self._conn.execute("SELECT 1 FROM memory_ops WHERE op_id = ?", (op_id,)).fetchone()
+        return row is not None
+
+    def _local_pending(self, memory_id: str) -> bool:
+        row = self._conn.execute(
+            "SELECT 1 FROM memory_ops WHERE memory_id = ? AND seq = 0 LIMIT 1", (memory_id,)
+        ).fetchone()
+        return row is not None
+
+    def apply_remote(self, op: dict[str, Any]) -> bool:
+        """Apply one change from another device. The relay's seq decides: a row whose seq
+        is newer stays, and a change this runtime has not pushed yet outranks anything
+        arriving in the meantime."""
+        op_id = str(op.get("op_id") or "")
+        seq = int(op.get("seq") or 0)
+        payload = op.get("payload") or {}
+        memory_id = str(payload.get("id") or "")
+        if not memory_id or self.has_op(op_id):
+            return False
+
+        row = self._conn.execute("SELECT * FROM memories WHERE id = ?", (memory_id,)).fetchone()
+        current_seq = int(row["seq"]) if row is not None else 0
+        if row is not None and (self._local_pending(memory_id) or current_seq > seq):
+            self._keep_op(
+                op_id, seq, str(op.get("op_type") or "upsert_memory"), memory_id, payload, op
+            )
+            return False
+
+        if payload.get("deleted"):
+            self._conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+        else:
+            content = str(payload.get("content") or "").strip()
+            if not content:
+                self._keep_op(
+                    op_id, seq, str(op.get("op_type") or "upsert_memory"), memory_id, payload, op
+                )
+                return False
+            updated_at = _iso_ms(int(payload.get("updated_at") or 0)) or _now()
+            self._conn.execute(
+                """INSERT INTO memories (id, content, category, created_at, source, updated_at, seq)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(id) DO UPDATE SET
+                     content = excluded.content, category = excluded.category,
+                     source = excluded.source, updated_at = excluded.updated_at, seq = excluded.seq""",
+                (
+                    memory_id,
+                    content,
+                    str(payload.get("category") or "general"),
+                    updated_at,
+                    str(payload.get("source") or "agent"),
+                    updated_at,
+                    seq,
+                ),
+            )
+        self._keep_op(op_id, seq, str(op.get("op_type") or "upsert_memory"), memory_id, payload, op)
+        self._conn.commit()
+        return True
+
+    def _keep_op(
+        self,
+        op_id: str,
+        seq: int,
+        op_type: str,
+        memory_id: str,
+        payload: dict[str, Any],
+        op: dict[str, Any],
+    ) -> None:
+        """Remember a change that came in, so its echo is not applied twice."""
+        self._conn.execute(
+            """INSERT OR IGNORE INTO memory_ops
+               (op_id, seq, op_type, memory_id, payload, client_time, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                op_id,
+                int(seq),
+                op_type,
+                memory_id,
+                json.dumps(payload, ensure_ascii=False),
+                int(op.get("client_time") or 0),
+                _epoch_ms(_now()),
+            ),
+        )
+
+    def cursor(self) -> int:
+        """Where this runtime is in the account's memory changes."""
+        try:
+            return int(self.get_meta("sync_cursor", "0") or 0)
+        except ValueError:
+            return 0
+
+    def set_cursor(self, seq: int) -> None:
+        self.set_meta("sync_cursor", str(max(0, int(seq))))
 
     # ------------------------------------------------------------------ retrieval
     def search(self, query: str, limit: int = 10) -> list[MemoryItem]:
@@ -346,7 +604,20 @@ class MemoryStore:
         )
         for m in before:
             self._conn.execute("DELETE FROM memories WHERE id = ?", (m.id,))
+            self._record_op(
+                "delete_memory",
+                m.id,
+                "",
+                m.category,
+                m.source,
+                _now(),
+                before_content=m.content,
+                deleted=True,
+            )
         self._insert(after)
+        self._record_op(
+            "upsert_memory", after.id, after.content, after.category, after.source, after.updated_at
+        )
         change = self._log(action, before, after, reason)
         self._conn.commit()
         return change
@@ -357,6 +628,16 @@ class MemoryStore:
         if item is None:
             return None
         self._conn.execute("DELETE FROM memories WHERE id = ?", (item.id,))
+        self._record_op(
+            "delete_memory",
+            item.id,
+            "",
+            item.category,
+            item.source,
+            _now(),
+            before_content=item.content,
+            deleted=True,
+        )
         change = self._log("drop", [item], None, reason)
         self._conn.commit()
         return change
@@ -377,12 +658,30 @@ class MemoryStore:
             return change
         if change.after is not None:
             self._conn.execute("DELETE FROM memories WHERE id = ?", (change.after.id,))
+            self._record_op(
+                "delete_memory",
+                change.after.id,
+                "",
+                change.after.category,
+                change.after.source,
+                _now(),
+                before_content=change.after.content,
+                deleted=True,
+            )
         for m in change.before:
             exists = self._conn.execute(
                 "SELECT 1 FROM memories WHERE id = ? OR content = ?", (m.id, m.content)
             ).fetchone()
             if exists is None:
                 self._insert(m)
+                self._record_op(
+                    "upsert_memory",
+                    m.id,
+                    m.content,
+                    m.category,
+                    m.source,
+                    m.updated_at or m.created_at,
+                )
         self._conn.execute("UPDATE memory_log SET restored = 1 WHERE id = ?", (change.id,))
         self._conn.commit()
         change.restored = True
