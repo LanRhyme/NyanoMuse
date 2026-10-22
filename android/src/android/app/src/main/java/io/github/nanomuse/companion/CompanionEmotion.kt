@@ -96,8 +96,12 @@ object CompanionEmotion {
         // Intimacy base from active days: caps at 1.0 with smooth asymptotic scaling
         val intimacy = minOf(1.0f, 0.7f + (maxOf(1, activeDaysCount) * 0.015f))
 
-        // 1. Night / Quiet hours: Sleepy & quiet (strict 0 proactive score)
-        if (isQuiet) {
+        // Calculate idle duration since user's last message
+        val idleMs = if (lastUserMessageTime > 0L) maxOf(0L, now - lastUserMessageTime) else Long.MAX_VALUE
+        val isActivelyEngaged = idleMs < 30 * 60_000L
+
+        // 1. Night / Quiet hours: Sleepy & quiet (strict 0 proactive score) when idle; active chats remain engaged
+        if (isQuiet && !isActivelyEngaged) {
             return MoodState(
                 primaryMood = PrimaryMood.SLEEPY,
                 valence = 0.5f,
@@ -108,9 +112,6 @@ object CompanionEmotion {
                 framingInstruction = "现在是深夜静默时段，小猫很困倦，蜷缩在老大身边安睡，严禁打扰老大休息。"
             )
         }
-
-        // Calculate idle duration since user's last message
-        val idleMs = if (lastUserMessageTime > 0L) maxOf(0L, now - lastUserMessageTime) else Long.MAX_VALUE
 
         // Helper to scale base proactive score by intimacy/affection
         fun applyIntimacyBoost(baseScore: Float): Float =
@@ -145,9 +146,9 @@ object CompanionEmotion {
             )
         }
 
-        // 4. Evening Care (21:30 ~ 22:59, before quiet hours): Gentle reminder to sleep soon
+        // 4. Evening Care (21:30 ~ 22:59, before quiet hours): Gentle reminder to sleep soon when not actively chatting
         val isEveningCare = (hour == 21 && minute >= 30) || (hour == 22)
-        if (isEveningCare) {
+        if (isEveningCare && !isActivelyEngaged) {
             return MoodState(
                 primaryMood = PrimaryMood.SLEEPY,
                 valence = 0.70f,
@@ -203,7 +204,8 @@ object CompanionEmotion {
      * An optional secondary lightweight LLM classifier can be introduced as future enhancement.
      */
     fun appraiseUserTurn(userText: String): DialogueAct {
-        val clean = userText.trim().lowercase()
+        val stripped = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(userText)
+        val clean = stripped.trim().lowercase()
         if (clean.isBlank()) return DialogueAct.CASUAL_CHAT
 
         // 1. Sarcasm / Irony pre-check: common cynical phrases in Chinese and English
@@ -217,8 +219,8 @@ object CompanionEmotion {
         // 2. Playful tease / cuddling (摸头/蹭蹭/贴贴)
         val teasePatterns = listOf(
             "摸摸头", "摸摸", "揉揉", "捏捏", "蹭蹭", "抱抱", "贴贴", "求抱抱", "摸头", "挠挠",
-            "咕噜咕噜", "猫猫头", "捏一下", "抱一下", "亲亲", "给你吃", "投喂",
-            "pat pat", "hug", "cuddle"
+            "咕噜咕噜", "猫猫头", "捏一下", "抱一下", "亲亲", "给你吃", "投喂", "吸猫", "吸吸", "rua",
+            "举高高", "握手", "乖乖", "乖猫", "pat pat", "hug", "cuddle"
         )
         if (teasePatterns.any { clean.contains(it) }) return DialogueAct.PLAYFUL_TEASE
 
@@ -226,7 +228,8 @@ object CompanionEmotion {
         val praisePatterns = listOf(
             "真棒", "好棒", "太棒了", "太厉害", "真厉害", "真乖", "好乖", "可爱", "真萌", "喜欢你",
             "太强了", "爱死你", "真聪明", "太聪明", "谢谢你", "多谢", "辛苦啦", "辛苦了", "你真好", "真好呀",
-            "做得好", "干得漂亮", "超棒", "太神了", "aww", "awesome", "good job", "great", "love you", "cute", "clever", "thanks", "thank you"
+            "做得好", "干得漂亮", "超棒", "太神了", "可以可以", "好耶", "好呀", "真好", "赞", "太赞了",
+            "超级棒", "厉害了", "真给力", "aww", "awesome", "good job", "great", "love you", "cute", "clever", "thanks", "thank you"
         )
         if (praisePatterns.any { clean.contains(it) }) {
             // Secondary anti-irony check: e.g. "是啊真好", "行吧", "你开心就好", "谢谢你啊"
@@ -239,21 +242,23 @@ object CompanionEmotion {
         val ventingPatterns = listOf(
             "好累", "太累", "好烦", "烦死", "心累", "难过", "伤心", "压力大", "倒霉",
             "好难", "emo", "好丧", "崩溃", "抑郁", "委屈", "呜呜", "不想动", "哭哭",
-            "太惨了", "痛苦", "难受", "tired", "exhausted", "sad", "stressed", "unhappy"
+            "太惨了", "痛苦", "难受", "头疼", "心塞", "郁闷", "累死", "累瘫", "疲惫",
+            "tired", "exhausted", "sad", "stressed", "unhappy"
         )
         if (ventingPatterns.any { clean.contains(it) }) return DialogueAct.VENTING
 
         // 5. Night greeting / Sleepiness (晚安/准备睡觉)
         val nightPatterns = listOf(
             "晚安", "睡觉了", "去睡了", "准备睡", "好困", "困了", "梦里见", "安安", "歇了",
-            "good night", "sleepy", "going to bed"
+            "休息了", "睡觉去", "good night", "sleepy", "going to bed"
         )
         if (nightPatterns.any { clean.contains(it) }) return DialogueAct.GREETING_NIGHT
 
         // 6. Curiosity / Inquisitive (探索/提问)
         val curiousPatterns = listOf(
-            "为什么", "怎么", "如何", "帮我查", "告诉我", "知道吗", "什么是", "怎么回事", "查一下", "考考你",
-            "why", "how", "what is", "tell me"
+            "为什么", "怎么", "如何", "帮我查", "帮我看看", "帮我看", "告诉我", "知道吗", "什么是",
+            "怎么回事", "查一下", "考考你", "分析一下", "看一下", "帮忙看", "能帮我", "能不能", "怎么样",
+            "怎么做", "why", "how", "what is", "tell me"
         )
         if (curiousPatterns.any { clean.contains(it) }) return DialogueAct.QUESTION_CURIOUS
 
@@ -270,7 +275,7 @@ object CompanionEmotion {
             DialogueAct.VENTING -> EmotionImpulse(dP = -0.15f, dA = 0.20f, dAffection = 0.015f, primaryMood = PrimaryMood.CARING)
             DialogueAct.GREETING_NIGHT -> EmotionImpulse(dP = 0.10f, dA = -0.30f, dAffection = 0.01f, primaryMood = PrimaryMood.SLEEPY)
             DialogueAct.QUESTION_CURIOUS -> EmotionImpulse(dP = 0.10f, dA = 0.20f, dAffection = 0.005f, primaryMood = PrimaryMood.CURIOUS)
-            DialogueAct.CASUAL_CHAT -> EmotionImpulse(dP = 0.05f, dA = 0.05f, dAffection = 0.005f, primaryMood = PrimaryMood.HAPPY)
+            DialogueAct.CASUAL_CHAT -> EmotionImpulse(dP = 0.10f, dA = 0.08f, dAffection = 0.005f, primaryMood = PrimaryMood.HAPPY)
         }
     }
 
@@ -324,7 +329,7 @@ object CompanionEmotion {
                 DialogueAct.VENTING -> PrimaryMood.CARING
                 DialogueAct.GREETING_NIGHT -> PrimaryMood.SLEEPY
                 DialogueAct.QUESTION_CURIOUS -> PrimaryMood.CURIOUS
-                DialogueAct.CASUAL_CHAT -> if (effValence > 0.7f) PrimaryMood.HAPPY else baseState.primaryMood
+                DialogueAct.CASUAL_CHAT -> PrimaryMood.HAPPY
             }
         } else {
             baseState.primaryMood

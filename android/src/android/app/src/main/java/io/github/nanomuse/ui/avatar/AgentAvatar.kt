@@ -143,16 +143,23 @@ fun AgentAvatar(
     val density = LocalDensity.current
     val motion = rememberInfiniteTransition(label = "avatarMotion")
 
-    // Rest: a slow, barely visible breath. Working: a quicker one, plus a bob.
+    val breathDuration = when {
+        mood == AgentMood.WORKING -> 700
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> 1200
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> 2000
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> 3600
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 2800
+        else -> 2600
+    }
     val breath by motion.animateFloat(
         initialValue = 0f, targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            tween(durationMillis = if (mood == AgentMood.WORKING) 700 else 2600, easing = FastOutSlowInEasing),
+            tween(durationMillis = breathDuration, easing = FastOutSlowInEasing),
             RepeatMode.Reverse,
         ),
         label = "breath",
     )
-    // Waiting: a gentle side-to-side tilt, as if listening.
+    // Waiting or ambient: a gentle side-to-side tilt
     val tilt by motion.animateFloat(
         initialValue = -1f, targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(durationMillis = 1100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
@@ -186,23 +193,107 @@ fun AgentAvatar(
         }
     }
 
+    // Dynamic micro-animation bursts upon companion mood changes
+    val companionPop = remember { Animatable(1f) }
+    val companionTilt = remember { Animatable(0f) }
+    val companionBob = remember { Animatable(0f) }
+    LaunchedEffect(companionMood) {
+        if (companionMood == null) return@LaunchedEffect
+        when (companionMood) {
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> {
+                companionPop.snapTo(1f)
+                companionBob.snapTo(0f)
+                companionBob.animateTo(with(density) { (-4f).dp.toPx() }, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+                companionPop.animateTo(1.18f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+                companionBob.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
+                companionPop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow))
+            }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> {
+                companionPop.snapTo(1f)
+                companionBob.snapTo(0f)
+                companionBob.animateTo(with(density) { (-2.5f).dp.toPx() }, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                companionPop.animateTo(1.12f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+                companionBob.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
+                companionPop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow))
+            }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> {
+                // Warm heartfelt pulse
+                companionPop.snapTo(1f)
+                companionPop.animateTo(1.16f, tween(180, easing = FastOutSlowInEasing))
+                companionPop.animateTo(1.04f, tween(120, easing = FastOutSlowInEasing))
+                companionPop.animateTo(1.12f, tween(160, easing = FastOutSlowInEasing))
+                companionPop.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
+            }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> {
+                // Shy blush bounce & side tilt
+                companionTilt.snapTo(0f)
+                companionPop.snapTo(1f)
+                companionTilt.animateTo(-6f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                companionPop.animateTo(1.08f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                companionTilt.animateTo(0f, tween(500, easing = FastOutSlowInEasing))
+                companionPop.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
+            }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> {
+                // Inquisitive perk up: head tilts, ears perk up
+                companionBob.snapTo(0f)
+                companionTilt.snapTo(0f)
+                companionBob.animateTo(with(density) { (-4f).dp.toPx() }, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                companionTilt.animateTo(6f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                companionBob.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
+                companionTilt.animateTo(0f, tween(400, easing = FastOutSlowInEasing))
+            }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> {
+                // Sleepy slow nod down
+                companionBob.snapTo(0f)
+                companionBob.animateTo(with(density) { 3.5f.dp.toPx() }, tween(700, easing = FastOutSlowInEasing))
+                companionBob.animateTo(0f, tween(1000, easing = FastOutSlowInEasing))
+            }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> {
+                // Gentle caring tilt & soft lean
+                companionTilt.snapTo(0f)
+                companionTilt.animateTo(4.5f, tween(350, easing = FastOutSlowInEasing))
+                companionTilt.animateTo(0f, tween(550, easing = FastOutSlowInEasing))
+            }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.LONGING -> {
+                // Soft longing stretch
+                companionPop.snapTo(1f)
+                companionPop.animateTo(1.08f, tween(500, easing = FastOutSlowInEasing))
+                companionPop.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+            }
+        }
+    }
+
+    val continuousScale = when (companionMood) {
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> 1f + 0.040f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> 1f + 0.030f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> 1f + 0.028f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> 1f + 0.022f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 1f + 0.025f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> 1f + 0.015f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> 1f + 0.025f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.LONGING -> 1f + 0.020f * breath
+        null -> 1f + 0.018f * breath
+    }
     val scale = when {
         mood == AgentMood.WORKING -> 1f + 0.045f * breath
         mood == AgentMood.HAPPY -> pop.value
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> 1f + 0.035f * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 1f + 0.025f * breath
-        else -> 1f + 0.018f * breath
+        else -> companionPop.value * continuousScale
     }
-    val bobPx = when {
+    val bobPx = companionBob.value + when {
         mood == AgentMood.WORKING -> with(density) { (-2.5).dp.toPx() } * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> with(density) { (-1.5).dp.toPx() } * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> with(density) { (-2.5).dp.toPx() } * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> with(density) { (-1.5).dp.toPx() } * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> with(density) { (-1.8).dp.toPx() } * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> with(density) { (1.5).dp.toPx() } * breath
         else -> 0f
     }
     val shakePx = with(density) { 3.dp.toPx() } * shake.value
-    val rotation = when {
+    val rotation = companionTilt.value + when {
         mood == AgentMood.WAITING -> 4f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> 3f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> 4.5f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> 3.5f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> 5.0f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> 2.5f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 2.0f * tilt
         else -> 0f
     }
 

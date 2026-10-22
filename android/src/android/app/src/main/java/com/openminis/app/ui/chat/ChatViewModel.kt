@@ -6466,6 +6466,17 @@ class ChatViewModel(
                 thinkingLevel = _thinkingLevel.value,
             )
             _messages.value = _messages.value + queuedUserMsg + nextAssistantMsg
+
+            val sid = realSessionId.ifEmpty { sessionId }
+            val ep = io.github.nanomuse.companion.CompanionPrefs.prefs(context)
+            if (io.github.nanomuse.home.MainChat.isMain(context, sid) &&
+                io.github.nanomuse.companion.CompanionPrefs.isEmotionEnabled(ep)
+            ) {
+                val cleanedText = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(userText)
+                val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(cleanedText)
+                val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
+                io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(ep, impulse, act)
+            }
             // Note: ChatScreen's `lastUserAppendMs` (the trailing-row
             // ScrollPin send-grace window) is updated reactively by
             // ChatScreen's `LaunchedEffect(messages.size)` user-send hook
@@ -7038,6 +7049,16 @@ class ChatViewModel(
             _latestUserQuery = trimmed
             // nanoMuse: record real user message time for companion emotion tracking
             io.github.nanomuse.companion.CompanionPrefs.recordLastRealUserMessageTime(context, System.currentTimeMillis())
+            val sid = realSessionId.ifEmpty { sessionId }
+            val emotionPrefs = io.github.nanomuse.companion.CompanionPrefs.prefs(context)
+            if (io.github.nanomuse.home.MainChat.isMain(context, sid) &&
+                io.github.nanomuse.companion.CompanionPrefs.isEmotionEnabled(emotionPrefs)
+            ) {
+                val cleanedText = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(trimmed)
+                val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(cleanedText)
+                val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
+                io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(emotionPrefs, impulse, act)
+            }
         }
         // While streaming, enqueue instead of silently dropping (iOS: send vs enqueuePrompt).
         if (_isStreaming.value) {
@@ -9363,23 +9384,10 @@ class ChatViewModel(
                 val blockMeta = allToolBlocks.filter { it.kind == "tool_use" }.associateBy { it.id }
                 persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta)
 
-                // Companion emotion appraisal: trigger once per completed user-assistant exchange on Main Chat
+                // Companion emotion status: notify on completed exchange to ensure fresh presentation
                 val sid = realSessionId.ifEmpty { sessionId }
-                val emotionPrefs = io.github.nanomuse.companion.CompanionPrefs.prefs(context)
-                if (io.github.nanomuse.home.MainChat.isMain(context, sid) &&
-                    lastAppraisedAssistantMsgId != assistantId &&
-                    io.github.nanomuse.companion.CompanionPrefs.isEmotionEnabled(emotionPrefs)
-                ) {
-                    lastAppraisedAssistantMsgId = assistantId
-                    val lastUserMsg = agentHistory.findLast { it.role == LLMMessage.Role.USER }
-                    val lastUserText = lastUserMsg?.content?.takeIf { it.isNotBlank() }
-                        ?: lastUserMsg?.contentParts?.filterIsInstance<AgentContentPart.Text>()?.joinToString("\n") { it.text }
-                        ?: ""
-                    if (lastUserText.isNotBlank()) {
-                        val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(lastUserText)
-                        val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
-                        io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(emotionPrefs, impulse, act)
-                    }
+                if (io.github.nanomuse.home.MainChat.isMain(context, sid)) {
+                    io.github.nanomuse.companion.CompanionStatus.notifyEmotionChanged()
                 }
                 // [T-error-persist-android] Empty-response hint: the model ended a
                 // turn (finish=stop/end_turn) with no visible text anywhere in the

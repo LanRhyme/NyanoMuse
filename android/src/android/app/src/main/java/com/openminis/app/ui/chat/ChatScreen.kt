@@ -3442,6 +3442,7 @@ fun ChatScreen(
             // nanoMuse: Independent overlay for enlarged avatar & live mood/status in Main Chat
             if (nmHome != null && isMainChat && nmAvatarSize.shown) {
                 val avatarDp = nmAvatarSize.disc ?: 56.dp
+                val emotionVersion by io.github.nanomuse.companion.CompanionStatus.emotionVersion.collectAsState()
                 // Low-frequency 60s ticker so natural emotional decay visually updates smoothly without polling overhead
                 var emotionTick by remember { mutableStateOf(0L) }
                 LaunchedEffect(Unit) {
@@ -3450,7 +3451,7 @@ fun ChatScreen(
                         emotionTick++
                     }
                 }
-                val compState = remember(context, emotionTick, isStreaming) { io.github.nanomuse.companion.CompanionStatus.currentMood(context) }
+                val compState = remember(context, emotionVersion, emotionTick, isStreaming) { io.github.nanomuse.companion.CompanionStatus.currentMood(context) }
                 val liveMood = nmStatusLine ?: io.github.nanomuse.companion.CompanionStatus.currentMoodDescription(context, compState)
                 val compMood = compState.primaryMood
 

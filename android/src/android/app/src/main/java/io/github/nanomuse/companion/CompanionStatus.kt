@@ -3,11 +3,21 @@ package io.github.nanomuse.companion
 import android.content.Context
 import com.openminis.app.R
 import io.github.nanomuse.home.MainChat
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Status helper providing live companion emotion subtitles for the Main Chat header.
  */
 object CompanionStatus {
+
+    private val _emotionVersion = MutableStateFlow(0L)
+    val emotionVersion: StateFlow<Long> = _emotionVersion.asStateFlow()
+
+    fun notifyEmotionChanged() {
+        _emotionVersion.value++
+    }
 
     fun currentMood(context: Context): CompanionEmotion.MoodState {
         val prefs = CompanionPrefs.prefs(context)

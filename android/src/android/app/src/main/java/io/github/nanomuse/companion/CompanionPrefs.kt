@@ -114,6 +114,7 @@ object CompanionPrefs {
 
     fun recordLastRealUserMessageTime(prefs: SharedPreferences, at: Long) {
         prefs.edit().putLong(KEY_LAST_REAL_USER_MESSAGE_TIME, at).apply()
+        CompanionStatus.notifyEmotionChanged()
     }
 
     fun recordLastRealUserMessageTime(context: Context, at: Long) {
@@ -267,6 +268,7 @@ object CompanionPrefs {
 
     fun setEmotionEnabled(prefs: SharedPreferences, enabled: Boolean) {
         prefs.edit().putBoolean(KEY_EMOTION_ENABLED, enabled).apply()
+        CompanionStatus.notifyEmotionChanged()
     }
 
     fun getEmotionIntensity(prefs: SharedPreferences): String =
@@ -274,6 +276,7 @@ object CompanionPrefs {
 
     fun setEmotionIntensity(prefs: SharedPreferences, intensity: String) {
         prefs.edit().putString(KEY_EMOTION_INTENSITY, intensity).apply()
+        CompanionStatus.notifyEmotionChanged()
     }
 
     fun getAffectionScore(prefs: SharedPreferences): Float =
@@ -283,10 +286,12 @@ object CompanionPrefs {
         val cur = getAffectionScore(prefs)
         val next = (cur + delta).coerceIn(0.0f, 1.0f)
         prefs.edit().putFloat(KEY_AFFECTION_SCORE, next).apply()
+        CompanionStatus.notifyEmotionChanged()
     }
 
     fun resetAffectionScore(prefs: SharedPreferences) {
         prefs.edit().putFloat(KEY_AFFECTION_SCORE, DEFAULT_AFFECTION_SCORE).apply()
+        CompanionStatus.notifyEmotionChanged()
     }
 
     fun getDynamicBiasP(prefs: SharedPreferences): Float =
@@ -336,6 +341,7 @@ object CompanionPrefs {
             .putLong(KEY_MOOD_TIMESTAMP, now)
             .putString(KEY_LAST_DIALOGUE_ACT, act.name)
             .apply()
+        CompanionStatus.notifyEmotionChanged()
     }
 
     fun getUserAddress(context: Context): String {

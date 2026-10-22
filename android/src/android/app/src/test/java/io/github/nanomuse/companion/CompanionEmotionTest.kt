@@ -192,11 +192,47 @@ class CompanionEmotionTest {
         assertEquals(CompanionEmotion.DialogueAct.PRAISE, CompanionEmotion.appraiseUserTurn("太棒了，做得好！"))
         assertEquals(CompanionEmotion.DialogueAct.PRAISE, CompanionEmotion.appraiseUserTurn("辛苦了"))
         assertEquals(CompanionEmotion.DialogueAct.PRAISE, CompanionEmotion.appraiseUserTurn("you are so cute and clever, thanks!"))
+        assertEquals(CompanionEmotion.DialogueAct.PRAISE, CompanionEmotion.appraiseUserTurn("可以可以，推进一下吧\n[2026-10-22 周四 22:04]"))
+        assertEquals(CompanionEmotion.DialogueAct.PRAISE, CompanionEmotion.appraiseUserTurn("好耶太棒了"))
         assertEquals(CompanionEmotion.DialogueAct.PLAYFUL_TEASE, CompanionEmotion.appraiseUserTurn("摸摸头，给你吃小鱼干"))
+        assertEquals(CompanionEmotion.DialogueAct.PLAYFUL_TEASE, CompanionEmotion.appraiseUserTurn("吸吸猫猫，rua一下"))
         assertEquals(CompanionEmotion.DialogueAct.VENTING, CompanionEmotion.appraiseUserTurn("今天工作好累，好烦好难过"))
+        assertEquals(CompanionEmotion.DialogueAct.VENTING, CompanionEmotion.appraiseUserTurn("头疼死了，好难受"))
         assertEquals(CompanionEmotion.DialogueAct.GREETING_NIGHT, CompanionEmotion.appraiseUserTurn("小猫晚安，准备睡觉了"))
+        assertEquals(CompanionEmotion.DialogueAct.GREETING_NIGHT, CompanionEmotion.appraiseUserTurn("去睡了，明天见"))
         assertEquals(CompanionEmotion.DialogueAct.QUESTION_CURIOUS, CompanionEmotion.appraiseUserTurn("为什么天是蓝色的，帮我查查"))
+        assertEquals(CompanionEmotion.DialogueAct.QUESTION_CURIOUS, CompanionEmotion.appraiseUserTurn("帮我看看这个代码"))
         assertEquals(CompanionEmotion.DialogueAct.CASUAL_CHAT, CompanionEmotion.appraiseUserTurn("今天天气晴朗"))
+    }
+
+    @Test
+    fun testNightHoursActiveEngagementDoesNotForceSleepy() {
+        // 02:00 at night, but user was actively chatting 5 minutes ago!
+        val now = timeAt(2)
+        val state = CompanionEmotion.evaluate(
+            now = now,
+            lastUserMessageTime = now - 5 * 60_000L,
+            activeDaysCount = 10,
+            timeZone = utc
+        )
+
+        assertEquals(CompanionEmotion.PrimaryMood.HAPPY, state.primaryMood)
+        assertEquals(CompanionEmotion.Scenario.FRESH_RESONANCE, state.scenario)
+    }
+
+    @Test
+    fun testEveningCareActiveEngagementDoesNotForceSleepy() {
+        // 22:15 at night, user actively chatting 3 minutes ago
+        val now = timeAt(22, 15)
+        val state = CompanionEmotion.evaluate(
+            now = now,
+            lastUserMessageTime = now - 3 * 60_000L,
+            activeDaysCount = 10,
+            timeZone = utc
+        )
+
+        assertEquals(CompanionEmotion.PrimaryMood.HAPPY, state.primaryMood)
+        assertEquals(CompanionEmotion.Scenario.FRESH_RESONANCE, state.scenario)
     }
 
     @Test
