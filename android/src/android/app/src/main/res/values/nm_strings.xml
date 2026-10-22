@@ -1225,4 +1225,6 @@
     <string name="nm_thinking_in_progress_simple">Thinking…</string>
     <string name="nm_thinking_done">Thought for %1$ds</string>
     <string name="nm_thinking_done_simple">Deep Thinking</string>
+    <string name="nm_code_expand_all">Expand all (%1$d lines)</string>
+    <string name="nm_code_collapse">Collapse</string>
 </resources>

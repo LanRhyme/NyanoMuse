@@ -1245,4 +1245,9 @@
     <string name="nm_companion_reset_affection">Reset Intimacy</string>
     <string name="nm_companion_reset_affection_confirm">Reset intimacy score back to initial baseline?</string>
     <string name="nm_companion_probe_title">Companion Mood Probe</string>
+    <string name="nm_code_expand_all">Tout développer (%1$d lignes)</string>
+    <string name="nm_code_collapse">Réduire</string>
+    <string name="nm_feed_while_away">Pendant votre absence</string>
+    <string name="nm_feed_sync_from_computer">Synchroniser depuis l\'ordinateur</string>
+    <string name="nm_feed_syncing">Synchronisation du flux…</string>
 </resources>

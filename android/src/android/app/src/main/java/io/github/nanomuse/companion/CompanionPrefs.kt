@@ -25,6 +25,8 @@ object CompanionPrefs {
 
     // Runtime rate-limiting & caching keys
     const val KEY_LAST_PROACTIVE_TIME = "companion_last_proactive_time"
+    const val KEY_LAST_FOREGROUND_GREETING_TIME = "companion_last_foreground_greeting_time"
+    const val FOREGROUND_GREETING_COOLDOWN_MS = 30 * 60 * 1000L // 30 minutes
     const val KEY_TODAY_DATE = "companion_today_date"
     const val KEY_TODAY_COUNT = "companion_today_count"
     const val KEY_CACHED_ACTIVE_DAYS = "companion_cached_active_days"
@@ -123,6 +125,34 @@ object CompanionPrefs {
 
     fun getLastProactiveTime(prefs: SharedPreferences): Long =
         prefs.getLong(KEY_LAST_PROACTIVE_TIME, 0L)
+
+    fun canTriggerForegroundGreeting(context: Context, nowMs: Long = System.currentTimeMillis()): Boolean {
+        val p = prefs(context)
+        if (!isEnabled(p)) return false
+
+        val lastRealUserTime = getLastRealUserMessageTime(p)
+        if (lastRealUserTime > 0L && (nowMs - lastRealUserTime) < FOREGROUND_GREETING_COOLDOWN_MS) {
+            return false
+        }
+
+        val lastGreetingTime = p.getLong(KEY_LAST_FOREGROUND_GREETING_TIME, 0L)
+        if (lastGreetingTime > 0L && (nowMs - lastGreetingTime) < FOREGROUND_GREETING_COOLDOWN_MS) {
+            return false
+        }
+
+        val lastProactiveTime = getLastProactiveTime(p)
+        if (lastProactiveTime > 0L && (nowMs - lastProactiveTime) < FOREGROUND_GREETING_COOLDOWN_MS) {
+            return false
+        }
+
+        return true
+    }
+
+    fun recordForegroundGreeting(context: Context, nowMs: Long = System.currentTimeMillis()) {
+        prefs(context).edit()
+            .putLong(KEY_LAST_FOREGROUND_GREETING_TIME, nowMs)
+            .apply()
+    }
 
     fun getProactiveModelBinding(prefs: SharedPreferences): String? =
         prefs.getString(KEY_PROACTIVE_MODEL_BINDING, null)

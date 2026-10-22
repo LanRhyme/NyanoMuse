@@ -1240,4 +1240,9 @@
     <string name="nm_companion_reset_affection">Reset Intimacy</string>
     <string name="nm_companion_reset_affection_confirm">Reset intimacy score back to initial baseline?</string>
     <string name="nm_companion_probe_title">Companion Mood Probe</string>
+    <string name="nm_code_expand_all">ขยายทั้งหมด (%1$d บรรทัด)</string>
+    <string name="nm_code_collapse">ยุบ</string>
+    <string name="nm_feed_while_away">ขณะที่คุณไม่อยู่</string>
+    <string name="nm_feed_sync_from_computer">ซิงค์จากคอมพิวเตอร์</string>
+    <string name="nm_feed_syncing">กำลังซิงค์ฟีด…</string>
 </resources>

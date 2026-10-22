@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,9 +28,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleFilled
@@ -40,6 +44,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import com.openminis.app.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -208,58 +217,205 @@ private fun CodeBlockView(block: MarkdownParser.Block.CodeBlock) {
     val codeColor = Color(0xFF4EC9B0) // Green code text
     val bgColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
+    val lineCount = remember(block.code) { block.code.count { it == '\n' } + 1 }
+    val isLongCode = lineCount > 12
+    var isManuallyExpanded by remember(block.code) { mutableStateOf(false) }
+    val isExpanded = !isLongCode || isManuallyExpanded
+
+    var copied by remember { mutableStateOf(false) }
+    if (copied) {
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(1500)
+            copied = false
+        }
+    }
+
+    val displayCode = remember(block.code, isExpanded) {
+        if (isExpanded) {
+            block.code
+        } else {
+            block.code.lineSequence().take(5).joinToString("\n")
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(bgColor),
     ) {
-        // Header with language label + copy button
+        // Header with language label + collapse button + copy button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val langLabel = buildString {
+                append(block.language.ifEmpty { "code" })
+                if (isLongCode) {
+                    append(" • $lineCount 行")
+                }
+            }
             Text(
-                text = block.language.ifEmpty { "code" },
+                text = langLabel,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
+
+            if (isLongCode && isExpanded) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { isManuallyExpanded = false }
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = stringResource(R.string.nm_code_collapse),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.nm_code_collapse),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+            }
+
             IconButton(
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("code", block.code))
+                    copied = true
                 },
-                modifier = Modifier.height(28.dp),
+                modifier = Modifier.size(24.dp),
             ) {
                 Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = "Copy code",
-                    modifier = Modifier.height(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                    contentDescription = if (copied) "Copied" else "Copy code",
+                    modifier = Modifier.size(15.dp),
+                    tint = if (copied) Color(0xFF34C759) else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        // Scrollable code content
+        // Scrollable code content with viewport folding
+        val vScroll = rememberScrollState()
+        val hScroll = rememberScrollState()
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 400.dp)
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                text = block.code,
-                style = TextStyle(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 13.sp,
-                    color = codeColor,
-                    lineHeight = 18.sp,
-                ),
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (isExpanded) {
+                            Modifier
+                                .heightIn(max = 420.dp)
+                                .verticalScroll(vScroll)
+                                .padding(bottom = 8.dp)
+                        } else {
+                            Modifier.padding(bottom = 36.dp)
+                        }
+                    ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .horizontalScroll(hScroll)
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = displayCode,
+                        style = TextStyle(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            color = codeColor,
+                            lineHeight = 18.sp,
+                        ),
+                    )
+                }
+            }
+
+            // Folded state gradient mask & expand button
+            if (!isExpanded) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    bgColor.copy(alpha = 0f),
+                                    bgColor.copy(alpha = 0.85f),
+                                    bgColor,
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(bottom = 6.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            .clickable { isManuallyExpanded = true }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.nm_code_expand_all, lineCount),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
+        // Bottom collapse hint if expanded and long
+        if (isLongCode && isExpanded) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                        .clickable { isManuallyExpanded = false }
+                        .padding(horizontal = 10.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.nm_code_collapse),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

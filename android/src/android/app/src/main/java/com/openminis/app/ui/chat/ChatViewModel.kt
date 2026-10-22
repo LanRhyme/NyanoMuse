@@ -10080,6 +10080,7 @@ class ChatViewModel(
             "memory_write" -> executeMemoryWriteTool(argsJson)
             "memory_get" -> executeMemoryGetTool(argsJson)
             com.openminis.app.tools.NativeSystemTools.TOOL_DEVICE_INFO -> com.openminis.app.tools.NativeSystemTools.executeDeviceInfo(argsJson, context)
+            com.openminis.app.tools.NativeSystemTools.TOOL_FOREGROUND_APP -> com.openminis.app.tools.NativeSystemTools.executeForegroundApp(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_APP_LAUNCH -> com.openminis.app.tools.NativeSystemTools.executeAppLaunch(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SYSTEM_NOTIFY -> com.openminis.app.tools.NativeSystemTools.executeSystemNotify(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SCREEN_CAPTURE -> executeScreenCaptureTool(argsJson)

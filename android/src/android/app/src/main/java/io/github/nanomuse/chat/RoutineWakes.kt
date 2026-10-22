@@ -68,7 +68,11 @@ object RoutineWakes {
             appendLine("## This turn is your own proactive companion thought, not a user request (nanoMuse)")
             appendLine("Nobody asked you anything; you proactively reached out to the user right now.")
             appendLine("Atmosphere/Intent: $framingInstruction")
-            appendLine("Stay strictly in persona. Do NOT sound like an assistant or customer service. Keep it under 40 Chinese characters or 20 words.")
+            appendLine("Situational Awareness & Sensory Tools:")
+            appendLine("- You can call `foreground_app` or `device_info` to sense what app the user is currently using, their battery, and current time.")
+            appendLine("- If the foreground app is interesting or you need visual details of what's on screen (e.g. game, video, chat, code), you can optionally call `screen_capture`.")
+            appendLine("- Based on what you sense (or their absence), speak to them naturally and warmly!")
+            appendLine("Stay strictly in persona. Do NOT sound like an assistant or customer service. Keep it under 50 Chinese characters or 25 words.")
         }
         SessionAddenda.add(sessionId, ADDENDUM_TAG, promptFraming, turns = 1)
         if (app == null) app = context.applicationContext

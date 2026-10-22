@@ -1244,4 +1244,9 @@
     <string name="nm_companion_reset_affection">Reset Intimacy</string>
     <string name="nm_companion_reset_affection_confirm">Reset intimacy score back to initial baseline?</string>
     <string name="nm_companion_probe_title">Companion Mood Probe</string>
+    <string name="nm_code_expand_all">Tümünü genişlet (%1$d satır)</string>
+    <string name="nm_code_collapse">Daralt</string>
+    <string name="nm_feed_while_away">Yokluğunda</string>
+    <string name="nm_feed_sync_from_computer">Bilgisayardan senkronize et</string>
+    <string name="nm_feed_syncing">Akış senkronize ediliyor…</string>
 </resources>

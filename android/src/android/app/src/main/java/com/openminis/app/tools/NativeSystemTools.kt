@@ -30,6 +30,7 @@ import java.io.File
 object NativeSystemTools {
 
     const val TOOL_DEVICE_INFO = "device_info"
+    const val TOOL_FOREGROUND_APP = "foreground_app"
     const val TOOL_APP_LAUNCH = "app_launch"
     const val TOOL_SYSTEM_NOTIFY = "system_notify"
     const val TOOL_SCREEN_CAPTURE = "screen_capture"
@@ -38,15 +39,26 @@ object NativeSystemTools {
     private const val CHANNEL_NAME = "NyanoMuse Notifications"
 
     fun isReadOnly(name: String): Boolean = when (name) {
-        TOOL_DEVICE_INFO, TOOL_SCREEN_CAPTURE, FileReadTool.NAME, "memory_get", ReadImageTool.NAME -> true
+        TOOL_DEVICE_INFO, TOOL_FOREGROUND_APP, TOOL_SCREEN_CAPTURE, FileReadTool.NAME, "memory_get", ReadImageTool.NAME -> true
         else -> false
     }
 
     fun makeDefinitions(): List<AgentToolDefinition> = listOf(
         deviceInfoDefinition(),
+        foregroundAppDefinition(),
         appLaunchDefinition(),
         systemNotifyDefinition(),
         screenCaptureDefinition(),
+    )
+
+    fun foregroundAppDefinition(): AgentToolDefinition = AgentToolDefinition(
+        name = TOOL_FOREGROUND_APP,
+        description = "Inspect what Android application is currently in the foreground / focused on the user's screen (e.g. Bilibili, WeChat, Game, Terminal, YouTube), along with its package name and window title. Read-only, ultra-fast, and zero vision token overhead. Call this first to sense what the user is doing.",
+        parameters = mapOf(
+            "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does."),
+        ),
+        required = listOf("tool_title"),
+        propertyOrdering = listOf("tool_title"),
     )
 
     fun deviceInfoDefinition(): AgentToolDefinition = AgentToolDefinition(
@@ -94,6 +106,99 @@ object NativeSystemTools {
         required = listOf("tool_title"),
         propertyOrdering = listOf("tool_title", "prompt"),
     )
+
+    fun executeForegroundApp(argsJson: String, context: Context): ToolExecutionResult {
+        val toolTitle = try { JSONObject(argsJson).optString("tool_title", "Foreground App") } catch (_: Exception) { "Foreground App" }
+        val isRootMode = (com.openminis.app.sandbox.ExecutionMode.getMode(context) == com.openminis.app.sandbox.ExecutionMode.ROOT)
+        val pm = context.packageManager
+
+        var packageName: String? = null
+        var activityName: String? = null
+
+        // 1. Root mode: query dumpsys window for mCurrentFocus
+        if (isRootMode) {
+            try {
+                val p = ProcessBuilder("su", "-c", "dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'").start()
+                val text = p.inputStream.bufferedReader().readText()
+                p.waitFor()
+                // e.g. mCurrentFocus=Window{3949423 u0 com.tencent.mobileqq/com.tencent.mobileqq.activity.SplashActivity}
+                val match = Regex("""u\d+\s+([a-zA-Z0-9._]+)/([a-zA-Z0-9._]+)""").find(text)
+                if (match != null) {
+                    packageName = match.groupValues[1]
+                    activityName = match.groupValues[2]
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. Accessibility fallback
+        if (packageName == null) {
+            try {
+                val svc = com.openminis.app.accessibility.MinisAccessibilityService.getInstance()
+                val rootNode = svc?.rootInActiveWindow
+                if (rootNode != null) {
+                    packageName = rootNode.packageName?.toString()
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 3. ActivityManager fallback
+        if (packageName == null) {
+            try {
+                val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                val running = am?.runningAppProcesses
+                val top = running?.firstOrNull { it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND }
+                if (top != null) {
+                    packageName = top.processName
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (packageName == null) {
+            return ToolExecutionResult(
+                output = "Unable to determine current foreground application. The screen might be locked or permission not granted.",
+                success = false,
+                toolTitle = toolTitle
+            )
+        }
+
+        val appLabel = try {
+            pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+        } catch (_: Exception) {
+            packageName
+        }
+
+        val isSelf = (packageName == context.packageName)
+        val sb = StringBuilder()
+        sb.append("### Current Foreground Status\n\n")
+        if (isSelf) {
+            sb.append("**User is currently inside nanoMuse (this app)**\n")
+            sb.append("- Package: `$packageName`\n")
+        } else {
+            sb.append("**Active Foreground App**: **$appLabel** (`$packageName`)\n")
+            if (!activityName.isNullOrBlank()) {
+                sb.append("- Activity: `$activityName`\n")
+            }
+        }
+
+        // Include battery and time context for instant situational awareness
+        val ifilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        val batteryStatus = context.registerReceiver(null, ifilter)
+        val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val pct = if (level >= 0 && scale > 0) (level * 100 / scale) else -1
+        val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        sb.append("\n**Situational Context**:\n")
+        sb.append("- Battery: $pct% ${if (isCharging) "(Charging)" else ""}\n")
+        sb.append("- Current Time: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}\n\n")
+        sb.append("*Tip: If you need to deeply inspect what is displayed on the screen (e.g. video contents, chat context, in-game stats, code/error details), you can call `screen_capture`.*")
+
+        return ToolExecutionResult(
+            output = sb.toString(),
+            success = true,
+            toolTitle = toolTitle
+        )
+    }
 
     fun executeDeviceInfo(argsJson: String, context: Context): ToolExecutionResult {
         val toolTitle = try { JSONObject(argsJson).optString("tool_title", "Device Info") } catch (_: Exception) { "Device Info" }

@@ -1252,4 +1252,9 @@
     <string name="nm_companion_reset_affection">Reset Intimacy</string>
     <string name="nm_companion_reset_affection_confirm">Reset intimacy score back to initial baseline?</string>
     <string name="nm_companion_probe_title">Companion Mood Probe</string>
+    <string name="nm_code_expand_all">Rozwiń wszystko (%1$d wierszy)</string>
+    <string name="nm_code_collapse">Zwiń</string>
+    <string name="nm_feed_while_away">Podczas twojej nieobecności</string>
+    <string name="nm_feed_sync_from_computer">Synchronizuj z komputera</string>
+    <string name="nm_feed_syncing">Synchronizowanie kanału…</string>
 </resources>

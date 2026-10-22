@@ -1220,4 +1220,6 @@
     <string name="nm_thinking_in_progress_simple">思考中…</string>
     <string name="nm_thinking_done">已深度思考 (%1$d秒)</string>
     <string name="nm_thinking_done_simple">已深度思考</string>
+    <string name="nm_code_expand_all">展开全部 (%1$d 行)</string>
+    <string name="nm_code_collapse">收起</string>
 </resources>

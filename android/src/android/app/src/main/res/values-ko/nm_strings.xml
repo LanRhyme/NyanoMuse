@@ -1240,4 +1240,9 @@
     <string name="nm_companion_reset_affection">Reset Intimacy</string>
     <string name="nm_companion_reset_affection_confirm">Reset intimacy score back to initial baseline?</string>
     <string name="nm_companion_probe_title">Companion Mood Probe</string>
+    <string name="nm_code_expand_all">모두 펼치기 (%1$d줄)</string>
+    <string name="nm_code_collapse">접기</string>
+    <string name="nm_feed_while_away">자리를 비운 동안</string>
+    <string name="nm_feed_sync_from_computer">컴퓨터에서 동기화</string>
+    <string name="nm_feed_syncing">피드 동기화 중…</string>
 </resources>

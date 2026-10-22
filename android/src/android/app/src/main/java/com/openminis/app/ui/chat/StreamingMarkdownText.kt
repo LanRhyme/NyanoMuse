@@ -42,6 +42,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleFilled
@@ -56,6 +58,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -122,6 +125,7 @@ import java.io.File
 // blockquote, table cell, etc. all participate uniformly without each
 // caller having to plumb a per-text-node identifier.
 val LocalShardId = compositionLocalOf<TextShardId?> { null }
+val LocalIsStreaming = compositionLocalOf { false }
 
 /**
  * [T-android-markdown-longtext-selection-broken] Per-MdText sub-id allocator.
@@ -587,19 +591,23 @@ private fun StreamingMarkdownTextBody(
     }
 
     ShardSubIndexScope {
-        Column(modifier = modifier) {
-            // [T-android-stream-fade] Last block during a live stream gets
-            // LocalAppendOnlyFade=true so MdText fades in newly-appended
-            // word ranges (mirrors iOS TextFadeAnimator). Every other block
-            // — completed prefix, non-streaming sessions — renders opaque.
-            val lastIdx = blocks.size - 1
-            blocks.forEachIndexed { idx, block ->
-                if (isStreaming && idx == lastIdx) {
-                    androidx.compose.runtime.CompositionLocalProvider(
-                        LocalAppendOnlyFade provides true,
-                    ) { RenderBlock(block) }
-                } else {
-                    RenderBlock(block)
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalIsStreaming provides isStreaming
+        ) {
+            Column(modifier = modifier) {
+                // [T-android-stream-fade] Last block during a live stream gets
+                // LocalAppendOnlyFade=true so MdText fades in newly-appended
+                // word ranges (mirrors iOS TextFadeAnimator). Every other block
+                // — completed prefix, non-streaming sessions — renders opaque.
+                val lastIdx = blocks.size - 1
+                blocks.forEachIndexed { idx, block ->
+                    if (isStreaming && idx == lastIdx) {
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            LocalAppendOnlyFade provides true,
+                        ) { RenderBlock(block) }
+                    } else {
+                        RenderBlock(block)
+                    }
                 }
             }
         }
@@ -1021,21 +1029,25 @@ private fun MarkdownBlockBody(
     // pin (no jump, no extra layout cost) plus the per-word fade. A genuine
     // iOS-style continuous flow would require token-incremental rendering of the
     // streaming tail, not a height animation on an unstable item.
-    Column(modifier = modifier) {
-        // Wrap the last block in LocalAppendOnlyFade=true so MdText fades in
-        // newly-appended words. [T-android-streaming-incremental-inline] Also
-        // flag it as the LIVE tail so its Paragraph inline/math parse goes
-        // through the incremental (frozen-prefix + fresh-suffix) path — this is
-        // the only block whose raw grows every tick.
-        val lastIdx = blocks.size - 1
-        blocks.forEachIndexed { idx, block ->
-            if (idx == lastIdx) {
-                androidx.compose.runtime.CompositionLocalProvider(
-                    LocalAppendOnlyFade provides true,
-                    LocalLiveIncremental provides true,
-                ) { RenderBlock(block) }
-            } else {
-                RenderBlock(block)
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalIsStreaming provides isStreaming
+    ) {
+        Column(modifier = modifier) {
+            // Wrap the last block in LocalAppendOnlyFade=true so MdText fades in
+            // newly-appended words. [T-android-streaming-incremental-inline] Also
+            // flag it as the LIVE tail so its Paragraph inline/math parse goes
+            // through the incremental (frozen-prefix + fresh-suffix) path — this is
+            // the only block whose raw grows every tick.
+            val lastIdx = blocks.size - 1
+            blocks.forEachIndexed { idx, block ->
+                if (idx == lastIdx) {
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        LocalAppendOnlyFade provides true,
+                        LocalLiveIncremental provides true,
+                    ) { RenderBlock(block) }
+                } else {
+                    RenderBlock(block)
+                }
             }
         }
     }
@@ -1706,78 +1718,11 @@ private fun RenderBlock(block: MdBlock) {
         is MdBlock.CodeBlock -> if (block.language.startsWith("nanomuse-")) { // nanoMuse: goal cards etc.
             io.github.nanomuse.ui.chat.NanoMuseBlock(block.language, block.code)
         } else {
-            val clipboardManager = LocalClipboardManager.current
-            var copied by remember { mutableStateOf(false) }
-            if (copied) {
-                LaunchedEffect(Unit) {
-                    kotlinx.coroutines.delay(1500)
-                    copied = false
-                }
-            }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(colors.codeBg),
-            ) {
-                // Header row: language label + copy button
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 12.dp, end = 8.dp, top = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = block.language.ifEmpty { "code" },
-                        fontSize = 11.sp,
-                        color = MdCodeLangColor,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(
-                        imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
-                        contentDescription = if (copied) "Copied" else "Copy code",
-                        tint = if (copied) Color(0xFF34C759) else Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clickable {
-                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(block.code))
-                                copied = true
-                            },
-                    )
-                }
-                // iOS parity (SelectableMarkdownView.swift L971): cap visual
-                // code-block height at ~400 pt and let an internal scroll
-                // view handle overflow vertically, so a 200-line dump
-                // doesn't push the rest of the message off the bottom of
-                // the chat. Nest scrolls: inner Row owns horizontal scroll
-                // (long lines), outer Box owns vertical scroll + height
-                // cap (long blocks). Compose disallows two scroll modifiers
-                // on the same node, hence the nesting.
-                val vScroll = rememberScrollState()
-                val hScroll = rememberScrollState()
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 400.dp)
-                        .verticalScroll(vScroll)
-                        .padding(bottom = 8.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .horizontalScroll(hScroll)
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                    ) {
-                        Text(
-                            text = block.code,
-                            fontSize = BaseFontSize * 0.85f,
-                            fontFamily = FontFamily.Monospace,
-                            color = colors.codeText,
-                            lineHeight = BaseLineHeight * 0.9f,
-                        )
-                    }
-                }
-            }
+            StreamingCodeBlockView(
+                language = block.language,
+                code = block.code,
+                colors = colors,
+            )
         }
 
         is MdBlock.BlockQuote -> {
@@ -3697,4 +3642,213 @@ private fun isTablePipeArtifact(content: String): Boolean {
     }
     return bareCount % 2 == 1
 }
+
+@Composable
+private fun StreamingCodeBlockView(
+    language: String,
+    code: String,
+    colors: MdColors,
+) {
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
+    var copied by remember { mutableStateOf(false) }
+    if (copied) {
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(1500)
+            copied = false
+        }
+    }
+
+    val lineCount = remember(code) { code.count { it == '\n' } + 1 }
+    val isLongCode = lineCount > 12
+    val isStreaming = LocalIsStreaming.current || LocalLiveIncremental.current
+    var isManuallyExpanded by remember(code) { mutableStateOf(false) }
+    val isExpanded = isStreaming || !isLongCode || isManuallyExpanded
+
+    val displayCode = remember(code, isExpanded) {
+        if (isExpanded) {
+            code
+        } else {
+            code.lineSequence().take(5).joinToString("\n")
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(colors.codeBg),
+    ) {
+        // Header row: language label (+ lines badge) + collapse button + copy button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val langLabel = buildString {
+                append(language.ifEmpty { "code" })
+                if (isLongCode) {
+                    append(" • $lineCount 行")
+                }
+            }
+            Text(
+                text = langLabel,
+                fontSize = 11.sp,
+                color = MdCodeLangColor,
+                modifier = Modifier.weight(1f),
+            )
+
+            if (isLongCode && isExpanded && !isStreaming) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { isManuallyExpanded = false }
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = stringResource(R.string.nm_code_collapse),
+                        tint = MdCodeLangColor,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.nm_code_collapse),
+                        fontSize = 11.sp,
+                        color = MdCodeLangColor,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+            }
+
+            Icon(
+                imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                contentDescription = if (copied) "Copied" else "Copy code",
+                tint = if (copied) Color(0xFF34C759) else Color.White.copy(alpha = 0.4f),
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable {
+                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(code))
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        copied = true
+                    },
+            )
+        }
+
+        // Code content with viewport folding
+        val vScroll = rememberScrollState()
+        val hScroll = rememberScrollState()
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (isExpanded) {
+                            Modifier
+                                .heightIn(max = 420.dp)
+                                .verticalScroll(vScroll)
+                                .padding(bottom = 8.dp)
+                        } else {
+                            Modifier.padding(bottom = 36.dp)
+                        }
+                    ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .horizontalScroll(hScroll)
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = displayCode,
+                        fontSize = BaseFontSize * 0.85f,
+                        fontFamily = FontFamily.Monospace,
+                        color = colors.codeText,
+                        lineHeight = BaseLineHeight * 0.9f,
+                    )
+                }
+            }
+
+            // Folded state gradient mask & expand button
+            if (!isExpanded) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    colors.codeBg.copy(alpha = 0f),
+                                    colors.codeBg.copy(alpha = 0.85f),
+                                    colors.codeBg,
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(bottom = 6.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.1f))
+                            .clickable { isManuallyExpanded = true }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MdCodeLangColor,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.nm_code_expand_all, lineCount),
+                            fontSize = 11.sp,
+                            color = MdCodeLangColor,
+                        )
+                    }
+                }
+            }
+        }
+
+        // Bottom collapse hint if expanded and long
+        if (isLongCode && isExpanded && !isStreaming) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .clickable { isManuallyExpanded = false }
+                        .padding(horizontal = 10.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = MdCodeLangColor,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.nm_code_collapse),
+                        fontSize = 11.sp,
+                        color = MdCodeLangColor,
+                    )
+                }
+            }
+        }
+    }
+}
+
 

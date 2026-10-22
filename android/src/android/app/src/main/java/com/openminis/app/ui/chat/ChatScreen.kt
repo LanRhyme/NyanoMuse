@@ -645,6 +645,18 @@ fun ChatScreen(
             nmStarNudge = ask
         }
     }
+    // nanoMuse: companion proactive foreground greeting when entering main chat after cooldown (>30m)
+    if (isMainChat) {
+        LaunchedEffect(sessionId) {
+            kotlinx.coroutines.delay(1200)
+            if (viewModel.isStreaming.value) return@LaunchedEffect
+            val canGreet = io.github.nanomuse.companion.CompanionPrefs.canTriggerForegroundGreeting(context)
+            if (canGreet) {
+                io.github.nanomuse.companion.CompanionPrefs.recordForegroundGreeting(context)
+                io.github.nanomuse.companion.CompanionWake.dispatchForegroundGreeting(context, sessionId)
+            }
+        }
+    }
     // [T-android-compact-progress] null when no compaction is running.
     val compactProgress by viewModel.compactProgress.collectAsState()
     val error by viewModel.error.collectAsState()

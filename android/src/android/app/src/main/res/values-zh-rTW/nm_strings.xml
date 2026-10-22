@@ -1210,4 +1210,9 @@
     <string name="nm_companion_reset_affection">重置親密度</string>
     <string name="nm_companion_reset_affection_confirm">確定將伴侶親密好感度重置回初始值嗎？</string>
     <string name="nm_companion_probe_title">伴侶心境探針</string>
+    <string name="nm_code_expand_all">展開全部 (%1$d 行)</string>
+    <string name="nm_code_collapse">收起</string>
+    <string name="nm_feed_while_away">在你離開期間</string>
+    <string name="nm_feed_sync_from_computer">從電腦同步動態</string>
+    <string name="nm_feed_syncing">正在同步動態…</string>
 </resources>
