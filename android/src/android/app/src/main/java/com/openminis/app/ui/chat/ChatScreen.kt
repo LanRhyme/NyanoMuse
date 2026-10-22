@@ -2684,6 +2684,7 @@ fun ChatScreen(
                         ),
                     ),
             ) {
+            val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
             TopAppBar(
                 title = {
                     // Centered layout for side chats or non-home shell; main chat has overlay avatar
@@ -3057,59 +3058,29 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(end = if (nmHome != null) 12.dp else 4.dp),
                     ) {
-                        val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
-                        val deepSeekText = deepSeekStatus.displayText
-                        if (deepSeekText != null) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
-                                    .clickable {
-                                        viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
-                                        showTokenUsageSheet = true
-                                    }
-                                    .padding(horizontal = 7.dp, vertical = 2.dp),
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(5.dp)
-                                        .background(Color(0xFF007AFF), CircleShape),
-                                )
-                                Text(
-                                    text = deepSeekText,
-                                    fontSize = 10.sp,
-                                    lineHeight = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = ChatColors.primaryText.copy(alpha = 0.85f),
-                                    maxLines = 1,
-                                    style = noFontPad,
-                                )
-                            }
-                        }
                         // iOS: "..." circle button → dropdown menu
                         Box {
-                        // nanoMuse: Muse's round "•••" when hosted in the home shell.
-                        if (nmHome != null) {
-                            io.github.nanomuse.ui.home.MuseRoundButton(
-                                icon = Icons.Filled.MoreHoriz,
-                                contentDescription = stringResource(R.string.nm_more),
-                                onClick = { showChatMenu = true },
-                                modifier = Modifier.padding(end = 12.dp),
-                            )
-                        } else
-                        IconButton(onClick = { showChatMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More")
-                        }
-                        MinisMenu(
-                            expanded = showChatMenu,
-                            onDismissRequest = { showChatMenu = false },
-                        ) {
+                            // nanoMuse: Muse's round "•••" when hosted in the home shell.
+                            if (nmHome != null) {
+                                io.github.nanomuse.ui.home.MuseRoundButton(
+                                    icon = Icons.Filled.MoreHoriz,
+                                    contentDescription = stringResource(R.string.nm_more),
+                                    onClick = { showChatMenu = true },
+                                )
+                            } else {
+                                IconButton(onClick = { showChatMenu = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                }
+                            }
+                            MinisMenu(
+                                expanded = showChatMenu,
+                                onDismissRequest = { showChatMenu = false },
+                            ) {
                             // [T-android-memory-enabled-minisconfig] Gate the
                             // "Memories in Session" item below on the session's
                             // live memoryEnabled — when memory is off the entry
@@ -3394,6 +3365,37 @@ fun ChatScreen(
                             }
                         }
                     }
+                    val deepSeekText = deepSeekStatus.displayText
+                    if (deepSeekText != null) {
+                        Spacer(Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
+                                .clickable {
+                                    viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
+                                    showTokenUsageSheet = true
+                                }
+                                .padding(horizontal = 7.dp, vertical = 2.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .background(Color(0xFF007AFF), CircleShape),
+                            )
+                            Text(
+                                text = deepSeekText,
+                                fontSize = 10.sp,
+                                lineHeight = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = ChatColors.primaryText.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                style = noFontPad,
+                            )
+                        }
+                    }
                 }
             },
                 windowInsets = WindowInsets.statusBars,
@@ -3407,12 +3409,12 @@ fun ChatScreen(
                 // the avatar disc plus mood status below without clipping. Side chats and hidden
                 // avatar keep the compact title bar.
                 expandedHeight = when {
-                    nmHome == null -> 52.dp
+                    nmHome == null -> if (deepSeekStatus.displayText != null) 64.dp else 52.dp
                     isMainChat && nmAvatarSize.shown -> {
                         val avatarDp = nmAvatarSize.disc ?: 56.dp
                         (avatarDp + 36.dp).coerceAtLeast(76.dp)
                     }
-                    else -> if (nmHideModelRows) 50.dp else 64.dp
+                    else -> if (nmHideModelRows) (if (deepSeekStatus.displayText != null) 64.dp else 50.dp) else 64.dp
                 },
             )
 
@@ -4501,59 +4503,73 @@ fun ChatScreen(
                                     SideEffect {
                                         selectionController.rememberMessageMarkdown(item.messageId, item.messageMarkdown)
                                     }
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        if (item.leadingThinking != null) {
-                                            val effectiveThinking = item.messageThinkingLevel ?: viewModel.thinkingLevel.value
-                                            if (effectiveThinking.isEnabled) {
-                                                ThinkingBlock(
-                                                    block = item.leadingThinking,
-                                                    isStreaming = false,
-                                                    isLast = false,
-                                                )
+                                    val isClusterTail = item.clusterIndex == item.clusterSize - 1
+                                    val timeStr = remember(item.createdAt) {
+                                        io.github.nanomuse.chat.BubbleTimeFormatter.formatBubbleTime(item.createdAt)
+                                    }
+                                    val showTimestamp = isClusterTail && !item.isStreaming && timeStr.isNotEmpty()
+                                    val isSingleLineCandidate = !cleanText.contains('\n') &&
+                                        item.leadingThinking == null &&
+                                        questionData == null &&
+                                        !item.isStreaming &&
+                                        cleanText.isNotEmpty()
+
+                                    io.github.nanomuse.ui.chat.ChatBubbleAdaptiveLayout(
+                                        isSingleLineCandidate = isSingleLineCandidate,
+                                        gap = 8.dp,
+                                        bottomSpacing = 2.dp,
+                                        content = {
+                                            Column {
+                                                if (item.leadingThinking != null) {
+                                                    val effectiveThinking = item.messageThinkingLevel ?: viewModel.thinkingLevel.value
+                                                    if (effectiveThinking.isEnabled) {
+                                                        ThinkingBlock(
+                                                            block = item.leadingThinking,
+                                                            isStreaming = false,
+                                                            isLast = false,
+                                                        )
+                                                        if (cleanText.isNotEmpty()) {
+                                                            Spacer(Modifier.height(8.dp))
+                                                        }
+                                                    }
+                                                }
                                                 if (cleanText.isNotEmpty()) {
-                                                    Spacer(Modifier.height(8.dp))
+                                                    MarkdownBlock(
+                                                        rawText = cleanText,
+                                                        isStreaming = item.isStreaming,
+                                                        shardId = TextShardId(
+                                                            messageId = item.messageId,
+                                                            shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}:${item.segmentIndex}",
+                                                        ),
+                                                    )
+                                                } else if (item.isStreaming) {
+                                                    BouncingDots(color = ChatColors.secondaryText)
+                                                }
+                                                if (questionData != null) {
+                                                    if (cleanText.isNotEmpty()) {
+                                                        Spacer(Modifier.height(10.dp))
+                                                    }
+                                                    io.github.nanomuse.ui.chat.InteractiveQuestionCard(
+                                                        data = questionData,
+                                                        selectedAnswer = item.selectedAnswer,
+                                                        onOptionSelected = { option ->
+                                                            viewModel.sendMessage(option)
+                                                        },
+                                                    )
                                                 }
                                             }
-                                        }
-                                        if (cleanText.isNotEmpty()) {
-                                            MarkdownBlock(
-                                                rawText = cleanText,
-                                                isStreaming = item.isStreaming,
-                                                shardId = TextShardId(
-                                                    messageId = item.messageId,
-                                                    shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}:${item.segmentIndex}",
-                                                ),
-                                            )
-                                        } else if (item.isStreaming) {
-                                            BouncingDots(color = ChatColors.secondaryText)
-                                        }
-                                        if (questionData != null) {
-                                            if (cleanText.isNotEmpty()) {
-                                                Spacer(Modifier.height(10.dp))
+                                        },
+                                        timestamp = {
+                                            if (showTimestamp) {
+                                                Text(
+                                                    text = timeStr,
+                                                    color = ChatColors.tertiaryText,
+                                                    fontSize = 11.sp,
+                                                    lineHeight = 12.sp,
+                                                )
                                             }
-                                            io.github.nanomuse.ui.chat.InteractiveQuestionCard(
-                                                data = questionData,
-                                                selectedAnswer = item.selectedAnswer,
-                                                onOptionSelected = { option ->
-                                                    viewModel.sendMessage(option)
-                                                },
-                                            )
-                                        }
-                                        val isClusterTail = item.clusterIndex == item.clusterSize - 1
-                                        val timeStr = remember(item.createdAt) {
-                                            io.github.nanomuse.chat.BubbleTimeFormatter.formatBubbleTime(item.createdAt)
-                                        }
-                                        if (isClusterTail && !item.isStreaming && timeStr.isNotEmpty()) {
-                                            Spacer(Modifier.height(2.dp))
-                                            Text(
-                                                text = timeStr,
-                                                color = ChatColors.tertiaryText,
-                                                fontSize = 11.sp,
-                                                lineHeight = 12.sp,
-                                                modifier = Modifier.align(Alignment.End),
-                                            )
-                                        }
-                                    }
+                                        },
+                                    )
                                 }
                             } } // nanoMuse: bubble
                             is FlatChatItem.AssistantThinking -> {
