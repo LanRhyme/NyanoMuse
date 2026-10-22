@@ -375,6 +375,8 @@ internal sealed class FlatChatItem {
         val selectedAnswer: String? = null,
         val leadingThinking: AssistantBlock? = null,
         val messageThinkingLevel: com.openminis.app.data.model.ThinkingLevel? = null,
+        val clusterIndex: Int = 0,
+        val clusterSize: Int = 1,
     ) : FlatChatItem() {
         override val key = "mdblock:$messageId:$parentBlockId:$blockIndex"
         override val contentType = "mdblock"
@@ -386,6 +388,8 @@ internal sealed class FlatChatItem {
             return messageId == other.messageId &&
                 parentBlockId == other.parentBlockId &&
                 blockIndex == other.blockIndex &&
+                clusterIndex == other.clusterIndex &&
+                clusterSize == other.clusterSize &&
                 isLastBlockOfMessage == other.isLastBlockOfMessage &&
                 messageIsStreaming == other.messageIsStreaming &&
                 rawText.length == other.rawText.length &&
@@ -398,6 +402,8 @@ internal sealed class FlatChatItem {
             var h = messageId.hashCode()
             h = h * 31 + parentBlockId.hashCode()
             h = h * 31 + blockIndex
+            h = h * 31 + clusterIndex
+            h = h * 31 + clusterSize
             h = h * 31 + isLastBlockOfMessage.hashCode()
             h = h * 31 + messageIsStreaming.hashCode()
             h = h * 31 + rawText.length
@@ -615,6 +621,8 @@ internal fun buildFlatChatItems(
                 selectedAnswer = item.selectedAnswer,
                 leadingThinking = item.leadingThinking,
                 messageThinkingLevel = item.messageThinkingLevel,
+                clusterIndex = item.clusterIndex,
+                clusterSize = item.clusterSize,
             )
             is FlatChatItem.AssistantThinking -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantToolGroup -> item.copy(messageId = "${item.messageId}#$n")
@@ -761,21 +769,37 @@ internal fun buildFlatChatItems(
                         } else null
                         val leading = pendingLeadingThinking
                         pendingLeadingThinking = null
-                        // nanoMuse: keep each assistant text block in a single markdown
-                        // bubble (matching iOS) so lists, headings, paragraphs, and code
-                        // blocks from one turn stay together inside one bubble.
-                        out.add(dedupe(FlatChatItem.AssistantMarkdownBlock(
-                            messageId = message.id,
-                            parentBlockId = block.id,
-                            rawText = block.content,
-                            blockIndex = 0,
-                            isLastBlockOfMessage = isLastText,
-                            messageIsStreaming = message.isStreaming && isLastText,
-                            messageMarkdown = joinedMarkdown,
-                            selectedAnswer = nextUserText?.takeIf { it.isNotBlank() },
-                            leadingThinking = leading,
-                            messageThinkingLevel = message.thinkingLevel,
-                        )))
+                        // nanoMuse: support multi-bubble messaging delimiter <nm:bubble/>
+                        val segments = if (block.content.contains("<nm:bubble/>")) {
+                            val raw = block.content.split("<nm:bubble/>")
+                            val capped = if (raw.size > 3) {
+                                listOf(raw[0], raw[1], raw.drop(2).joinToString("\n\n"))
+                            } else raw
+                            val filtered = capped.filterIndexed { i, s ->
+                                s.isNotBlank() || (i == capped.lastIndex && message.isStreaming && isLastText)
+                            }
+                            if (filtered.isEmpty()) listOf(block.content) else filtered
+                        } else {
+                            listOf(block.content)
+                        }
+
+                        segments.forEachIndexed { segIdx, segText ->
+                            val isLastSeg = segIdx == segments.lastIndex
+                            out.add(dedupe(FlatChatItem.AssistantMarkdownBlock(
+                                messageId = message.id,
+                                parentBlockId = block.id,
+                                rawText = segText,
+                                blockIndex = segIdx,
+                                isLastBlockOfMessage = isLastText && isLastSeg,
+                                messageIsStreaming = message.isStreaming && isLastText && isLastSeg,
+                                messageMarkdown = joinedMarkdown,
+                                selectedAnswer = if (isLastSeg) nextUserText?.takeIf { it.isNotBlank() } else null,
+                                leadingThinking = if (segIdx == 0) leading else null,
+                                messageThinkingLevel = message.thinkingLevel,
+                                clusterIndex = segIdx,
+                                clusterSize = segments.size,
+                            )))
+                        }
                     }
                 }
                 "thinking" -> {

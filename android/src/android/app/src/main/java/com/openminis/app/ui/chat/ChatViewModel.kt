@@ -8528,6 +8528,7 @@ class ChatViewModel(
             // block opens (which happens after a tool_use / thinking break
             // interrupts the text run).
             val turnTextSb = StringBuilder()
+            var bubblesSeenInTurn = 0
             var currentTextBlockSb: StringBuilder? = null
             // [T-android-tool-splits-reply-fix] Index (into allToolBlocks) of
             // THIS turn's single text block, used only when the provider's
@@ -8800,8 +8801,13 @@ class ChatViewModel(
                         val unflushed = len - lastFlushedLen
                         val throttle = textDeltaThrottleMs(len)
                         val newlineFlush = len < 5_000 && chunk.text.contains('\n') && unflushed >= 50
+                        val currentBubbleCount = "<nm:bubble/>".toRegex().findAll(turnTextSb).count()
+                        val hasNewBubble = currentBubbleCount > bubblesSeenInTurn && io.github.nanomuse.home.MainChat.isMain(context, activeSessionId)
+                        if (hasNewBubble) {
+                            bubblesSeenInTurn = currentBubbleCount
+                        }
                         val nowMs = System.currentTimeMillis()
-                        if (nowMs - lastUiUpdateMs >= throttle || newlineFlush) {
+                        if (nowMs - lastUiUpdateMs >= throttle || newlineFlush || hasNewBubble) {
                             lastUiUpdateMs = nowMs
                             lastFlushedLen = len
                             pendingChunkSb.setLength(0)
@@ -8814,6 +8820,9 @@ class ChatViewModel(
                             val turnSnap = turnTextSb.toString()
                             withContext(Dispatchers.Main) {
                                 updateAssistantMessage(assistantId, accumulatedText + turnSnap, true, allToolBlocks)
+                            }
+                            if (hasNewBubble) {
+                                kotlinx.coroutines.delay(450L)
                             }
                         }
                     }
@@ -11291,6 +11300,16 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         } else {
             null
         }
+        val bubbleFlowAddendum = if (io.github.nanomuse.home.MainChat.isMain(context, sessionKey)) {
+            """
+            [Messaging Flow Format]
+            - When engaging in informal chat, greetings, emotional resonance, or quick casual replies, you may separate consecutive thought bursts using `<nm:bubble/>` to send 2-3 short messages (1-2 sentences each), mimicking natural mobile chat messaging
+            - In technical explanations, tutorials, analysis, task planning, or code blocks, do NOT use `<nm:bubble/>`; write continuous structured text
+            - Maximum 2 `<nm:bubble/>` delimiters per turn (up to 3 consecutive bubbles total)
+            """.trimIndent()
+        } else {
+            null
+        }
         return io.github.nanomuse.chat.PromptCacheLayout.build(
             stableSections = listOf(
                 base,
@@ -11302,6 +11321,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                 mcpFragment,
                 namingAddendum,
                 emotionAddendum,
+                bubbleFlowAddendum,
                 io.github.nanomuse.media.MediaModels.promptParagraph(context),
                 io.github.nanomuse.reach.Computers.promptParagraph(context),
                 io.github.nanomuse.chat.SessionAddenda.forPrompt(sessionKey),

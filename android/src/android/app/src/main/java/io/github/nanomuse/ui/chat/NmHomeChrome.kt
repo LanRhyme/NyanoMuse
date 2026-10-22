@@ -89,6 +89,8 @@ fun rememberShowSteps(): State<Boolean> {
 fun NmAssistantBubble(
     enabled: Boolean,
     rawText: String,
+    clusterIndex: Int = 0,
+    clusterSize: Int = 1,
     content: @Composable () -> Unit,
 ) {
     val bare = !enabled || isBareBlock(rawText)
@@ -96,10 +98,27 @@ fun NmAssistantBubble(
         content()
         return
     }
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), contentAlignment = Alignment.TopStart) {
+    val topPad = if (clusterSize > 1 && clusterIndex > 0) 2.dp else 2.dp
+    val bottomPad = if (clusterSize > 1 && clusterIndex < clusterSize - 1) 2.dp else 2.dp
+    val bubbleShape = if (clusterSize > 1) {
+        when {
+            clusterIndex == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 4.dp)
+            clusterIndex == clusterSize - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
+            else -> RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 4.dp)
+        }
+    } else {
+        RoundedCornerShape(20.dp)
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = topPad, bottom = bottomPad),
+        contentAlignment = Alignment.TopStart
+    ) {
         val maxBubbleWidth = minOf(760.dp, this.maxWidth * 0.88f)
         androidx.compose.material3.Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = bubbleShape,
             color = ChatColors.assistantBubble,
             contentColor = ChatColors.primaryText,
             modifier = Modifier.widthIn(max = maxBubbleWidth),

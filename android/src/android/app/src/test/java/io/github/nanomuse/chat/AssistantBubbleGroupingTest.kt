@@ -156,4 +156,112 @@ class AssistantBubbleGroupingTest {
         assertFalse(isBareBlock("| a | b |\n|---|---|\n| 1 | 2 |"))
         assertFalse(isBareBlock("Hello\n\n```nanomuse-goal\n{\"title\":\"Read\"}\n```"))
     }
+
+    @Test
+    fun `delimiter splits assistant text into clustered bubbles`() {
+        val raw = "Hello!<nm:bubble/>How can I help you today?"
+        val msg = ChatMessage(
+            id = "a-multi",
+            role = "assistant",
+            content = raw,
+            isStreaming = false,
+            toolBlocks = listOf(
+                AssistantBlock(id = "b-multi", kind = "text", content = raw),
+            ),
+        )
+
+        val items = buildFlatChatItems(listOf(msg))
+        val mdBlocks = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>()
+        assertEquals(2, mdBlocks.size)
+
+        assertEquals("Hello!", mdBlocks[0].rawText)
+        assertEquals(0, mdBlocks[0].clusterIndex)
+        assertEquals(2, mdBlocks[0].clusterSize)
+        assertEquals(0, mdBlocks[0].blockIndex)
+        assertFalse(mdBlocks[0].isLastBlockOfMessage)
+
+        assertEquals("How can I help you today?", mdBlocks[1].rawText)
+        assertEquals(1, mdBlocks[1].clusterIndex)
+        assertEquals(2, mdBlocks[1].clusterSize)
+        assertEquals(1, mdBlocks[1].blockIndex)
+        assertTrue(mdBlocks[1].isLastBlockOfMessage)
+    }
+
+    @Test
+    fun `delimiter caps bubbles to maximum 3`() {
+        val raw = "Bubble 1<nm:bubble/>Bubble 2<nm:bubble/>Bubble 3<nm:bubble/>Bubble 4"
+        val msg = ChatMessage(
+            id = "a-cap",
+            role = "assistant",
+            content = raw,
+            isStreaming = false,
+            toolBlocks = listOf(
+                AssistantBlock(id = "b-cap", kind = "text", content = raw),
+            ),
+        )
+
+        val items = buildFlatChatItems(listOf(msg))
+        val mdBlocks = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>()
+        assertEquals(3, mdBlocks.size)
+        assertEquals("Bubble 1", mdBlocks[0].rawText)
+        assertEquals(0, mdBlocks[0].clusterIndex)
+        assertEquals(3, mdBlocks[0].clusterSize)
+
+        assertEquals("Bubble 2", mdBlocks[1].rawText)
+        assertEquals(1, mdBlocks[1].clusterIndex)
+        assertEquals(3, mdBlocks[1].clusterSize)
+
+        assertEquals("Bubble 3\n\nBubble 4", mdBlocks[2].rawText)
+        assertEquals(2, mdBlocks[2].clusterIndex)
+        assertEquals(3, mdBlocks[2].clusterSize)
+        assertTrue(mdBlocks[2].isLastBlockOfMessage)
+    }
+
+    @Test
+    fun `streaming tail preserves trailing empty bubble`() {
+        val raw = "Thinking out loud...<nm:bubble/>"
+        val msg = ChatMessage(
+            id = "a-stream-tail",
+            role = "assistant",
+            content = raw,
+            isStreaming = true,
+            toolBlocks = listOf(
+                AssistantBlock(id = "b-stream-tail", kind = "text", content = raw),
+            ),
+        )
+
+        val items = buildFlatChatItems(listOf(msg))
+        val mdBlocks = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>()
+        assertEquals(2, mdBlocks.size)
+        assertEquals("Thinking out loud...", mdBlocks[0].rawText)
+        assertEquals(0, mdBlocks[0].clusterIndex)
+        assertFalse(mdBlocks[0].isStreaming)
+
+        assertEquals("", mdBlocks[1].rawText)
+        assertEquals(1, mdBlocks[1].clusterIndex)
+        assertTrue(mdBlocks[1].isStreaming)
+        assertTrue(mdBlocks[1].isLastBlockOfMessage)
+    }
+
+    @Test
+    fun `thinking with delimiter assigns leadingThinking only to the first bubble`() {
+        val think = "Reasoning..."
+        val raw = "Part 1<nm:bubble/>Part 2"
+        val msg = ChatMessage(
+            id = "a-think-multi",
+            role = "assistant",
+            content = raw,
+            isStreaming = false,
+            toolBlocks = listOf(
+                AssistantBlock(id = "th-m", kind = "thinking", content = think),
+                AssistantBlock(id = "tx-m", kind = "text", content = raw),
+            ),
+        )
+
+        val items = buildFlatChatItems(listOf(msg))
+        val mdBlocks = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>()
+        assertEquals(2, mdBlocks.size)
+        assertEquals("th-m", mdBlocks[0].leadingThinking?.id)
+        assertEquals(null, mdBlocks[1].leadingThinking)
+    }
 }

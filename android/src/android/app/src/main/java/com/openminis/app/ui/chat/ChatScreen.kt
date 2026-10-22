@@ -4484,7 +4484,12 @@ fun ChatScreen(
                                 messageId = item.messageId,
                                 slotKey = "mdblock:${item.parentBlockId}:${item.blockIndex}",
                                 markdown = item.messageMarkdown,
-                            ) { io.github.nanomuse.ui.chat.NmAssistantBubble(enabled = nmHome != null, rawText = item.rawText) {
+                            ) { io.github.nanomuse.ui.chat.NmAssistantBubble(
+                                enabled = nmHome != null,
+                                rawText = item.rawText,
+                                clusterIndex = item.clusterIndex,
+                                clusterSize = item.clusterSize,
+                            ) {
                                 val (cleanText, questionData) = remember(item.rawText) {
                                     io.github.nanomuse.ui.chat.QuestionCardParser.extractQuestion(item.rawText)
                                 }
@@ -4519,6 +4524,8 @@ fun ChatScreen(
                                                     shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}",
                                                 ),
                                             )
+                                        } else if (item.isStreaming) {
+                                            BouncingDots(color = ChatColors.secondaryText)
                                         }
                                         if (questionData != null) {
                                             if (cleanText.isNotEmpty()) {
