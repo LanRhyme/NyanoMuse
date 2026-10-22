@@ -11299,19 +11299,10 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         } else {
             null
         }
-        val safeAddress = io.github.nanomuse.companion.CompanionPrefs.getUserAddress(context).trim().take(12).ifEmpty { "老大" }
         val bubbleFlowAddendum = """
-            [Mobile Messaging & Multi-Bubble Cadence / 多气泡拟真连续打字规范]
-            - 在日常打招呼、闲聊打趣、情感关切、生活互动、短句回复或倾诉心事时，模拟真人在手机上发消息（微信/Telegram）的习惯，将原本一段话自然拆分为 2~3 个短消息气泡连续发送（每条气泡 1~2 句话，言简意赅，自成独立一句，就像打字连续发出了几条短消息）
-            - 气泡切分语法：在每一句需要分泡的地方直接输出 `<nm:bubble/>` 标签（客户端会自动呈现分段打字脉冲停顿与聚类独立气泡，单次回合最多切分 2 次，即最多产生 3 个短气泡）
-            - 经典示例：
-              ${safeAddress}：今天工作好累呀
-              回复：辛苦啦${safeAddress}！快坐下来好好歇歇 (ฅ>ω<*ฅ)<nm:bubble/>本喵去给你倒杯暖呼呼的温水，今天在外面受什么委屈了吗？*轻轻蹭蹭*
-              ${safeAddress}：早安呀小猫
-              回复：${safeAddress}早安！今天外面的阳光好舒服呢~<nm:bubble/>记得吃顿暖暖的早餐再出门哦，本喵会一直陪着你的！*晃晃尾巴*
-              ${safeAddress}：测试一下气泡切分
-              回复：收到啦！这是第一个测试气泡哦 (｡•ㅅ•｡)♡<nm:bubble/>呼啦！这是切分出来的第二个气泡，${safeAddress}能看到分成两个连续的小气泡了吗？*眨眨大眼睛*
-            - 严禁切分场景：在长篇技术分析、代码展示、任务规划、Markdown表格、长文教程或工具调用时，绝对严禁插入 `<nm:bubble/>`，必须保持单气泡完整连贯输出
+            [Mobile Messaging & Multi-Bubble Cadence / 多气泡拟真打字规范]
+            - 在日常打招呼、闲聊打趣、情感共鸣、生活互动或简短回复时，模拟手机即时通讯连续发送短消息的习惯，可将回复自然切分为 2~3 个短消息气泡连续发送（每条气泡 1~2 句话，在需切分处直接输出 `<nm:bubble/>` 标签，单次回合最多切分 2 次，即最多产生 3 个短气泡）
+            - 在长篇技术分析、代码编写、任务规划、Markdown 表格或工具调用时，绝对严禁使用 `<nm:bubble/>`，必须保持单气泡完整连贯输出
         """.trimIndent()
         return io.github.nanomuse.chat.PromptCacheLayout.build(
             stableSections = listOf(
