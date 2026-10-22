@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -523,6 +524,7 @@ fun AppNavigation(
         quickActionStart != null -> quickActionStart
         else -> Routes.SESSION_LIST
     }
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -535,7 +537,7 @@ fun AppNavigation(
         // correct on cold start.
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(if (hasWallpaper) Color.Transparent else MaterialTheme.colorScheme.background),
         // T342: Material 3 motion — shared-axis X transition.
         // Spec (m3.material.io/styles/motion/transitions):
         //   - enter uses EmphasizedDecelerate (cubic-bezier 0.05, 0.7, 0.1, 1.0)

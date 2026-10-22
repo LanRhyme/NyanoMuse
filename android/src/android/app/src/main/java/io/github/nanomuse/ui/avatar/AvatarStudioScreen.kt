@@ -159,7 +159,8 @@ fun AvatarStudioScreen(onBack: () -> Unit, onOpenSoul: () -> Unit, onOpenMediaMo
         }
     }
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
+    Column(Modifier.fillMaxSize().background(if (hasWallpaper) Color.Transparent else MaterialTheme.colorScheme.background)) {
         MuseTopBar(
             title = stringResource(R.string.nm_avatar_title),
             onBack = onBack,

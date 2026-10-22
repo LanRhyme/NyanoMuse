@@ -112,7 +112,8 @@ fun AgentProfileScreen(
     val ownClip by io.github.nanomuse.avatar.OwnClip.current.collectAsState()
     val clipChooser = rememberOwnClipChooser()
 
-    Scaffold(containerColor = MuseTones.canvas) { padding ->
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
+    Scaffold(containerColor = if (hasWallpaper) Color.Transparent else MuseTones.canvas) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

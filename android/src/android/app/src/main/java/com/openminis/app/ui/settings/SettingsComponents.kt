@@ -117,7 +117,7 @@ fun SettingsScaffold(
             )
         },
         floatingActionButton = { floatingActionButton?.invoke() },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = if (com.openminis.app.ui.theme.LocalHasAppWallpaper.current) Color.Transparent else MaterialTheme.colorScheme.background,
     ) { padding ->
         // T183: imePadding() shrinks the scroll container by the IME's
         // height while the keyboard is up, giving Modifier.bringIntoView()
