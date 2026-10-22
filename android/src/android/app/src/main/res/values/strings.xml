@@ -1897,6 +1897,8 @@
     <string name="debug_trigger_crash_menu">Trigger crash (Debug)</string>
     <!-- [T-android-larky-longsession-followup] Tappable header at the top of the chat list, shown only when more older messages exist behind the windowed slice. -->
     <string name="chat_load_older_messages">↑ Load older messages</string>
+    <string name="chat_loading_older_messages">Loading older messages…</string>
+    <string name="chat_all_messages_loaded">All messages loaded</string>
     <!-- [T-error-persist-android] Shown when the model returns an empty reply (no text, no tools). -->
     <string name="error_empty_response_generic">Model returned an empty response. Please try again or switch models.</string>
     <string name="error_empty_response_context_large">The model returned an empty response. The conversation context may be too large — try compacting or starting a new session.</string>

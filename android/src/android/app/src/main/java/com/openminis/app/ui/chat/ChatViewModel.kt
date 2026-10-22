@@ -423,16 +423,16 @@ class ChatViewModel(
         private const val NEWLINE_FLUSH_MAX_LEN = 5_000
         // [T-android-larky-longsession-followup] see uiMessages / hasOlderMessages.
         /** Tail window size used by [uiMessages] when a session exceeds it. */
-        const val INITIAL_VISIBLE_MESSAGE_CAP: Int = 200
+        const val INITIAL_VISIBLE_MESSAGE_CAP: Int = 60
         /** Each "load older" tap grows the cap by this many messages. */
-        const val VISIBLE_MESSAGE_CAP_STEP: Int = 100
+        const val VISIBLE_MESSAGE_CAP_STEP: Int = 40
         /**
          * Sessions with this many or fewer messages bypass the windowing
          * machinery entirely — the derived `uiMessages` returns the same
          * list reference as `messages`, so Compose sees identity-equal
          * snapshots and the existing flat/stream pipeline is untouched.
          */
-        const val LONG_SESSION_THRESHOLD: Int = 300
+        const val LONG_SESSION_THRESHOLD: Int = 60
         // T258: tool block statuses with no committed tool_result. retryLast()
         // drops blocks in any of these states because they would orphan the
         // assistant tool_use entry on retry (the API rejects unmatched
@@ -574,6 +574,7 @@ class ChatViewModel(
     //
     // Reset on session load (different sessionId) is wired in loadSession.
 
+    private var _initialSessionMessageCount: Int = -1
     private val _visibleMessageCap = MutableStateFlow(INITIAL_VISIBLE_MESSAGE_CAP)
     /**
      * Current tail cap. Reflective via [uiMessages]; bump with
@@ -604,45 +605,19 @@ class ChatViewModel(
             // the bridge into _messages. Only allocate a new list when a bridge
             // is actually present, keeping the identity-equal fast path intact.
             val full = if (raw.any { it.isInternalBridge }) raw.filterNot { it.isInternalBridge } else raw
-            if (full.size <= LONG_SESSION_THRESHOLD || full.size <= cap) full
-            // [T-android-uimessages-sublist-cme] `.toList()` is defensive
-            // hardening, NOT a proven fix for the reported crash. Read the
-            // measured facts before changing it back.
-            //
-            // `subList` returns a live VIEW sharing the parent's modCount, and
-            // emitting it puts that view in Compose state (ChatScreen collects
-            // `uiMessages`). That is a latent hazard worth closing on its own.
-            //
-            // MEASURED, so nobody re-derives it: a SubList only throws
-            // ConcurrentModificationException when its PARENT is structurally
-            // mutated IN PLACE (add/removeAt/clear). Every write here is
-            // `_messages.value = <new list>` via `+` / filterNot / map, and all
-            // of those ALLOCATE A FRESH ArrayList rather than mutating — so the
-            // old view's parent is never touched and no CME results. Verified on
-            // a JVM probe (`base + x`, `filterNot`, `map` all return a new
-            // java.util.ArrayList; comparing a stale window after such a write
-            // returned OK, not CME).
-            //
-            // Also verified end-to-end on device (Pixel 4a, build with this
-            // `.toList()` deliberately REVERTED): create a multi-turn session,
-            // long-press a middle user message → 编辑 → send. `truncateBeforeEdit`
-            // provably ran (8 messages → 4), storing a live SubList as
-            // `_messages.value`, and a further message was sent — NO crash. The
-            // next `+` copies the SubList back into a plain ArrayList, so the
-            // view stops being the state before anything can invalidate it.
-            //
-            // The user's crash (ArrayList$SubList.equals, main thread, realme
-            // RMX5010 / Android 16, 2026-08-10/11/12) therefore still has an
-            // UNIDENTIFIED trigger: something must mutate a subList's parent in
-            // place. That site was not found in ChatViewModel; look next at
-            // ChatFlatItems / ChatScreen and at any long-lived mutableListOf
-            // whose contents reach Compose.
-            //
-            // Keep the copy regardless: the window is a snapshot by definition,
-            // so copying is also the correct semantics. Only long sessions past
-            // the cap allocate; the common path above still returns `raw`
-            // unchanged and stays identity-equal.
-            else full.subList(full.size - cap, full.size).toList()
+            if (full.size <= LONG_SESSION_THRESHOLD) {
+                full
+            } else {
+                val newIncomingCount = if (_initialSessionMessageCount >= 0) {
+                    (full.size - _initialSessionMessageCount).coerceAtLeast(0)
+                } else 0
+                val effectiveCap = cap + newIncomingCount
+                if (full.size <= effectiveCap) full
+                // [T-android-uimessages-sublist-cme] `.toList()` is defensive
+                // hardening, NOT a proven fix for the reported crash. Read the
+                // measured facts before changing it back.
+                else full.subList(full.size - effectiveCap, full.size).toList()
+            }
         }.stateIn(
             viewModelScope,
             kotlinx.coroutines.flow.SharingStarted.Eagerly,
@@ -655,8 +630,17 @@ class ChatViewModel(
      * pill on the LazyColumn.
      */
     val hasOlderMessages: StateFlow<Boolean> =
-        kotlinx.coroutines.flow.combine(_messages, _visibleMessageCap) { full, cap ->
-            full.size > LONG_SESSION_THRESHOLD && full.size > cap
+        kotlinx.coroutines.flow.combine(_messages, _visibleMessageCap) { raw, cap ->
+            val full = if (raw.any { it.isInternalBridge }) raw.filterNot { it.isInternalBridge } else raw
+            if (full.size <= LONG_SESSION_THRESHOLD) {
+                false
+            } else {
+                val newIncomingCount = if (_initialSessionMessageCount >= 0) {
+                    (full.size - _initialSessionMessageCount).coerceAtLeast(0)
+                } else 0
+                val effectiveCap = cap + newIncomingCount
+                full.size > effectiveCap
+            }
         }.stateIn(
             viewModelScope,
             kotlinx.coroutines.flow.SharingStarted.Eagerly,
@@ -4541,6 +4525,7 @@ class ChatViewModel(
             // session's enlarged cap (set via loadOlderMessages), defeating
             // the windowing intent on the first paint of every new session.
             _visibleMessageCap.value = INITIAL_VISIBLE_MESSAGE_CAP
+            _initialSessionMessageCount = ordered.size
             _messages.value = if (marker == null) {
                 ordered
             } else {

@@ -919,6 +919,27 @@ fun ChatScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
+    // Auto-prefetch older messages when user scrolls near the top of the history
+    var isLoadingOlderMessages by remember(sessionId) { mutableStateOf(false) }
+    LaunchedEffect(listState, hasOlderMessages) {
+        if (!hasOlderMessages) return@LaunchedEffect
+        snapshotFlow {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total to lastVisible
+        }.collect { (total, lastVisible) ->
+            if (total > 0 && lastVisible >= total - 8) {
+                if (hasOlderMessages && !isLoadingOlderMessages) {
+                    isLoadingOlderMessages = true
+                    viewModel.loadOlderMessages()
+                    kotlinx.coroutines.delay(200)
+                    isLoadingOlderMessages = false
+                }
+            }
+        }
+    }
+
     var showModelPicker by remember { mutableStateOf(false) }
     // [T-android-modelpicker-stuck-ripple] Interaction source for the navbar
     // model-picker row, owned here so the press can be drained when the picker
@@ -4833,14 +4854,49 @@ fun ChatScreen(
                                     .fillMaxWidth()
                                     .padding(vertical = 12.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .clickable { viewModel.loadOlderMessages() }
-                                    .padding(vertical = 8.dp, horizontal = 12.dp),
+                                    .clickable {
+                                        if (!isLoadingOlderMessages) {
+                                            isLoadingOlderMessages = true
+                                            viewModel.loadOlderMessages()
+                                            coroutineScope.launch {
+                                                kotlinx.coroutines.delay(200)
+                                                isLoadingOlderMessages = false
+                                            }
+                                        }
+                                    }
+                                    .padding(vertical = 6.dp, horizontal = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = ChatColors.secondaryText.copy(alpha = 0.6f),
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.chat_loading_older_messages),
+                                        color = ChatColors.secondaryText.copy(alpha = 0.75f),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            }
+                        }
+                    } else if (messages.size >= com.openminis.app.ui.chat.ChatViewModel.LONG_SESSION_THRESHOLD) {
+                        item(key = "__all_messages_loaded__", contentType = "all_loaded") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 16.dp, bottom = 12.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = stringResource(R.string.chat_load_older_messages),
-                                    color = ChatColors.secondaryText,
+                                    text = stringResource(R.string.chat_all_messages_loaded),
+                                    color = ChatColors.secondaryText.copy(alpha = 0.45f),
                                     style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
                                 )
                             }
                         }

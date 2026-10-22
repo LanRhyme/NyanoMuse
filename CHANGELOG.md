@@ -82,6 +82,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Message list adaptive pagination and silent history preloading.** UI windowing presents latest 60 messages initially and auto-prefetches 40 earlier messages when scrolling near top, maintaining full underlying agent history and database intact while showing micro progress indicator during history load and subtle all-loaded indicator on completion
+
 - **Pure balance capsule display, progressive markdown prewarming, and zero-jank long chat scrolling.** DeepSeek capsule displays pure balance avoiding redundant today spend text while opening Token Usage on tap; message list employs two-tier progressive background prewarming for entire conversation history, O(1) baseline comparison in ChatBubbleAdaptiveLayout eliminating secondary intrinsic measure passes, and throttled cold-parse diagnostics for fluid 120fps scrolling in long conversations
 
 - **Multi-bubble burst pacing and cross-device clustered message flow.** The companion model in Main Chat can split conversational responses into up to three clustered short bubbles using `<nm:bubble/>` with a 450ms typing cadence pause, Telegram-style adaptive corner radii, and synchronized clustered bubble rendering across Android devices and desktop

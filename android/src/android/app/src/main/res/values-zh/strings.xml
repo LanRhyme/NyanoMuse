@@ -1729,6 +1729,8 @@
     <string name="file_print_failed_toast">打印失败：%1$s</string>
     <string name="debug_trigger_crash_menu">触发闪退 (Debug)</string>
     <string name="chat_load_older_messages">↑ 加载更早的消息</string>
+    <string name="chat_loading_older_messages">正在加载更早历史…</string>
+    <string name="chat_all_messages_loaded">已加载全部历史消息</string>
     <string name="error_empty_response_generic">模型返回了空响应。请重试或切换模型。</string>
     <string name="error_empty_response_context_large">模型返回了空响应。会话上下文可能过大 —— 请尝试压缩上下文或开启新会话。</string>
     <string name="error_empty_response_after_tool">在工具结果之后，即使经过提醒，模型仍未返回任何响应。它可能已过载 —— 请重试或切换模型。</string>
