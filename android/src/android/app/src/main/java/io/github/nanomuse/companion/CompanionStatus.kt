@@ -48,8 +48,7 @@ object CompanionStatus {
         }
     }
 
-    fun currentMoodDescription(context: Context): String {
-        val moodState = currentMood(context)
+    fun currentMoodDescription(context: Context, moodState: CompanionEmotion.MoodState): String {
         val address = CompanionPrefs.getUserAddress(context)
         return when (moodState.primaryMood) {
             CompanionEmotion.PrimaryMood.HAPPY -> context.getString(R.string.nm_companion_desc_happy)
@@ -62,6 +61,9 @@ object CompanionStatus {
             CompanionEmotion.PrimaryMood.LONGING -> context.getString(R.string.nm_companion_desc_longing)
         }
     }
+
+    fun currentMoodDescription(context: Context): String =
+        currentMoodDescription(context, currentMood(context))
 
     fun probeDetails(context: Context): String {
         val moodState = currentMood(context)

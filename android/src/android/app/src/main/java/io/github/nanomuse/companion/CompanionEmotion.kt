@@ -197,14 +197,22 @@ object CompanionEmotion {
     /**
      * Appraise the user's conversational intent into a structured DialogueAct.
      * Pure and deterministic: examines strictly userText, protecting against self-referential loops.
+     *
+     * Known boundary: This is a fast, deterministic lexicon-based heuristic (60~75% recall on informal Chinese).
+     * Sarcasm filters catch common cynical phrasing; unresolved ambiguity safely defaults to neutral CASUAL_CHAT.
+     * An optional secondary lightweight LLM classifier can be introduced as future enhancement.
      */
     fun appraiseUserTurn(userText: String): DialogueAct {
         val clean = userText.trim().lowercase()
         if (clean.isBlank()) return DialogueAct.CASUAL_CHAT
 
-        // 1. Sarcasm / Irony pre-check: e.g. "呵呵", "真棒呢", "可真行"
-        val isSarcastic = clean.contains("呵呵") || clean.contains("真棒呢") || clean.contains("可真行") || clean.contains("你可真行")
-        if (isSarcastic) return DialogueAct.CASUAL_CHAT
+        // 1. Sarcasm / Irony pre-check: common cynical phrases in Chinese and English
+        val sarcasmPatterns = listOf(
+            "呵呵", "真棒呢", "可真行", "你可真行", "行吧", "你开心就好", "开心就好",
+            "是啊你", "真不愧是你", "我可谢谢你了", "谢谢你啊", "对对对", "算你厉害", "阴阳怪气",
+            "就这", "那可太棒了呢", "sarcasm", "whatever"
+        )
+        if (sarcasmPatterns.any { clean.contains(it) }) return DialogueAct.CASUAL_CHAT
 
         // 2. Playful tease / cuddling (摸头/蹭蹭/贴贴)
         val teasePatterns = listOf(
@@ -216,11 +224,16 @@ object CompanionEmotion {
 
         // 3. Praise / Compliments (夸奖/认可)
         val praisePatterns = listOf(
-            "真棒", "好棒", "太厉害", "真厉害", "真乖", "好乖", "可爱", "真萌", "喜欢你",
-            "太强了", "爱死你", "真聪明", "太聪明", "谢谢你", "多谢", "辛苦啦", "你最好", "真好",
+            "真棒", "好棒", "太棒了", "太厉害", "真厉害", "真乖", "好乖", "可爱", "真萌", "喜欢你",
+            "太强了", "爱死你", "真聪明", "太聪明", "谢谢你", "多谢", "辛苦啦", "辛苦了", "你真好", "真好呀",
             "做得好", "干得漂亮", "超棒", "太神了", "aww", "awesome", "good job", "great", "love you", "cute", "clever", "thanks", "thank you"
         )
-        if (praisePatterns.any { clean.contains(it) }) return DialogueAct.PRAISE
+        if (praisePatterns.any { clean.contains(it) }) {
+            // Secondary anti-irony check: e.g. "是啊真好", "行吧", "你开心就好", "谢谢你啊"
+            val secondaryIrony = clean.contains("行吧") || clean.contains("就好") ||
+                (clean.startsWith("谢谢") && clean.endsWith("啊"))
+            if (!secondaryIrony) return DialogueAct.PRAISE
+        }
 
         // 4. Venting / Fatigue / Sadness (倾诉/诉苦)
         val ventingPatterns = listOf(
@@ -262,8 +275,18 @@ object CompanionEmotion {
     }
 
     /**
+     * Compute single-dimension exponential decay with asymmetric half-life.
+     * Positive half-life = 15m; Negative half-life = 5m (quick self-recovery from negative emotion).
+     */
+    fun decayOne(bias: Float, elapsedMs: Long): Float {
+        if (bias == 0f || elapsedMs <= 0L) return bias
+        val halfLifeMs = if (bias >= 0f) 15 * 60_000L else 5 * 60_000L
+        return (bias * Math.pow(0.5, elapsedMs.toDouble() / halfLifeMs.toDouble())).toFloat()
+    }
+
+    /**
      * Pure function: asymmetric emotional decay combining circadian base with dynamic bias.
-     * Positive half-life = 15m; Negative half-life = 5m (asymmetric quick recovery).
+     * Dimensions decay independently so positive arousal is not prematurely curtailed by negative valence.
      */
     fun blendWithAsymmetricDecay(
         baseState: MoodState,
@@ -274,18 +297,27 @@ object CompanionEmotion {
     ): MoodState {
         if (elapsedMs <= 0L && biasP == 0f && biasA == 0f) return baseState
 
-        // Positive half-life = 15 minutes, negative half-life = 5 minutes
-        val halfLifeMs = if (biasP >= 0f) 15 * 60_000L else 5 * 60_000L
-        val ratio = Math.pow(0.5, elapsedMs.toDouble() / halfLifeMs.toDouble()).toFloat()
-
-        val effBiasP = biasP * ratio
-        val effBiasA = biasA * ratio
+        val effBiasP = decayOne(biasP, elapsedMs)
+        val effBiasA = decayOne(biasA, elapsedMs)
 
         val effValence = (baseState.valence + effBiasP).coerceIn(-1.0f, 1.0f)
         val effArousal = (baseState.arousal + effBiasA).coerceIn(0.0f, 1.0f)
 
+        // Compute decay ratios for each dimension independently so Arousal isn't cut short by negative Valence half-life
+        val ratioP = if (biasP != 0f && elapsedMs > 0L) {
+            val hl = if (biasP >= 0f) 15 * 60_000L else 5 * 60_000L
+            Math.pow(0.5, elapsedMs.toDouble() / hl.toDouble()).toFloat()
+        } else if (biasP != 0f) 1.0f else 0.0f
+
+        val ratioA = if (biasA != 0f && elapsedMs > 0L) {
+            val hl = if (biasA >= 0f) 15 * 60_000L else 5 * 60_000L
+            Math.pow(0.5, elapsedMs.toDouble() / hl.toDouble()).toFloat()
+        } else if (biasA != 0f) 1.0f else 0.0f
+
+        val activeRatio = maxOf(ratioP, ratioA)
+
         // When decay ratio is still active (> 0.25), target the dynamic mood from DialogueAct
-        val effMood = if (ratio > 0.25f && lastAct != null) {
+        val effMood = if (activeRatio > 0.25f && lastAct != null) {
             when (lastAct) {
                 DialogueAct.PRAISE -> PrimaryMood.SHY
                 DialogueAct.PLAYFUL_TEASE -> PrimaryMood.TOUCHED
@@ -307,22 +339,27 @@ object CompanionEmotion {
 
     /**
      * Build compact MATE-compliant prompt addendum for Main Chat.
+     *
+     * Note on localization: The mood descriptions here represent model-side semantic framing instructions
+     * (prompt-facing, formatted in Chinese for natural nuance). User-facing status representations are
+     * independently localized across 17 languages via R.string.nm_companion_desc_*.
      */
     fun promptAddendum(address: String, state: MoodState, intensity: String = "normal"): String {
+        val safeAddress = address.trim().take(12).ifEmpty { "老大" }
         val moodDesc = when (state.primaryMood) {
             PrimaryMood.HAPPY -> "欢快愉悦，精力充沛"
-            PrimaryMood.SHY -> "被${address}夸奖后害羞开心，小脸微红"
-            PrimaryMood.TOUCHED -> "感受到${address}的亲昵爱抚（摸头/贴贴），非常依恋与感动"
-            PrimaryMood.CARING -> "专注倾听${address}的心事与烦恼，温柔关切，轻声安慰，绝不嬉皮笑脸"
+            PrimaryMood.SHY -> "被${safeAddress}夸奖后害羞开心，小脸微红"
+            PrimaryMood.TOUCHED -> "感受到${safeAddress}的亲昵爱抚（摸头/贴贴），非常依恋与感动"
+            PrimaryMood.CARING -> "专注倾听${safeAddress}的心事与烦恼，温柔关切，轻声安慰，绝不嬉皮笑脸"
             PrimaryMood.SLEEPY -> "略感困倦，安宁温顺，轻声细语"
             PrimaryMood.CURIOUS -> "充满好奇探究欲，耳朵竖起，认真关注"
             PrimaryMood.EXCITED -> "兴奋雀跃，尾巴快速轻摇"
-            PrimaryMood.LONGING -> "思念${address}，软萌黏人"
+            PrimaryMood.LONGING -> "思念${safeAddress}，软萌黏人"
         }
         val toneGuidance = when (intensity) {
             "subtle" -> "Reflect this disposition subtly through warm tone and concise natural wording. Minimize repetitive action tags and kaomoji. Prioritize helpful assistance."
-            "vivid" -> "Vividly express this disposition with lively feline actions (*蹭蹭${address}*, *欢快摇尾巴*, *歪头好奇*), rich emotion, and expressive kaomoji ((ฅ>ω<*ฅ)). High warmth, affection, and closeness."
-            else -> "Reflect this disposition organically through tone of voice, gentle feline actions (*蹭蹭${address}*, *歪头好奇*, *轻晃尾巴*), and expressive kaomoji ((ฅ>ω<*ฅ)). Maintain helpfulness."
+            "vivid" -> "Vividly express this disposition with lively feline actions (*蹭蹭${safeAddress}*, *欢快摇尾巴*, *歪头好奇*), rich emotion, and expressive kaomoji ((ฅ>ω<*ฅ)). High warmth, affection, and closeness."
+            else -> "Reflect this disposition organically through tone of voice, gentle feline actions (*蹭蹭${safeAddress}*, *歪头好奇*, *轻晃尾巴*), and expressive kaomoji ((ฅ>ω<*ฅ)). Maintain helpfulness."
         }
         return """
         [Companion Heart & Disposition]

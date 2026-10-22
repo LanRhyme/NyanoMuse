@@ -160,7 +160,7 @@ class FirstConversation(
         private const val PREFS = "nanomuse"
         private const val KEY_PHASE = "first_conversation.phase"
         private const val KEY_SESSION = "first_conversation.session"
-        private const val KEY_ADDRESS = "first_conversation.address"
+        internal const val KEY_ADDRESS = "first_conversation.address"
         private const val KEY_SUGGESTIONS = "first_conversation.suggestions"
         private const val TAKEN_NAMES = "Siri, Alexa, Cortana, Jarvis, Muse, Gemini, Copilot, 小爱, 小度, 小艺, 天猫精灵, 豆包, 文心, 通义, 阿福"
         private const val MAX_NAME = 16
