@@ -232,6 +232,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.TextFields
@@ -591,6 +592,7 @@ fun ChatScreen(
     val nmHeaderModelShown by io.github.nanomuse.ui.chat.rememberHeaderModelShown()
     val nmHideModelRows = nmHome != null && !nmHeaderModelShown
     val nmAvatarSize by io.github.nanomuse.ui.avatar.rememberAvatarSize() // nanoMuse: Settings → Appearance → Avatar size
+    val isMainChat = nmHome?.isMainChat == true
     // nanoMuse: the agent's steps (tool pills, reasoning, the bar over the
     // composer) are a Setting (Appearance → Conversation), off by default;
     // the status line under the face carries what it is doing instead.
@@ -2644,6 +2646,18 @@ fun ChatScreen(
             // nanoMuse: the header is an overlay with progressive gradient blur
             // melting smoothly into the chat messages without hard edges.
             val topBarBg = ChatColors.background
+            val nmMood = io.github.nanomuse.ui.avatar.rememberAgentMood(isStreaming, error)
+            val nmStatusLine = io.github.nanomuse.ui.header.rememberNanoMuseStatusLine(
+                isStreaming = isStreaming,
+                mood = nmMood,
+                replying = nmReplying,
+                request = nmRequestBrief,
+            )
+            val noFontPad = remember {
+                androidx.compose.ui.text.TextStyle(
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                )
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2672,14 +2686,11 @@ fun ChatScreen(
             ) {
             TopAppBar(
                 title = {
-                    // iOS-style centered layout: "nanoMuse" + group row + provider·model row
+                    // Centered layout for side chats or non-home shell; main chat has overlay avatar
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center,
                     ) {
-                        val noFontPad = androidx.compose.ui.text.TextStyle(
-                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
-                        )
                         // Fallback pulse animation (iOS: 3× red pulse on model switch)
                         val fallbackTrigger by viewModel.fallbackTrigger.collectAsState()
                         val fallbackPulseAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
@@ -2696,112 +2707,59 @@ fun ChatScreen(
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(Color.Red.copy(alpha = 0.35f * fallbackPulseAlpha.value))
                                 // [T-android-topbar-shrink] vertical 4dp→2dp.
-                                // Combined with the expandedHeight drop below,
-                                // closes the dead-space gap between the model
-                                // name row and the TopAppBar bottom edge that
-                                // T-topbar-model-row-clip's 76dp overshoot left
-                                // behind. Horizontal 32dp keeps the fallback
-                                // pulse highlight comfortably padded around
-                                // the longest title.
                                 .padding(horizontal = 32.dp, vertical = 2.dp),
                         ) {
-                            // nanoMuse: the face above the name, as in Muse's
-                            // header. Its mood follows this session's streaming
-                            // state and the app-wide "needs you" gates; tapping
-                            // it opens Settings → Soul (name / icon / style).
-                            val nmMood = io.github.nanomuse.ui.avatar.rememberAgentMood(isStreaming, error)
-                            // nanoMuse: side chats inside the home shell show
-                            // their title where the face would be (Muse puts
-                            // the face only on the main chat); the main chat
-                            // gets the big face on its disc.
-                            val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
-                            val deepSeekText = deepSeekStatus.displayText
-                            if (nmHome != null) {
+                            if (nmHome != null && (!isMainChat || !nmAvatarSize.shown)) {
                                 val topBarSoul by com.openminis.app.agent.SoulStore
                                     .cachedMetadata.collectAsState()
                                 val agentDisplayName = topBarSoul.name.trim().ifEmpty { stringResource(R.string.app_name) }
                                 val displayTitle = sessionTitle?.trim()?.ifEmpty { null } ?: agentDisplayName
-                                val nmStatusLine = io.github.nanomuse.ui.header.rememberNanoMuseStatusLine(isStreaming, nmMood, replying = nmReplying, request = nmRequestBrief)
 
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
                                     modifier = Modifier.padding(vertical = 1.dp),
                                 ) {
-                                    io.github.nanomuse.ui.avatar.AgentAvatar(
-                                        mood = nmMood,
-                                        size = 30.dp,
-                                        contentDescription = stringResource(R.string.nm_avatar_content_description),
-                                        onClick = { io.github.nanomuse.ui.header.openAgentProfile(context) },
+                                    Text(
+                                        text = displayTitle,
+                                        fontSize = 15.sp,
+                                        lineHeight = 17.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = ChatColors.primaryText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = noFontPad,
                                     )
-                                    Column(
-                                        horizontalAlignment = Alignment.Start,
-                                        verticalArrangement = Arrangement.Center,
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            Text(
-                                                text = displayTitle,
-                                                fontSize = 15.sp,
-                                                lineHeight = 17.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = ChatColors.primaryText,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                style = noFontPad,
-                                                modifier = Modifier.weight(1f, fill = false),
-                                            )
-                                            if (deepSeekText != null) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                    modifier = Modifier
-                                                        .clip(CircleShape)
-                                                        .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
-                                                        .clickable {
-                                                            viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
-                                                            showTokenUsageSheet = true
-                                                        }
-                                                        .padding(horizontal = 7.dp, vertical = 2.dp),
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(5.dp)
-                                                            .background(Color(0xFF007AFF), CircleShape),
-                                                    )
-                                                    Text(
-                                                        text = deepSeekText,
-                                                        fontSize = 10.sp,
-                                                        lineHeight = 12.sp,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = ChatColors.primaryText.copy(alpha = 0.85f),
-                                                        maxLines = 1,
-                                                        style = noFontPad,
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        if (nmStatusLine != null) {
-                                            Text(
-                                                text = nmStatusLine,
-                                                fontSize = 11.sp,
-                                                lineHeight = 13.sp,
-                                                color = if (nmMood == io.github.nanomuse.ui.avatar.AgentMood.WAITING) ChatColors.sendButton else ChatColors.secondaryText,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                style = noFontPad,
-                                            )
-                                        }
+                                    if (nmStatusLine != null) {
+                                        Text(
+                                            text = nmStatusLine,
+                                            fontSize = 11.sp,
+                                            lineHeight = 13.sp,
+                                            color = if (nmMood == io.github.nanomuse.ui.avatar.AgentMood.WAITING) ChatColors.sendButton else ChatColors.secondaryText,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            style = noFontPad,
+                                        )
                                     }
                                 }
+                            } else if (nmHome == null) {
+                                val displayTitle = sessionTitle?.trim()?.ifEmpty { null } ?: stringResource(R.string.app_name)
+                                Text(
+                                    text = displayTitle,
+                                    fontSize = 15.sp,
+                                    lineHeight = 17.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = ChatColors.primaryText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = noFontPad,
+                                )
                             }
                             if (false) {
                                 // placeholder for model rows if needed
                             }
-                            // nanoMuse: no model rows under the name unless the Setting asks for them.
-                            else if (!nmHideModelRows)
+                            // nanoMuse: no model rows under the name unless the Setting asks for them (and not in main chat overlay mode).
+                            else if (!nmHideModelRows && (!isMainChat || !nmAvatarSize.shown))
                             // Model picker subtitle: green dot + group +
                             // provider/model. Tap opens the model picker —
                             // separated from the title above so tapping the
@@ -3099,8 +3057,43 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    // iOS: "..." circle button → dropdown menu
-                    Box {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        val deepSeekStatus by viewModel.deepSeekStatus.collectAsState()
+                        val deepSeekText = deepSeekStatus.displayText
+                        if (deepSeekText != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
+                                    .clickable {
+                                        viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
+                                        showTokenUsageSheet = true
+                                    }
+                                    .padding(horizontal = 7.dp, vertical = 2.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .background(Color(0xFF007AFF), CircleShape),
+                                )
+                                Text(
+                                    text = deepSeekText,
+                                    fontSize = 10.sp,
+                                    lineHeight = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = ChatColors.primaryText.copy(alpha = 0.85f),
+                                    maxLines = 1,
+                                    style = noFontPad,
+                                )
+                            }
+                        }
+                        // iOS: "..." circle button → dropdown menu
+                        Box {
                         // nanoMuse: Muse's round "•••" when hosted in the home shell.
                         if (nmHome != null) {
                             io.github.nanomuse.ui.home.MuseRoundButton(
@@ -3401,7 +3394,8 @@ fun ChatScreen(
                             }
                         }
                     }
-                },
+                }
+            },
                 windowInsets = WindowInsets.statusBars,
                 // nanoMuse: transparent; the gradient wrapper behind this bar
                 // carries the header fade from the top edge.
@@ -3409,28 +3403,74 @@ fun ChatScreen(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent,
                 ),
-                // [T-android-topbar-shrink] 76dp → 68dp. The earlier
-                // T-topbar-model-row-clip fix bumped 60dp → 76dp to give the
-                // 3-row title (14sp/lh17 + 12sp/lh14 + 11sp/lh13 ≈ 44sp text
-                // + 4dp+2dp+1dp vertical padding ≈ 51dp on mdpi, mid-60s on
-                // xxhdpi) room to breathe — but overshot, leaving visible
-                // dead-space below the model row. This trim pairs with the
-                // outer Column's vertical-padding drop (4dp→2dp above):
-                // budget is now ~44sp text + 2dp+2dp+1dp ≈ 49dp typical,
-                // ~58-62dp at xxhdpi 2.625× rounding. 68dp keeps a 6-10dp
-                // safety margin so the model name still fits at any
-                // user-configured font scale on xhdpi/xxhdpi without
-                // re-clipping (T-topbar-model-row-clip regression check).
-                // Font sizes + lineHeights stay untouched per spec.
-                // nanoMuse: 68dp held the 3-row title; the face (36dp) and the
-                // capsule padding sit on top of that. In the home shell the
-                // main chat's disc (76dp) needs more, a side chat's one-line
-                // title less.
+                // nanoMuse: In home shell with avatar shown on main chat, expand height to fit
+                // the avatar disc plus mood status below without clipping. Side chats and hidden
+                // avatar keep the compact title bar.
                 expandedHeight = when {
                     nmHome == null -> 52.dp
+                    isMainChat && nmAvatarSize.shown -> {
+                        val avatarDp = nmAvatarSize.disc ?: 56.dp
+                        (avatarDp + 36.dp).coerceAtLeast(76.dp)
+                    }
                     else -> if (nmHideModelRows) 50.dp else 64.dp
                 },
             )
+
+            // nanoMuse: Independent overlay for enlarged avatar & live mood/status in Main Chat
+            if (nmHome != null && isMainChat && nmAvatarSize.shown) {
+                val avatarDp = nmAvatarSize.disc ?: 56.dp
+                val liveMood = nmStatusLine ?: io.github.nanomuse.companion.CompanionStatus.currentMoodSubtitle(context)
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .statusBarsPadding()
+                        .padding(bottom = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    io.github.nanomuse.ui.avatar.AgentAvatar(
+                        mood = nmMood,
+                        size = avatarDp,
+                        contentDescription = stringResource(R.string.nm_avatar_content_description),
+                        onClick = { io.github.nanomuse.ui.header.openAgentProfile(context) },
+                    )
+                    if (liveMood.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable { io.github.nanomuse.ui.header.openAgentProfile(context) }
+                                .padding(horizontal = 6.dp, vertical = 1.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .background(
+                                        when {
+                                            isStreaming -> Color(0xFF34C759)
+                                            nmMood == io.github.nanomuse.ui.avatar.AgentMood.WAITING -> ChatColors.sendButton
+                                            else -> ChatColors.secondaryText.copy(alpha = 0.6f)
+                                        },
+                                        CircleShape,
+                                    ),
+                            )
+                            Text(
+                                text = liveMood,
+                                fontSize = 11.sp,
+                                lineHeight = 13.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = if (nmMood == io.github.nanomuse.ui.avatar.AgentMood.WAITING) ChatColors.sendButton else ChatColors.secondaryText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = noFontPad,
+                            )
+                        }
+                    }
+                }
+            }
             } // nanoMuse: close the header-fade wrapper
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
