@@ -580,13 +580,9 @@ fun NanoMuseHome(
             }
         } else {
             // ─── Phone / Compact Window Layout ───
-            val density = LocalDensity.current
-            val imeBottomPx = WindowInsets.ime.getBottom(density)
-            val isImeOpen = imeBottomPx > 0
-
             ModalNavigationDrawer(
                 drawerState = drawerState,
-                gesturesEnabled = drawerState.isOpen || tab == HomeTab.CHAT,
+                gesturesEnabled = true,
                 drawerContent = {
                     ModalDrawerSheet(
                         drawerContainerColor = Color.Transparent,
@@ -606,6 +602,12 @@ fun NanoMuseHome(
                             onSystemFiles = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.sysfiles.ROUTE_SYSTEM_FILES) },
                             onDevices = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.cloud.ROUTE_CLOUD_ACCOUNT) },
                             onCoding = { closeDrawer(); navController.safeNavigate(io.github.nanomuse.ui.coding.ROUTE_CODING) },
+                            selectedTab = tab,
+                            onSelectTab = { picked ->
+                                closeDrawer()
+                                focusManager.clearFocus(force = true)
+                                tab = picked
+                            },
                             modifier = Modifier.fillMaxSize(),
                             hazeState = hazeState,
                         )
@@ -615,25 +617,11 @@ fun NanoMuseHome(
                 Scaffold(
                     containerColor = if (hasWallpaper) Color.Transparent else ChatColors.background,
                     contentWindowInsets = WindowInsets(0),
-                    bottomBar = {
-                        AnimatedVisibility(
-                            visible = !isImeOpen,
-                            enter = slideInVertically(tween(150)) { it } + fadeIn(tween(150)),
-                            exit = slideOutVertically(tween(150)) { it } + fadeOut(tween(150)),
-                        ) {
-                            MuseBottomBar(selected = tab, hazeState = hazeState, onSelect = { picked ->
-                                focusManager.clearFocus(force = true)
-                                tab = picked
-                            })
-                        }
-                    },
-                ) { padding ->
-                    val bottom = if (isImeOpen) 0.dp else padding.calculateBottomPadding()
+                ) { _ ->
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .hazeSource(hazeState)
-                            .consumeWindowInsets(PaddingValues(bottom = bottom)),
+                            .hazeSource(hazeState),
                     ) {
                         Box(
                             modifier = Modifier
@@ -665,7 +653,7 @@ fun NanoMuseHome(
                                     onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
                                     onOpenUsageStats = { navController.safeNavigate(Routes.USAGE_STATS) },
                                     nmHome = NmHomeChrome(isMainChat = isMainChat, onOpenDrawer = { openDrawer() }),
-                                    nmBottomOverlay = bottom,
+                                    nmBottomOverlay = 0.dp,
                                 )
                             }
                         }
@@ -688,7 +676,7 @@ fun NanoMuseHome(
                                     },
                                     label = "nmTab",
                                 ) { page ->
-                                    renderPage(page, bottom)
+                                    renderPage(page, 0.dp)
                                 }
                             }
                         }
