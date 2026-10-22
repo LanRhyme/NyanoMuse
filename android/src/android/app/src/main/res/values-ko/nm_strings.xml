@@ -1210,4 +1210,9 @@
     <string name="nm_companion_scenario_calm">조용한 곁지기 (오프라인 1~4시간)</string>
     <string name="nm_companion_hours_val">%1$d시간</string>
     <string name="nm_companion_daily_limit_val">하루 최대 %1$d회</string>
+
+    <string name="nm_thinking_in_progress">생각 중 (%1$d초)…</string>
+    <string name="nm_thinking_in_progress_simple">생각 중…</string>
+    <string name="nm_thinking_done">%1$d초 동안 생각함</string>
+    <string name="nm_thinking_done_simple">깊은 생각</string>
 </resources>

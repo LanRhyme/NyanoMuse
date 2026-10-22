@@ -1210,4 +1210,9 @@
     <string name="nm_companion_scenario_calm">เคียงข้างอย่างเงียบสงบ (ออฟไลน์ 1–4 ชม.)</string>
     <string name="nm_companion_hours_val">%1$d ชั่วโมง</string>
     <string name="nm_companion_daily_limit_val">สูงสุด %1$d ครั้ง / วัน</string>
+
+    <string name="nm_thinking_in_progress">กำลังคิด (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">กำลังคิด…</string>
+    <string name="nm_thinking_done">ใช้เวลาคิด %1$ds</string>
+    <string name="nm_thinking_done_simple">การคิดเชิงลึก</string>
 </resources>

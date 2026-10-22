@@ -1214,4 +1214,9 @@
     <string name="nm_companion_scenario_calm">Compañía serena (1h–4h inactivo)</string>
     <string name="nm_companion_hours_val">%1$d horas</string>
     <string name="nm_companion_daily_limit_val">Máx. %1$d veces / día</string>
+
+    <string name="nm_thinking_in_progress">Pensando (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Pensando…</string>
+    <string name="nm_thinking_done">Pensó durante %1$ds</string>
+    <string name="nm_thinking_done_simple">Pensamiento profundo</string>
 </resources>

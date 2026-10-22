@@ -1222,4 +1222,9 @@
     <string name="nm_companion_scenario_calm">Cicha obecność (1–4h bezczynności)</string>
     <string name="nm_companion_hours_val">%1$d godz.</string>
     <string name="nm_companion_daily_limit_val">Maks. %1$d razy / dzień</string>
+
+    <string name="nm_thinking_in_progress">Myślenie (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Myślenie…</string>
+    <string name="nm_thinking_done">Myślał przez %1$ds</string>
+    <string name="nm_thinking_done_simple">Głębokie myślenie</string>
 </resources>

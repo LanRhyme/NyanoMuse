@@ -1187,4 +1187,9 @@
     <string name="nm_companion_scenario_calm">日间恬静陪伴 (离线 1h~4h)</string>
     <string name="nm_companion_hours_val">%1$d 小时</string>
     <string name="nm_companion_daily_limit_val">每天上限 %1$d 次</string>
+
+    <string name="nm_thinking_in_progress">思考中 (%1$d秒)…</string>
+    <string name="nm_thinking_in_progress_simple">思考中…</string>
+    <string name="nm_thinking_done">已深度思考 (%1$d秒)</string>
+    <string name="nm_thinking_done_simple">已深度思考</string>
 </resources>

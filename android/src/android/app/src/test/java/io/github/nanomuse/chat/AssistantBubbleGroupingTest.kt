@@ -101,6 +101,54 @@ class AssistantBubbleGroupingTest {
     }
 
     @Test
+    fun `thinking followed by text fuses into the same assistant markdown bubble as leadingThinking`() {
+        val think = "Analyzing user intent and project structure..."
+        val text = "Here is the plan to optimize the UI."
+        val msg = ChatMessage(
+            id = "a-think-fuse",
+            role = "assistant",
+            content = text,
+            isStreaming = false,
+            toolBlocks = listOf(
+                AssistantBlock(id = "th-1", kind = "thinking", content = think),
+                AssistantBlock(id = "tx-1", kind = "text", content = text),
+            ),
+        )
+
+        val items = buildFlatChatItems(listOf(msg))
+        val thinkingItems = items.filterIsInstance<FlatChatItem.AssistantThinking>()
+        val mdBlocks = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>()
+
+        assertEquals(0, thinkingItems.size)
+        assertEquals(1, mdBlocks.size)
+        assertEquals(text, mdBlocks.single().rawText)
+        assertEquals("th-1", mdBlocks.single().leadingThinking?.id)
+        assertEquals(think, mdBlocks.single().leadingThinking?.content)
+    }
+
+    @Test
+    fun `streaming thinking without text yet emits standalone AssistantThinking`() {
+        val think = "Live stream reasoning..."
+        val msg = ChatMessage(
+            id = "a-think-stream",
+            role = "assistant",
+            content = "",
+            isStreaming = true,
+            toolBlocks = listOf(
+                AssistantBlock(id = "th-live", kind = "thinking", content = think),
+            ),
+        )
+
+        val items = buildFlatChatItems(listOf(msg))
+        val thinkingItems = items.filterIsInstance<FlatChatItem.AssistantThinking>()
+        val mdBlocks = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>()
+
+        assertEquals(1, thinkingItems.size)
+        assertEquals(0, mdBlocks.size)
+        assertEquals("th-live", thinkingItems.single().block.id)
+    }
+
+    @Test
     fun `isBareBlock only unwraps standalone nanomuse protocol fences`() {
         assertTrue(isBareBlock("```nanomuse-naming\n{\"agent_name\":\"Pip\"}\n```"))
         assertTrue(isBareBlock("  ```nanomuse-goal\n{\"title\":\"Read\"}\n```  "))

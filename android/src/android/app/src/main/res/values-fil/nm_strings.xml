@@ -1214,4 +1214,9 @@
     <string name="nm_companion_scenario_calm">Payapang Pagsama (1h–4h offline)</string>
     <string name="nm_companion_hours_val">%1$d oras</string>
     <string name="nm_companion_daily_limit_val">Max %1$d beses / araw</string>
+
+    <string name="nm_thinking_in_progress">Nag-iisip (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Nag-iisip…</string>
+    <string name="nm_thinking_done">Nag-isip nang %1$ds</string>
+    <string name="nm_thinking_done_simple">Malalim na Pag-iisip</string>
 </resources>

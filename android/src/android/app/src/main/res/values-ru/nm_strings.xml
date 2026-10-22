@@ -1222,4 +1222,9 @@
     <string name="nm_companion_scenario_calm">Тихое присутствие (1–4ч неактивности)</string>
     <string name="nm_companion_hours_val">%1$d ч.</string>
     <string name="nm_companion_daily_limit_val">До %1$d раз(а) в день</string>
+
+    <string name="nm_thinking_in_progress">Думает (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Думает…</string>
+    <string name="nm_thinking_done">Думал %1$ds</string>
+    <string name="nm_thinking_done_simple">Глубокое мышление</string>
 </resources>

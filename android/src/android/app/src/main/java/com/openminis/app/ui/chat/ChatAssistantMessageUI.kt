@@ -21,8 +21,12 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.ui.graphics.StrokeCap
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -1040,17 +1044,7 @@ internal fun ToolCallGroup(
 internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: Boolean = true) {
     // Per-block expand state, keyed by block.id so the user's manual toggle on
     // an earlier (finished) thinking block survives recomposition while a
-    // later block is still streaming. The previous LaunchedEffect snapped
-    // every non-last block back to collapsed on each `isLast` flip, which
-    // fought the user's tap and produced a flicker that read as "tapping the
-    // earlier block shows the streaming block's content."
-    // [T-thinking-auto-expand-toggle] The initial auto-expand of a new
-    // streaming block is gated on the Appearance setting (default ON =
-    // historical behavior). When the user turned it off, a new streaming block
-    // starts collapsed; a manual header tap still expands it (setting
-    // userTouched, so neither the stream-end auto-collapse nor anything else
-    // fights the user). Read once at mount — mirrors iOS ThinkingBlockView,
-    // where the same UserDefaults gate sits at the one-shot auto-expand site.
+    // later block is still streaming.
     val context = LocalContext.current
     val autoExpandThinking = remember { autoExpandThinkingEnabled(context) }
     var expanded by remember(block.id) { mutableStateOf(autoExpandThinking && isLast && isStreaming) }
@@ -1060,21 +1054,48 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
         // if the user hasn't taken control of its state yet.
         if (!isStreaming && !userTouched) expanded = false
     }
-    val thinkingBlue = Color(0xFF015CFB)
-    val charCount = block.content.length
-    val charLabel = when {
-        charCount >= 1000 -> "${charCount / 1000}K"
-        else -> "$charCount"
+
+    // Dynamic Morandi & palette colors
+    val thinkingColor = ChatColors.thinking
+    val guideLineColor = thinkingColor.copy(alpha = 0.35f)
+    val contentColor = ChatColors.secondaryText
+
+    // Live timer while streaming, finalized duration when done
+    val startTimestamp = remember(block.id) {
+        if (block.startTimeMs > 0L) block.startTimeMs else System.currentTimeMillis()
     }
-    // [T-thinking-render-perf-android] Compose `Text` measures/lays out the
-    // ENTIRE string even when only ~300dp is visible, so a 200k-char thinking
-    // block froze the UI (and a per-token recomposition re-measured all 200k
-    // each tick). Two tiers guard this:
-    //  • > HARD_CAP: the inline scroller can't render it at all — show a
-    //    "View full content" entry that opens a native TextView dialog
-    //    (Android TextView handles large text far better than Compose Text).
-    //  • otherwise: render only the last WINDOW chars (tail) — capping layout
-    //    cost to O(WINDOW) regardless of total length.
+    var liveElapsedSeconds by remember(block.id) { mutableStateOf(0L) }
+    LaunchedEffect(block.id, isStreaming) {
+        if (isStreaming) {
+            while (true) {
+                liveElapsedSeconds = ((System.currentTimeMillis() - startTimestamp) / 1000).coerceAtLeast(1)
+                delay(500)
+            }
+        }
+    }
+    val finalSeconds = remember(block.id, isStreaming) {
+        if (!isStreaming) {
+            if (block.durationMs > 0L) (block.durationMs / 1000).coerceAtLeast(1)
+            else if (liveElapsedSeconds > 0L) liveElapsedSeconds
+            else 0L
+        } else 0L
+    }
+
+    val headerText = if (isStreaming && block.toolStatus != ToolBlockStatus.SUCCESS) {
+        if (liveElapsedSeconds > 0L) {
+            stringResource(R.string.nm_thinking_in_progress, liveElapsedSeconds)
+        } else {
+            stringResource(R.string.nm_thinking_in_progress_simple)
+        }
+    } else {
+        if (finalSeconds > 0L) {
+            stringResource(R.string.nm_thinking_done, finalSeconds)
+        } else {
+            stringResource(R.string.nm_thinking_done_simple)
+        }
+    }
+
+    val charCount = block.content.length
     val thinkingWindowSize = 8000
     val thinkingHardCap = 100_000
     val overHardCap = charCount > thinkingHardCap
@@ -1083,35 +1104,25 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .background(thinkingBlue.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
-            .border(0.5.dp, thinkingBlue.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(vertical = 2.dp),
     ) {
-        // Header row — only the header reacts to taps. Mirrors iOS, where
-        // .onTapGesture is on the header HStack, not the whole VStack. With
-        // clickable on the outer Column, a release after dragging in the
-        // inner scroller registered as a tap and toggled `expanded`.
+        // Header row — minimal, compact accordion trigger
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
                 .clickable {
                     userTouched = true
-                    // [T-thinking-render-perf-android] Over the hard cap the
-                    // inline scroller is bypassed entirely; tapping the header
-                    // opens the native full-content viewer instead of toggling
-                    // the (never-shown) inline expansion.
                     if (overHardCap) showFullContent = true
                     else expanded = !expanded
-                },
+                }
+                .padding(vertical = 3.dp, horizontal = 2.dp),
         ) {
             if (isStreaming && block.toolStatus != ToolBlockStatus.SUCCESS) {
-                // iOS: ProgressView().controlSize(.mini) while streaming
                 CircularProgressIndicator(
                     modifier = Modifier.size(13.dp),
-                    color = thinkingBlue,
+                    color = thinkingColor,
                     strokeWidth = 1.5.dp,
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -1119,60 +1130,42 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                 Icon(
                     imageVector = Icons.Default.Psychology,
                     contentDescription = null,
-                    tint = thinkingBlue,
-                    modifier = Modifier.size(14.dp),
+                    tint = thinkingColor.copy(alpha = 0.85f),
+                    modifier = Modifier.size(15.dp),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
             }
             Text(
-                text = "Deep Thinking",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = thinkingBlue,
+                text = headerText,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = thinkingColor,
             )
             Spacer(modifier = Modifier.weight(1f))
-            if (charCount > 0) {
-                Text(
-                    text = charLabel,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = FontFamily.Monospace,
-                    color = thinkingBlue.copy(alpha = 0.6f),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-            }
             if (overHardCap) {
-                // [T-thinking-render-perf-android] No expand/collapse chevron —
-                // the content is too large for the inline Compose scroller.
-                // Offer the native full-content viewer instead.
                 Text(
                     text = stringResource(R.string.thinking_view_full),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = thinkingBlue,
+                    color = thinkingColor,
                 )
             } else {
                 Icon(
                     imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = thinkingBlue.copy(alpha = 0.5f),
-                    modifier = Modifier.size(14.dp),
+                    tint = thinkingColor.copy(alpha = 0.55f),
+                    modifier = Modifier.size(15.dp),
                 )
             }
         }
 
-        // Expanded content. Mirrors iOS ThinkingBlockView (AssistantBlockView.swift:648):
-        // an inner scroller capped at 300dp, auto-follow to the bottom while the
-        // block is streaming, manual drag at any time, and pause-on-user-scroll
-        // so a user reading earlier reasoning isn't yanked back to the tail by
-        // the next token.
-        AnimatedVisibility(visible = expanded && !overHardCap) {
+        // Expanded content: DeepSeek/Claude minimal left guide line + natural typography
+        AnimatedVisibility(
+            visible = expanded && !overHardCap,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
             val scrollState = rememberScrollState()
-            // [T-thinking-render-perf-android] Render only the tail window so
-            // Compose lays out at most `thinkingWindowSize` chars. `remember`
-            // keyed on the length recomputes the substring on each token, but
-            // the cost is O(window) not O(total). Snap the cut to the next
-            // newline (within 200 chars) so we don't start mid-line.
             val isTruncated = charCount > thinkingWindowSize
             val displayContent = remember(charCount) {
                 if (isTruncated) {
@@ -1185,11 +1178,6 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     block.content
                 }
             }
-            // [T-android-thinking-inner-scroll] Pause auto-follow once the user
-            // scrolls away from the bottom; resume it when they return. iOS
-            // pulls the user back unconditionally — but that fights every
-            // touch on Compose's smaller pause-threshold scroller, so we
-            // honor the user's drag the way the outer chat list does.
             var userScrolledAway by remember(block.id) { mutableStateOf(false) }
             LaunchedEffect(scrollState, block.id) {
                 snapshotFlow {
@@ -1199,10 +1187,6 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                         scrollState.isScrollInProgress,
                     )
                 }.collect { (v, max, dragging) ->
-                    // A nonzero gap from the bottom while the user is actively
-                    // dragging counts as "they took control". We don't flip
-                    // back until the gap closes — gives them room to scroll
-                    // up briefly without ping-ponging.
                     val gap = (max - v).coerceAtLeast(0)
                     when {
                         dragging && gap > 4 -> userScrolledAway = true
@@ -1210,26 +1194,29 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     }
                 }
             }
-            // Auto-follow: on every content growth, scroll to the new bottom.
-            // `snapshotFlow { block.content.length }` is recomposition-cheap
-            // and only ticks when the block's text actually grew.
             LaunchedEffect(scrollState, block.id, isStreaming) {
                 if (!isStreaming) return@LaunchedEffect
                 snapshotFlow { block.content.length }
                     .collect {
                         if (userScrolledAway) return@collect
-                        // scrollTo (not animateScrollTo) — animating fights
-                        // back-to-back token ticks; iOS uses a 0.15s linear
-                        // animation, but Compose's animateScrollTo cancels
-                        // any in-flight scroll, so streaming bursts get
-                        // jankier than a direct snap.
                         scrollState.scrollTo(scrollState.maxValue)
                     }
             }
             Column(
                 modifier = Modifier
-                    .padding(top = 6.dp)
+                    .fillMaxWidth()
+                    .padding(top = 4.dp, bottom = 4.dp)
                     .heightIn(max = 300.dp)
+                    .padding(start = 12.dp)
+                    .drawBehind {
+                        drawLine(
+                            color = guideLineColor,
+                            start = Offset(x = -7.dp.toPx(), y = 2.dp.toPx()),
+                            end = Offset(x = -7.dp.toPx(), y = size.height - 2.dp.toPx()),
+                            strokeWidth = 2.5.dp.toPx(),
+                            cap = StrokeCap.Round,
+                        )
+                    }
                     .verticalScroll(scrollState),
             ) {
                 if (isTruncated) {
@@ -1240,22 +1227,20 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                             charCount / 1000,
                         ),
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        color = contentColor.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(bottom = 4.dp),
                     )
                 }
                 Text(
                     text = displayContent,
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                    lineHeight = 19.sp,
+                    color = contentColor,
+                    lineHeight = 19.5.sp,
+                    fontWeight = FontWeight.Normal,
                 )
             }
         }
 
-        // [T-thinking-render-perf-android] Hard-cap full-content viewer. A
-        // native TextView (selectable, scrollable) renders arbitrarily large
-        // thinking text without the Compose `Text` measure freeze.
         if (overHardCap && showFullContent) {
             ThinkingFullContentDialog(
                 content = block.content,
@@ -1287,10 +1272,10 @@ private fun ThinkingFullContentDialog(content: String, onDismiss: () -> Unit) {
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     Text(
-                        text = "Deep Thinking",
+                        text = stringResource(R.string.nm_thinking_done_simple),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF015CFB),
+                        color = ChatColors.thinking,
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     MinisTextButton(onClick = onDismiss) {

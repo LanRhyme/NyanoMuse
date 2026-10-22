@@ -1218,4 +1218,9 @@
     <string name="nm_companion_scenario_calm">Însoțire liniștită (1–4h inactiv)</string>
     <string name="nm_companion_hours_val">%1$d ore</string>
     <string name="nm_companion_daily_limit_val">Max %1$d ori / zi</string>
+
+    <string name="nm_thinking_in_progress">Gândire (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Gândire…</string>
+    <string name="nm_thinking_done">A gândit timp de %1$ds</string>
+    <string name="nm_thinking_done_simple">Gândire profundă</string>
 </resources>

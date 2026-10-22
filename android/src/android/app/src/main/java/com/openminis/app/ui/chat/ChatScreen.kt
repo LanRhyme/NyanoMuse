@@ -4437,6 +4437,19 @@ fun ChatScreen(
                                         selectionController.rememberMessageMarkdown(item.messageId, item.messageMarkdown)
                                     }
                                     Column(modifier = Modifier.fillMaxWidth()) {
+                                        if (item.leadingThinking != null) {
+                                            val effectiveThinking = item.messageThinkingLevel ?: viewModel.thinkingLevel.value
+                                            if (effectiveThinking.isEnabled) {
+                                                ThinkingBlock(
+                                                    block = item.leadingThinking,
+                                                    isStreaming = false,
+                                                    isLast = false,
+                                                )
+                                                if (cleanText.isNotEmpty()) {
+                                                    Spacer(Modifier.height(8.dp))
+                                                }
+                                            }
+                                        }
                                         if (cleanText.isNotEmpty()) {
                                             MarkdownBlock(
                                                 rawText = cleanText,
@@ -4483,11 +4496,13 @@ fun ChatScreen(
                                     // edge ThinkingBlock's LaunchedEffect
                                     // hooks for auto-collapse, matching iOS
                                     // ThinkingBlockView semantics.
-                                    ThinkingBlock(
-                                        block = item.block,
-                                        isStreaming = item.isLastBlockOverall && item.messageIsStreaming,
-                                        isLast = item.isLast,
-                                    )
+                                    io.github.nanomuse.ui.chat.NmAssistantBubble(enabled = nmHome != null, rawText = item.block.content) {
+                                        ThinkingBlock(
+                                            block = item.block,
+                                            isStreaming = item.isLastBlockOverall && item.messageIsStreaming,
+                                            isLast = item.isLast,
+                                        )
+                                    }
                                 }
                             }
                             is FlatChatItem.AssistantToolGroup -> ToolCallGroup(

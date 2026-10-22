@@ -8686,6 +8686,7 @@ class ChatViewModel(
                                 kind = "thinking",
                                 content = turnThinking.toString(),
                                 toolTitle = "Thinking",
+                                startTimeMs = System.currentTimeMillis(),
                             ))
                         } else {
                             allToolBlocks[thinkIdx] = allToolBlocks[thinkIdx].copy(content = turnThinking.toString())
@@ -8709,7 +8710,13 @@ class ChatViewModel(
                         // Mark thinking block as done when text starts flowing
                         val thinkIdx = allToolBlocks.indexOfFirst { it.kind == "thinking" && it.id == "thinking_$turn" }
                         if (thinkIdx >= 0 && allToolBlocks[thinkIdx].toolStatus != ToolBlockStatus.SUCCESS) {
-                            allToolBlocks[thinkIdx] = allToolBlocks[thinkIdx].copy(toolStatus = ToolBlockStatus.SUCCESS)
+                            val duration = if (allToolBlocks[thinkIdx].startTimeMs > 0L) {
+                                System.currentTimeMillis() - allToolBlocks[thinkIdx].startTimeMs
+                            } else 0L
+                            allToolBlocks[thinkIdx] = allToolBlocks[thinkIdx].copy(
+                                toolStatus = ToolBlockStatus.SUCCESS,
+                                durationMs = duration,
+                            )
                         }
                         // T307: append-only on the StringBuilder; .toString()
                         // is taken once below at flush time, not per delta.
@@ -8817,7 +8824,13 @@ class ChatViewModel(
                         // Mark thinking block as done when tool use starts
                         val thinkIdx = allToolBlocks.indexOfFirst { it.kind == "thinking" && it.id == "thinking_$turn" }
                         if (thinkIdx >= 0 && allToolBlocks[thinkIdx].toolStatus != ToolBlockStatus.SUCCESS) {
-                            allToolBlocks[thinkIdx] = allToolBlocks[thinkIdx].copy(toolStatus = ToolBlockStatus.SUCCESS)
+                            val duration = if (allToolBlocks[thinkIdx].startTimeMs > 0L) {
+                                System.currentTimeMillis() - allToolBlocks[thinkIdx].startTimeMs
+                            } else 0L
+                            allToolBlocks[thinkIdx] = allToolBlocks[thinkIdx].copy(
+                                toolStatus = ToolBlockStatus.SUCCESS,
+                                durationMs = duration,
+                            )
                         }
                         // T154: when the last few text deltas landed inside the 50ms throttle
                         // window, the UI hadn't yet been pushed with the trailing text — and
@@ -9021,6 +9034,17 @@ class ChatViewModel(
                     }
                 }
                     }  // end collect
+                    // Finalize any in-flight thinking block if not already marked done
+                    val finalThinkIdx = allToolBlocks.indexOfFirst { it.kind == "thinking" && it.id == "thinking_$turn" }
+                    if (finalThinkIdx >= 0 && allToolBlocks[finalThinkIdx].toolStatus != ToolBlockStatus.SUCCESS) {
+                        val duration = if (allToolBlocks[finalThinkIdx].startTimeMs > 0L) {
+                            System.currentTimeMillis() - allToolBlocks[finalThinkIdx].startTimeMs
+                        } else 0L
+                        allToolBlocks[finalThinkIdx] = allToolBlocks[finalThinkIdx].copy(
+                            toolStatus = ToolBlockStatus.SUCCESS,
+                            durationMs = duration,
+                        )
+                    }
                     // T94 fix 2: flush any text that landed in the throttle
                     // window after the last UI tick. The retry-rollback /
                     // turn-finalize paths below assume _messages reflects all

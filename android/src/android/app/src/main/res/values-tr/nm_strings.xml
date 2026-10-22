@@ -1214,4 +1214,9 @@
     <string name="nm_companion_scenario_calm">Sakin Yoldaşlık (1–4 saat çevrimdışı)</string>
     <string name="nm_companion_hours_val">%1$d saat</string>
     <string name="nm_companion_daily_limit_val">Günde en fazla %1$d kez</string>
+
+    <string name="nm_thinking_in_progress">Düşünülüyor (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Düşünülüyor…</string>
+    <string name="nm_thinking_done">%1$ds boyunca düşünüldü</string>
+    <string name="nm_thinking_done_simple">Derin Düşünme</string>
 </resources>

@@ -1210,4 +1210,9 @@
     <string name="nm_companion_scenario_calm">静かな寄り添い (離線1〜4時間)</string>
     <string name="nm_companion_hours_val">%1$d 時間</string>
     <string name="nm_companion_daily_limit_val">1日最大 %1$d 回</string>
+
+    <string name="nm_thinking_in_progress">思考中 (%1$d秒)…</string>
+    <string name="nm_thinking_in_progress_simple">思考中…</string>
+    <string name="nm_thinking_done">%1$d秒間思考しました</string>
+    <string name="nm_thinking_done_simple">思考プロセス</string>
 </resources>

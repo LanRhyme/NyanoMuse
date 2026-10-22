@@ -1214,4 +1214,9 @@
     <string name="nm_companion_scenario_calm">Ruhige Begleitung (1–4 Std. inaktiv)</string>
     <string name="nm_companion_hours_val">%1$d Stunden</string>
     <string name="nm_companion_daily_limit_val">Max. %1$d-mal / Tag</string>
+
+    <string name="nm_thinking_in_progress">Nachdenken (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Nachdenken…</string>
+    <string name="nm_thinking_done">%1$ds lang nachgedacht</string>
+    <string name="nm_thinking_done_simple">Tiefes Nachdenken</string>
 </resources>

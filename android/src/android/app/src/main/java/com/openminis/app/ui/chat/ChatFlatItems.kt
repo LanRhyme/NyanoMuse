@@ -373,6 +373,8 @@ internal sealed class FlatChatItem {
         /** Joined raw markdown of the parent message, used by Copy Markdown. */
         val messageMarkdown: String,
         val selectedAnswer: String? = null,
+        val leadingThinking: AssistantBlock? = null,
+        val messageThinkingLevel: com.openminis.app.data.model.ThinkingLevel? = null,
     ) : FlatChatItem() {
         override val key = "mdblock:$messageId:$parentBlockId:$blockIndex"
         override val contentType = "mdblock"
@@ -387,7 +389,10 @@ internal sealed class FlatChatItem {
                 isLastBlockOfMessage == other.isLastBlockOfMessage &&
                 messageIsStreaming == other.messageIsStreaming &&
                 rawText.length == other.rawText.length &&
-                messageMarkdown.length == other.messageMarkdown.length
+                messageMarkdown.length == other.messageMarkdown.length &&
+                leadingThinking?.id == other.leadingThinking?.id &&
+                leadingThinking?.content?.length == other.leadingThinking?.content?.length &&
+                leadingThinking?.toolStatus == other.leadingThinking?.toolStatus
         }
         override fun hashCode(): Int {
             var h = messageId.hashCode()
@@ -397,6 +402,7 @@ internal sealed class FlatChatItem {
             h = h * 31 + messageIsStreaming.hashCode()
             h = h * 31 + rawText.length
             h = h * 31 + messageMarkdown.length
+            h = h * 31 + (leadingThinking?.id?.hashCode() ?: 0)
             return h
         }
     }
@@ -606,6 +612,9 @@ internal fun buildFlatChatItems(
                 isLastBlockOfMessage = item.isLastBlockOfMessage,
                 messageIsStreaming = item.messageIsStreaming,
                 messageMarkdown = item.messageMarkdown,
+                selectedAnswer = item.selectedAnswer,
+                leadingThinking = item.leadingThinking,
+                messageThinkingLevel = item.messageThinkingLevel,
             )
             is FlatChatItem.AssistantThinking -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantToolGroup -> item.copy(messageId = "${item.messageId}#$n")
@@ -723,6 +732,22 @@ internal fun buildFlatChatItems(
         // retryLast() re-runs the whole turn, so one button is enough.
         val lastCancelledToolId = blocks.lastOrNull { it.kind == "tool_use" && it.toolStatus == ToolBlockStatus.CANCELLED }?.id
 
+        var pendingLeadingThinking: AssistantBlock? = null
+        val flushPendingLeadingThinking = {
+            if (pendingLeadingThinking != null) {
+                val tBlock = pendingLeadingThinking!!
+                pendingLeadingThinking = null
+                out.add(dedupe(FlatChatItem.AssistantThinking(
+                    messageId = message.id,
+                    block = tBlock,
+                    isLast = tBlock.id == lastThinkingId,
+                    messageIsStreaming = message.isStreaming,
+                    messageThinkingLevel = message.thinkingLevel,
+                    isLastBlockOverall = tBlock.id == lastBlockId,
+                )))
+            }
+        }
+
         blocks.forEachIndexed { index, block ->
             when (block.kind) {
                 "text" -> {
@@ -734,6 +759,8 @@ internal fun buildFlatChatItems(
                             if (uContent.isNotEmpty()) uContent
                             else messages[idx + 1].toolBlocks.filter { it.kind == "text" }.joinToString("\n") { it.content }.trim()
                         } else null
+                        val leading = pendingLeadingThinking
+                        pendingLeadingThinking = null
                         // nanoMuse: keep each assistant text block in a single markdown
                         // bubble (matching iOS) so lists, headings, paragraphs, and code
                         // blocks from one turn stay together inside one bubble.
@@ -746,22 +773,32 @@ internal fun buildFlatChatItems(
                             messageIsStreaming = message.isStreaming && isLastText,
                             messageMarkdown = joinedMarkdown,
                             selectedAnswer = nextUserText?.takeIf { it.isNotBlank() },
+                            leadingThinking = leading,
+                            messageThinkingLevel = message.thinkingLevel,
                         )))
                     }
                 }
                 "thinking" -> {
                     if (showSteps && pendingToolBlocks.isEmpty()) {
-                        out.add(dedupe(FlatChatItem.AssistantThinking( // nanoMuse: a step
-                            messageId = message.id,
-                            block = block,
-                            isLast = block.id == lastThinkingId,
-                            messageIsStreaming = message.isStreaming,
-                            messageThinkingLevel = message.thinkingLevel,
-                            isLastBlockOverall = block.id == lastBlockId,
-                        )))
+                        val hasSubsequentText = blocks.drop(index + 1)
+                            .takeWhile { it.kind == "thinking" || it.kind == "text" }
+                            .any { it.kind == "text" && it.content.isNotEmpty() }
+                        if (hasSubsequentText) {
+                            pendingLeadingThinking = block
+                        } else {
+                            out.add(dedupe(FlatChatItem.AssistantThinking( // nanoMuse: a step
+                                messageId = message.id,
+                                block = block,
+                                isLast = block.id == lastThinkingId,
+                                messageIsStreaming = message.isStreaming,
+                                messageThinkingLevel = message.thinkingLevel,
+                                isLastBlockOverall = block.id == lastBlockId,
+                            )))
+                        }
                     }
                 }
                 "info" -> {
+                    flushPendingLeadingThinking()
                     flushToolGroup()
                     out.add(dedupe(FlatChatItem.AssistantInfo(
                         messageId = message.id,
@@ -769,26 +806,32 @@ internal fun buildFlatChatItems(
                     )))
                 }
                 "nm_naming" -> {
+                    flushPendingLeadingThinking()
                     flushToolGroup()
                     out.add(dedupe(FlatChatItem.NanoMuseNaming(message.id))) // nanoMuse
                 }
                 "nm_avatar_options" -> {
+                    flushPendingLeadingThinking()
                     flushToolGroup()
                     out.add(dedupe(FlatChatItem.NanoMuseAvatarOptions(message.id))) // nanoMuse
                 }
                 "nm_avatar_share" -> {
+                    flushPendingLeadingThinking()
                     flushToolGroup()
                     out.add(dedupe(FlatChatItem.NanoMuseAvatarShare(message.id, block.content))) // nanoMuse
                 }
                 "nm_avatar_confirm" -> {
+                    flushPendingLeadingThinking()
                     flushToolGroup()
                     out.add(dedupe(FlatChatItem.NanoMuseAvatarConfirm(message.id, block.content))) // nanoMuse
                 }
                 "nm_allowance" -> {
+                    flushPendingLeadingThinking()
                     flushToolGroup()
                     out.add(dedupe(FlatChatItem.NanoMuseAllowance(message.id))) // nanoMuse
                 }
                 else -> {
+                    flushPendingLeadingThinking()
                     if (isAskQuestionTool(block.toolName)) {
                         flushToolGroup()
                         out.add(dedupe(FlatChatItem.AssistantAskQuestion(
@@ -808,6 +851,7 @@ internal fun buildFlatChatItems(
                 }
             }
         }
+        flushPendingLeadingThinking()
 
         // Typing indicator: show while streaming and either (a) no visible
         // content has arrived yet, or (b) we're in the network gap waiting

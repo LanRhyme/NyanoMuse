@@ -1215,4 +1215,9 @@
     <string name="nm_companion_scenario_calm">Présence calme (1h–4h inactif)</string>
     <string name="nm_companion_hours_val">%1$d heures</string>
     <string name="nm_companion_daily_limit_val">Max %1$d fois / jour</string>
+
+    <string name="nm_thinking_in_progress">Réflexion (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Réflexion…</string>
+    <string name="nm_thinking_done">Pensé pendant %1$ds</string>
+    <string name="nm_thinking_done_simple">Réflexion approfondie</string>
 </resources>

@@ -1210,4 +1210,9 @@
     <string name="nm_companion_scenario_calm">Teman yang Tenang (1j–4j offline)</string>
     <string name="nm_companion_hours_val">%1$d jam</string>
     <string name="nm_companion_daily_limit_val">Maks %1$d kali / hari</string>
+
+    <string name="nm_thinking_in_progress">Berpikir (%1$ds)…</string>
+    <string name="nm_thinking_in_progress_simple">Berpikir…</string>
+    <string name="nm_thinking_done">Berpikir selama %1$ds</string>
+    <string name="nm_thinking_done_simple">Pemikiran Mendalam</string>
 </resources>
