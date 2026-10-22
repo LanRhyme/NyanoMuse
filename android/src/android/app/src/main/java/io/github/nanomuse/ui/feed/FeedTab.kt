@@ -57,6 +57,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -146,65 +147,71 @@ fun FeedTab(
 
     val days = remember(posts) { posts.groupBy { it.day }.toList() }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(if (hasWallpaper) Color.Transparent else ChatColors.background),
-        // The last card ends above the floating pill, which overlays the page.
-        contentPadding = PaddingValues(bottom = 28.dp + bottomInset),
+    PullToRefreshBox(
+        isRefreshing = isSyncing,
+        onRefresh = { FeedSync.triggerSync(context, userInitiated = true) },
+        modifier = Modifier.fillMaxSize(),
     ) {
-        item(key = "header") { header() }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (hasWallpaper) Color.Transparent else ChatColors.background),
+            // The last card ends above the floating pill, which overlays the page.
+            contentPadding = PaddingValues(bottom = 28.dp + bottomInset),
+        ) {
+            item(key = "header") { header() }
 
-        if (isSyncing && days.isNotEmpty()) {
-            item(key = "syncing") { Box(Modifier.animateItem()) { SyncingCard() } }
-        }
-
-        if (days.isEmpty()) {
-            item(key = "today-title") { DayTitle(dayLabel(todayKey(), System.currentTimeMillis())) }
-            if (!introAck) item(key = "intro") { IntroCard(onEdit = { editPrefs = true }, onAck = { FeedFlow.acknowledgeIntro(context) }) }
-            item(key = "empty") {
-                EmptyState(
-                    generating = generating,
-                    isSyncing = isSyncing,
-                    onWriteNow = { FeedFlow.generateNow(context) },
-                    onSyncNow = { FeedSync.triggerSync(context, userInitiated = true) },
-                )
+            if (isSyncing && days.isNotEmpty()) {
+                item(key = "syncing") { Box(Modifier.animateItem()) { SyncingCard() } }
             }
-        } else {
-            days.forEachIndexed { i, (day, dayPosts) ->
-                item(key = "day-$day") { DayTitle(dayLabel(day, dayPosts.first().createdAt)) }
-                if (i == 0 && !introAck) {
-                    item(key = "intro") { IntroCard(onEdit = { editPrefs = true }, onAck = { FeedFlow.acknowledgeIntro(context) }) }
-                }
-                if (i == 0 && generating) item(key = "generating") { Box(Modifier.animateItem()) { GeneratingCard() } }
-                items(dayPosts, key = { it.id }) { post -> // the model leads with what matters most
-                    PostCard(
-                        post = post,
-                        onLike = { FeedStore.setLiked(post, !post.liked) },
-                        onDiscuss = { onDiscuss(post) },
-                        onInfo = { infoPost = post },
-                        modifier = Modifier.animateItem(), // new posts settle in, removed ones fade out
+
+            if (days.isEmpty()) {
+                item(key = "today-title") { DayTitle(dayLabel(todayKey(), System.currentTimeMillis())) }
+                if (!introAck) item(key = "intro") { IntroCard(onEdit = { editPrefs = true }, onAck = { FeedFlow.acknowledgeIntro(context) }) }
+                item(key = "empty") {
+                    EmptyState(
+                        generating = generating,
+                        isSyncing = isSyncing,
+                        onWriteNow = { FeedFlow.generateNow(context) },
+                        onSyncNow = { FeedSync.triggerSync(context, userInitiated = true) },
                     )
                 }
+            } else {
+                days.forEachIndexed { i, (day, dayPosts) ->
+                    item(key = "day-$day") { DayTitle(dayLabel(day, dayPosts.first().createdAt)) }
+                    if (i == 0 && !introAck) {
+                        item(key = "intro") { IntroCard(onEdit = { editPrefs = true }, onAck = { FeedFlow.acknowledgeIntro(context) }) }
+                    }
+                    if (i == 0 && generating) item(key = "generating") { Box(Modifier.animateItem()) { GeneratingCard() } }
+                    items(dayPosts, key = { it.id }) { post -> // the model leads with what matters most
+                        PostCard(
+                            post = post,
+                            onLike = { FeedStore.setLiked(post, !post.liked) },
+                            onDiscuss = { onDiscuss(post) },
+                            onInfo = { infoPost = post },
+                            modifier = Modifier.animateItem(), // new posts settle in, removed ones fade out
+                        )
+                    }
+                }
             }
-        }
 
-        if (activities.isNotEmpty()) {
-            item(key = "away-title") {
-                Text(
-                    text = stringResource(R.string.nm_feed_while_away),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ChatColors.secondaryText,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 6.dp),
-                )
-            }
-            items(activities, key = { it.id }) { act ->
-                ActivityCard(
-                    item = act,
-                    onClick = { onOpenThread(act.thread.ifBlank { "main" }) },
-                    modifier = Modifier.animateItem(),
-                )
+            if (activities.isNotEmpty()) {
+                item(key = "away-title") {
+                    Text(
+                        text = stringResource(R.string.nm_feed_while_away),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ChatColors.secondaryText,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 6.dp),
+                    )
+                }
+                items(activities, key = { it.id }) { act ->
+                    ActivityCard(
+                        item = act,
+                        onClick = { onOpenThread(act.thread.ifBlank { "main" }) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
             }
         }
     }
