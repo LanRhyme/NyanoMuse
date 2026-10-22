@@ -425,16 +425,30 @@ internal fun UserMessageBubble(
                                 isStreaming = false,
                                 stableKey = "user:${message.id}",
                             ) {
-                                Text(
-                                    text = message.content,
-                                    color = textColor,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.5.sp),
+                                val timeStr = io.github.nanomuse.chat.BubbleTimeFormatter.formatBubbleTime(message.createdAt)
+                                Column(
+                                    horizontalAlignment = Alignment.End,
                                     modifier = bubbleModifier
                                         .background(bubbleBg, shape)
                                         .clip(shape)
                                         .then(dashedStroke)
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                )
+                                        .padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 6.dp),
+                                ) {
+                                    Text(
+                                        text = message.content,
+                                        color = textColor,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.5.sp),
+                                    )
+                                    if (timeStr.isNotEmpty() && !isQueued) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = timeStr,
+                                            color = textColor.copy(alpha = 0.65f),
+                                            fontSize = 11.sp,
+                                            lineHeight = 12.sp,
+                                        )
+                                    }
+                                }
                             }
                         }
                         if (isQueued && onWithdraw != null) {

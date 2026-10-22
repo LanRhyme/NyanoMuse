@@ -264,4 +264,22 @@ class AssistantBubbleGroupingTest {
         assertEquals("th-m", mdBlocks[0].leadingThinking?.id)
         assertEquals(null, mdBlocks[1].leadingThinking)
     }
+
+    @Test
+    fun `createdAt timestamp is preserved on assistant markdown blocks`() {
+        val stamp = 1792656300000L
+        val msg = ChatMessage(
+            id = "a-time",
+            role = "assistant",
+            content = "Time test",
+            createdAt = stamp,
+            toolBlocks = listOf(
+                AssistantBlock(id = "tx-time", kind = "text", content = "Time test"),
+            ),
+        )
+
+        val items = buildFlatChatItems(listOf(msg))
+        val mdBlock = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>().single()
+        assertEquals(stamp, mdBlock.createdAt)
+    }
 }

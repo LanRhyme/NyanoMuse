@@ -377,6 +377,7 @@ internal sealed class FlatChatItem {
         val messageThinkingLevel: com.openminis.app.data.model.ThinkingLevel? = null,
         val clusterIndex: Int = 0,
         val clusterSize: Int = 1,
+        val createdAt: Long = 0L,
     ) : FlatChatItem() {
         override val key = "mdblock:$messageId:$parentBlockId:$blockIndex"
         override val contentType = "mdblock"
@@ -390,6 +391,7 @@ internal sealed class FlatChatItem {
                 blockIndex == other.blockIndex &&
                 clusterIndex == other.clusterIndex &&
                 clusterSize == other.clusterSize &&
+                createdAt == other.createdAt &&
                 isLastBlockOfMessage == other.isLastBlockOfMessage &&
                 messageIsStreaming == other.messageIsStreaming &&
                 rawText.length == other.rawText.length &&
@@ -404,6 +406,7 @@ internal sealed class FlatChatItem {
             h = h * 31 + blockIndex
             h = h * 31 + clusterIndex
             h = h * 31 + clusterSize
+            h = h * 31 + createdAt.hashCode()
             h = h * 31 + isLastBlockOfMessage.hashCode()
             h = h * 31 + messageIsStreaming.hashCode()
             h = h * 31 + rawText.length
@@ -623,6 +626,7 @@ internal fun buildFlatChatItems(
                 messageThinkingLevel = item.messageThinkingLevel,
                 clusterIndex = item.clusterIndex,
                 clusterSize = item.clusterSize,
+                createdAt = item.createdAt,
             )
             is FlatChatItem.AssistantThinking -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantToolGroup -> item.copy(messageId = "${item.messageId}#$n")
@@ -798,6 +802,7 @@ internal fun buildFlatChatItems(
                                 messageThinkingLevel = message.thinkingLevel,
                                 clusterIndex = segIdx,
                                 clusterSize = segments.size,
+                                createdAt = message.createdAt,
                             )))
                         }
                     }

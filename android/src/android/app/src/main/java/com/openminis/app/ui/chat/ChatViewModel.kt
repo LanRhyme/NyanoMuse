@@ -7220,6 +7220,7 @@ class ChatViewModel(
                 // ChatMessage.attachmentNames depends on.
                 attachmentNames = prepared.attachmentNames + (pasted?.uiNames ?: emptyList()),
                 attachmentUris = prepared.nonImageUris + (pasted?.uiUris ?: emptyList()),
+                createdAt = persistedUser.createdAt,
             )
             _messages.value = _messages.value + userMsg
             userRowShown = true // nanoMuse: (#340)
@@ -7241,10 +7242,13 @@ class ChatViewModel(
             // On later turns the same expansion is rebuilt from disk by
             // toLLMMessage's mediaRef branch, so history replay (retry, rerun,
             // session reload, compaction) sees the identical text.
+            val isMain = io.github.nanomuse.home.MainChat.isMain(context, activeSessionId)
+            val timeTag = if (isMain) io.github.nanomuse.chat.BubbleTimeFormatter.formatUserPromptTimestamp(persistedUser.createdAt) else ""
             val modelBody = pasted?.modelText ?: trimmed
+            val finalModelBody = if (timeTag.isNotEmpty() && modelBody.isNotBlank()) "$modelBody\n\n$timeTag" else modelBody
 
             val userContentParts = mutableListOf<AgentContentPart>()
-            if (modelBody.isNotEmpty()) userContentParts.add(AgentContentPart.Text(modelBody))
+            if (finalModelBody.isNotEmpty()) userContentParts.add(AgentContentPart.Text(finalModelBody))
             imageParts.forEachIndexed { idx, part ->
                 val path = prepared.imageUploadPaths.getOrNull(idx)
                 if (path != null) userContentParts.add(AgentContentPart.Text("[attached image: $path]"))
@@ -7254,7 +7258,7 @@ class ChatViewModel(
 
             agentHistory.add(LLMMessage(
                 role = LLMMessage.Role.USER,
-                content = modelBody,
+                content = finalModelBody,
                 imageParts = imageParts,
                 contentParts = userContentParts,
                 dbMessageId = persistedUser.id,
@@ -13158,6 +13162,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                 attachmentUris = restoredAttachmentUris,
                 toolBlocks = blocks,
                 sourceDbIds = listOf(entity.id),
+                createdAt = entity.createdAt,
                 // [T-error-persist-android] Restore the persisted terminal error
                 // so the inline error banner + Retry button survive a reload.
                 // Coalesce a blank value to null: the UI gate is `error?.let`, so
@@ -13198,6 +13203,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                         // an assistant row that gets folded into a later
                         // assistant turn).
                         sourceDbIds = prev.sourceDbIds + msg.sourceDbIds,
+                        createdAt = msg.createdAt,
                         // [T-error-persist-android] The error sticker is written
                         // to the LAST assistant row of the turn, so the later row
                         // (`msg`) wins; fall back to `prev` if only it carried one.
@@ -13348,6 +13354,21 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         } catch (_: Exception) {
             textContent = partsJson
             contentParts.add(AgentContentPart.Text(partsJson))
+        }
+
+        val isMain = io.github.nanomuse.home.MainChat.isMain(context, sessionId)
+        if (r == LLMMessage.Role.USER && isMain && textContent.isNotBlank()) {
+            val timeTag = io.github.nanomuse.chat.BubbleTimeFormatter.formatUserPromptTimestamp(createdAt)
+            if (timeTag.isNotEmpty() && !textContent.endsWith(timeTag)) {
+                textContent = "$textContent\n\n$timeTag"
+                val lastTextIdx = contentParts.indexOfLast { it is AgentContentPart.Text }
+                if (lastTextIdx >= 0) {
+                    val prevText = (contentParts[lastTextIdx] as AgentContentPart.Text).text
+                    contentParts[lastTextIdx] = AgentContentPart.Text("$prevText\n\n$timeTag")
+                } else {
+                    contentParts.add(AgentContentPart.Text(timeTag))
+                }
+            }
         }
 
         return LLMMessage(

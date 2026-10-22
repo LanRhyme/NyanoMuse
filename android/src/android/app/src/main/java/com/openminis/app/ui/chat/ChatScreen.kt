@@ -4539,6 +4539,20 @@ fun ChatScreen(
                                                 },
                                             )
                                         }
+                                        val isClusterTail = item.clusterIndex == item.clusterSize - 1
+                                        val timeStr = remember(item.createdAt) {
+                                            io.github.nanomuse.chat.BubbleTimeFormatter.formatBubbleTime(item.createdAt)
+                                        }
+                                        if (isClusterTail && !item.isStreaming && timeStr.isNotEmpty()) {
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text = timeStr,
+                                                color = ChatColors.tertiaryText,
+                                                fontSize = 11.sp,
+                                                lineHeight = 12.sp,
+                                                modifier = Modifier.align(Alignment.End),
+                                            )
+                                        }
                                     }
                                 }
                             } } // nanoMuse: bubble
