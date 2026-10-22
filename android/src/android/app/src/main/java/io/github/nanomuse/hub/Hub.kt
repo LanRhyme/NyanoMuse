@@ -117,7 +117,14 @@ object Hub {
             hello = { hello(app) },
             onCall = { call -> HubActions.handle(app, call) },
             onDevices = { list -> _devices.value = list },
-            onState = { on, detail -> _connected.value = on; _detail.value = detail },
+            onState = { on, detail ->
+                _connected.value = on
+                _detail.value = detail
+                if (on) {
+                    io.github.nanomuse.sync.ConversationSync.syncSoon(app)
+                    io.github.nanomuse.feed.FeedSync.triggerSync(app)
+                }
+            },
             onProfile = { frame -> io.github.nanomuse.cloud.ProfileSync.onFrame(app, frame) },
             onConfig = { frame -> io.github.nanomuse.cloud.ConfigSync.onFrame(app, frame) },
             onSync = { frame -> io.github.nanomuse.sync.ConversationSync.onFrame(app, frame) },

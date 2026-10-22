@@ -657,6 +657,13 @@ fun ChatScreen(
             }
         }
     }
+    // nanoMuse: on entering or switching to a session, trigger an immediate fast catch-up pull if not currently streaming
+    LaunchedEffect(sessionId) {
+        kotlinx.coroutines.delay(200)
+        if (!viewModel.isStreaming.value) {
+            io.github.nanomuse.sync.ConversationSync.pullSoon(context)
+        }
+    }
     // [T-android-compact-progress] null when no compaction is running.
     val compactProgress by viewModel.compactProgress.collectAsState()
     val error by viewModel.error.collectAsState()

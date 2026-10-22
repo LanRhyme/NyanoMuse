@@ -61,10 +61,10 @@ declare module '@deepseek-ai/dsh-llm' {
 
 /** The relay's limits (contract C7). */
 export const MAX_POST_MESSAGES = 200
-export const PUSH_DELAY_MS = 2000
+export const PUSH_DELAY_MS = 200
 /** The person's words go up this soon after they are sent (C8). */
 export const SEND_DELAY_MS = 50
-export const PULL_EVERY_MS = 60_000
+export const PULL_EVERY_MS = 15_000
 export const PAGE = 500
 
 const JSON_HEADERS = { 'content-type': 'application/json' }
@@ -92,7 +92,7 @@ export const TAIL = 300
 /** A `working` presence is over this long after its `at` (C9). */
 export const WORKING_TTL_MS = 10 * 60_000
 /** The hub's `sync` frames arriving together become one pull. */
-export const FRAME_COALESCE_MS = 1000
+export const FRAME_COALESCE_MS = 200
 
 export interface WireConversation {
   cid: string

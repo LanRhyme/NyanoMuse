@@ -56,10 +56,10 @@ object ConversationSync {
     private const val PREFS = "nanomuse_sync"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_SIDE_CHATS = "side_chats"
-    private const val PUSH_DELAY_MS = 2_000L
-    private const val PULL_EVERY_MS = 60_000L
-    /** The turn's last rows are still being written when the stream flag drops; the reply goes a breath later. */
-    private const val TURN_END_SETTLE_MS = 1_500L
+    private const val PUSH_DELAY_MS = 200L
+    private const val PULL_EVERY_MS = 15_000L
+    /** The turn's last rows are settled in SQLite WAL; reply goes immediately. */
+    private const val TURN_END_SETTLE_MS = 200L
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Mutex()
