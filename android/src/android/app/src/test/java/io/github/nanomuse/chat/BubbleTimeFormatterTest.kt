@@ -1,6 +1,7 @@
 package io.github.nanomuse.chat
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
@@ -63,5 +64,19 @@ class BubbleTimeFormatterTest {
         assertEquals(1, BubbleTimeFormatter.countOccurrences("Hello<nm:bubble/>world", "<nm:bubble/>"))
         assertEquals(3, BubbleTimeFormatter.countOccurrences("A<nm:bubble/>B<nm:bubble/>C<nm:bubble/>D", "<nm:bubble/>"))
         assertEquals(0, BubbleTimeFormatter.countOccurrences("", "<nm:bubble/>"))
+    }
+
+    @Test
+    fun `bubble tag helpers handle variants and spaces`() {
+        assertTrue(BubbleTimeFormatter.hasBubbleTag("Hello<nm:bubble/>world"))
+        assertTrue(BubbleTimeFormatter.hasBubbleTag("Hello<nm:bubble />world"))
+        assertTrue(BubbleTimeFormatter.hasBubbleTag("Hello<NM:BUBBLE>world"))
+        assertFalse(BubbleTimeFormatter.hasBubbleTag("Hello world"))
+
+        assertEquals(2, BubbleTimeFormatter.countBubbleTags("A<nm:bubble/>B<nm:bubble />C"))
+        assertEquals(1, BubbleTimeFormatter.countBubbleTags("<nm:bubble>D"))
+
+        val sanitized = BubbleTimeFormatter.sanitizeBubbleTags("A<nm:bubble/>B<nm:bubble />C")
+        assertEquals("A\n\nB\n\nC", sanitized)
     }
 }

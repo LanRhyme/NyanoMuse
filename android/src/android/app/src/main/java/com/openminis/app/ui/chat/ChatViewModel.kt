@@ -8793,8 +8793,8 @@ class ChatViewModel(
                         val unflushed = len - lastFlushedLen
                         val throttle = textDeltaThrottleMs(len)
                         val newlineFlush = len < 5_000 && chunk.text.contains('\n') && unflushed >= 50
-                        val currentBubbleCount = countOccurrences(turnTextSb, NM_BUBBLE_TAG)
-                        val hasNewBubble = currentBubbleCount > bubblesSeenInTurn && io.github.nanomuse.home.MainChat.isMain(context, activeSessionId)
+                        val currentBubbleCount = io.github.nanomuse.chat.BubbleTimeFormatter.countBubbleTags(turnTextSb)
+                        val hasNewBubble = currentBubbleCount > bubblesSeenInTurn
                         if (hasNewBubble) {
                             bubblesSeenInTurn = currentBubbleCount
                         }
@@ -9326,15 +9326,11 @@ class ChatViewModel(
             val turnReasoningContent: String? = turnReasoningBlob
                 ?: turnThinking.toString().takeIf { it.isNotEmpty() }
 
-            val sanitizedTurnText = if (turnText.contains(NM_BUBBLE_TAG)) turnText.replace(NM_BUBBLE_TAG, "\n\n") else turnText
-            val sanitizedAssistantParts = if (assistantParts.any { it is AgentContentPart.Text && it.text.contains(NM_BUBBLE_TAG) }) {
-                assistantParts.map { part ->
-                    if (part is AgentContentPart.Text && part.text.contains(NM_BUBBLE_TAG)) {
-                        AgentContentPart.Text(part.text.replace(NM_BUBBLE_TAG, "\n\n"))
-                    } else part
-                }
-            } else {
-                assistantParts
+            val sanitizedTurnText = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(turnText)
+            val sanitizedAssistantParts = assistantParts.map { part ->
+                if (part is AgentContentPart.Text && io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(part.text)) {
+                    AgentContentPart.Text(io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(part.text))
+                } else part
             }
 
             agentHistory.add(LLMMessage(
@@ -11303,16 +11299,20 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         } else {
             null
         }
-        val bubbleFlowAddendum = if (io.github.nanomuse.home.MainChat.isMain(context, sessionKey)) {
-            """
-            [Messaging Flow Format]
-            - When engaging in informal chat, greetings, emotional resonance, or quick casual replies, you may separate consecutive thought bursts using `<nm:bubble/>` to send 2-3 short messages (1-2 sentences each), mimicking natural mobile chat messaging
-            - In technical explanations, tutorials, analysis, task planning, or code blocks, do NOT use `<nm:bubble/>`; write continuous structured text
-            - Maximum 2 `<nm:bubble/>` delimiters per turn (up to 3 consecutive bubbles total)
-            """.trimIndent()
-        } else {
-            null
-        }
+        val safeAddress = io.github.nanomuse.companion.CompanionPrefs.getUserAddress(context).trim().take(12).ifEmpty { "老大" }
+        val bubbleFlowAddendum = """
+            [Mobile Messaging & Multi-Bubble Cadence / 多气泡拟真连续打字规范]
+            - 在日常打招呼、闲聊打趣、情感关切、生活互动、短句回复或倾诉心事时，模拟真人在手机上发消息（微信/Telegram）的习惯，将原本一段话自然拆分为 2~3 个短消息气泡连续发送（每条气泡 1~2 句话，言简意赅，自成独立一句，就像打字连续发出了几条短消息）
+            - 气泡切分语法：在每一句需要分泡的地方直接输出 `<nm:bubble/>` 标签（客户端会自动呈现分段打字脉冲停顿与聚类独立气泡，单次回合最多切分 2 次，即最多产生 3 个短气泡）
+            - 经典示例：
+              ${safeAddress}：今天工作好累呀
+              回复：辛苦啦${safeAddress}！快坐下来好好歇歇 (ฅ>ω<*ฅ)<nm:bubble/>本喵去给你倒杯暖呼呼的温水，今天在外面受什么委屈了吗？*轻轻蹭蹭*
+              ${safeAddress}：早安呀小猫
+              回复：${safeAddress}早安！今天外面的阳光好舒服呢~<nm:bubble/>记得吃顿暖暖的早餐再出门哦，本喵会一直陪着你的！*晃晃尾巴*
+              ${safeAddress}：测试一下气泡切分
+              回复：收到啦！这是第一个测试气泡哦 (｡•ㅅ•｡)♡<nm:bubble/>呼啦！这是切分出来的第二个气泡，${safeAddress}能看到分成两个连续的小气泡了吗？*眨眨大眼睛*
+            - 严禁切分场景：在长篇技术分析、代码展示、任务规划、Markdown表格、长文教程或工具调用时，绝对严禁插入 `<nm:bubble/>`，必须保持单气泡完整连贯输出
+        """.trimIndent()
         return io.github.nanomuse.chat.PromptCacheLayout.build(
             stableSections = listOf(
                 base,
@@ -13370,12 +13370,12 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
             }
         }
 
-        if (r == LLMMessage.Role.ASSISTANT && textContent.contains(NM_BUBBLE_TAG)) {
-            textContent = textContent.replace(NM_BUBBLE_TAG, "\n\n")
+        if (r == LLMMessage.Role.ASSISTANT && io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(textContent)) {
+            textContent = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(textContent)
             for (i in contentParts.indices) {
                 val part = contentParts[i]
-                if (part is AgentContentPart.Text && part.text.contains(NM_BUBBLE_TAG)) {
-                    contentParts[i] = AgentContentPart.Text(part.text.replace(NM_BUBBLE_TAG, "\n\n"))
+                if (part is AgentContentPart.Text && io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(part.text)) {
+                    contentParts[i] = AgentContentPart.Text(io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(part.text))
                 }
             }
         }

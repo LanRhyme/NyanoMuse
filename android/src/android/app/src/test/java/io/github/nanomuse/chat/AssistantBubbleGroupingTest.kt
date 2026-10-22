@@ -284,4 +284,24 @@ class AssistantBubbleGroupingTest {
         val mdBlock = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>().single()
         assertEquals(stamp, mdBlock.createdAt)
     }
+
+    @Test
+    fun `tag variants with spaces and surrounding newlines are properly trimmed`() {
+        val raw = "First bubble\n<nm:bubble />\nSecond bubble"
+        val msg = ChatMessage(
+            id = "a-variant",
+            role = "assistant",
+            content = raw,
+            isStreaming = false,
+            toolBlocks = listOf(
+                AssistantBlock(id = "tx-var", kind = "text", content = raw),
+            ),
+        )
+
+        val items = buildFlatChatItems(listOf(msg))
+        val mdBlocks = items.filterIsInstance<FlatChatItem.AssistantMarkdownBlock>()
+        assertEquals(2, mdBlocks.size)
+        assertEquals("First bubble", mdBlocks[0].rawText)
+        assertEquals("Second bubble", mdBlocks[1].rawText)
+    }
 }

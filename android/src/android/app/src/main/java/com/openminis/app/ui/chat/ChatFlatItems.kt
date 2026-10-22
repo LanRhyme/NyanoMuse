@@ -778,13 +778,14 @@ internal fun buildFlatChatItems(
                         val leading = pendingLeadingThinking
                         pendingLeadingThinking = null
                         // nanoMuse: support multi-bubble messaging delimiter <nm:bubble/>
-                        val segments = if (block.content.contains("<nm:bubble/>")) {
-                            val raw = block.content.split("<nm:bubble/>")
+                        val segments = if (io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(block.content)) {
+                            val raw = block.content.split(io.github.nanomuse.chat.BubbleTimeFormatter.BUBBLE_REGEX)
                             val capped = if (raw.size > 3) {
                                 listOf(raw[0], raw[1], raw.drop(2).joinToString("\n\n"))
                             } else raw
-                            val filtered = capped.filterIndexed { i, s ->
-                                s.isNotBlank() || (i == capped.lastIndex && message.isStreaming && isLastText)
+                            val mapped = capped.map { it.trim() }
+                            val filtered = mapped.filterIndexed { i, s ->
+                                s.isNotEmpty() || (i == mapped.lastIndex && message.isStreaming && isLastText)
                             }
                             if (filtered.isEmpty()) listOf(block.content) else filtered
                         } else {
