@@ -146,8 +146,9 @@ fun SettingsScreen(
     val firstEntry = providerConfig?.let { cfg -> defaultGroup?.memberEntryIds?.firstNotNullOfOrNull { id -> cfg.modelEntries.firstOrNull { it.id == id } } }
     val firstInstance = providerConfig?.instances?.firstOrNull { it.id == firstEntry?.providerInstanceId }
     val modelLine = listOfNotNull(firstInstance?.let { io.github.nanomuse.models.ModelSlots.providerLabel(context, it) }, firstEntry?.model?.id).joinToString(" · ")
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
     Scaffold(
-        containerColor = io.github.nanomuse.ui.home.MuseTones.canvas,
+        containerColor = if (hasWallpaper) Color.Transparent else io.github.nanomuse.ui.home.MuseTones.canvas,
         topBar = {
             io.github.nanomuse.ui.muse.MuseTopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },

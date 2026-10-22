@@ -127,6 +127,10 @@ fun FeedTab(
     var infoPost by remember { mutableStateOf<FeedPost?>(null) }
     var editPrefs by remember { mutableStateOf(false) }
 
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
+    val hubConnected by io.github.nanomuse.hub.Hub.connected.collectAsState()
+    val hubDevices by io.github.nanomuse.hub.Hub.devices.collectAsState()
+
     // The routine needs a model; retry quietly whenever the tab shows.
     // Also trigger feed sync from online computers via Hub.
     LaunchedEffect(Unit) {
@@ -134,10 +138,18 @@ fun FeedTab(
         FeedSync.triggerSync(context)
     }
 
+    LaunchedEffect(hubConnected, hubDevices) {
+        if (hubConnected && hubDevices.any { it.online }) {
+            FeedSync.triggerSync(context)
+        }
+    }
+
     val days = remember(posts) { posts.groupBy { it.day }.toList() }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(ChatColors.background),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (hasWallpaper) Color.Transparent else ChatColors.background),
         // The last card ends above the floating pill, which overlays the page.
         contentPadding = PaddingValues(bottom = 28.dp + bottomInset),
     ) {
@@ -155,7 +167,7 @@ fun FeedTab(
                     generating = generating,
                     isSyncing = isSyncing,
                     onWriteNow = { FeedFlow.generateNow(context) },
-                    onSyncNow = { FeedSync.triggerSync(context) },
+                    onSyncNow = { FeedSync.triggerSync(context, userInitiated = true) },
                 )
             }
         } else {
@@ -252,9 +264,10 @@ private fun DayTitle(text: String) {
 /** White card frame shared by every card on the page. */
 @Composable
 private fun FeedCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = MuseTones.surface,
+        color = if (hasWallpaper) MuseTones.surface.copy(alpha = 0.88f) else MuseTones.surface,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -694,7 +707,7 @@ private fun FeedSettingsSheet(onDismiss: () -> Unit, onEditRoutine: (String) -> 
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .clickable(enabled = !isSyncing) { FeedSync.triggerSync(context); onDismiss() }
+                                .clickable(enabled = !isSyncing) { FeedSync.triggerSync(context, userInitiated = true); onDismiss() }
                                 .padding(horizontal = 14.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

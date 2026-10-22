@@ -71,9 +71,12 @@ fun IdeasTab(
     val context = LocalContext.current
     val sections = remember { Ideas.load(context) }
     var selected by remember { mutableStateOf<Idea?>(null) }
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(ChatColors.background),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (hasWallpaper) Color.Transparent else ChatColors.background),
         // The last row ends above the floating pill, which overlays the page.
         contentPadding = PaddingValues(bottom = 24.dp + bottomInset),
     ) {
@@ -106,7 +109,7 @@ fun IdeasTab(
         ModalBottomSheet(
             onDismissRequest = { selected = null },
             sheetState = sheetState,
-            containerColor = ChatColors.background,
+            containerColor = if (hasWallpaper) io.github.nanomuse.ui.home.MuseTones.surface else ChatColors.background,
         ) {
             Column(
                 Modifier

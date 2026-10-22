@@ -7,6 +7,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -105,8 +106,12 @@ fun LibraryTab(
         entries.orEmpty().filter { it.kind == kind }
     }
 
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
+
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(ChatColors.background),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (hasWallpaper) Color.Transparent else ChatColors.background),
         // The last row ends above the floating pill, which overlays the page.
         contentPadding = PaddingValues(bottom = 24.dp + bottomInset),
     ) {
@@ -158,13 +163,15 @@ fun LibraryTab(
 /** Muse's pill-shaped two-way control: white track with a hairline, grey pill on the active side. */
 @Composable
 fun Segmented(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
+    val surfaceColor = if (hasWallpaper) io.github.nanomuse.ui.home.MuseTones.surface.copy(alpha = 0.88f) else io.github.nanomuse.ui.home.MuseTones.surface
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
             .clip(CircleShape)
             .border(BorderStroke(1.dp, io.github.nanomuse.ui.home.MuseTones.hairline), CircleShape)
-            .background(io.github.nanomuse.ui.home.MuseTones.surface)
+            .background(surfaceColor)
             .padding(4.dp),
     ) {
         labels.forEachIndexed { i, label ->
@@ -175,7 +182,7 @@ fun Segmented(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modi
                     .weight(1f)
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .background(if (active) io.github.nanomuse.ui.home.MuseTones.fill else io.github.nanomuse.ui.home.MuseTones.surface)
+                    .background(if (active) io.github.nanomuse.ui.home.MuseTones.fill else surfaceColor)
                     .clickable { onSelect(i) },
             ) {
                 Text(

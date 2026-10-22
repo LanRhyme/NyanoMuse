@@ -735,6 +735,42 @@ export default class NanomuseCloud extends Service {
       this.notice('notify', call.from.name || 'a device', String(args.title ?? ''), String(args.text ?? ''))
       return { ok: true, shown: true }
     })
+    this.hub.handle('feed.posts', async () => {
+      const rooms = this.ctx.get('nanomuseRooms') as any
+      const rawPosts = rooms?.view()?.feed?.posts ?? []
+      const posts = rawPosts.map((p: any) => ({
+        id: p.id,
+        day: p.day || (p.at ? new Date(p.at).toISOString().slice(0, 10).replace(/-/g, '') : ''),
+        at: p.at || Date.now(),
+        ts: p.at || Date.now(),
+        created_at: p.at || Date.now(),
+        title: p.title || '',
+        body: p.body || '',
+        area: p.area || p.type || 'note',
+        type: p.area || p.type || 'note',
+        emoji: p.emoji || '',
+        image: p.image || '',
+        source: Array.isArray(p.source) ? p.source : [],
+        liked: Boolean(p.liked),
+      }))
+      return { posts }
+    })
+    this.hub.handle('feed.activity', async (args) => {
+      const rooms = this.ctx.get('nanomuseRooms') as any
+      const limit = typeof args.limit === 'number' ? args.limit : 60
+      const activityRecords = (rooms?.view()?.activity ?? []).slice(0, limit)
+      const items = activityRecords.map((r: any, idx: number) => ({
+        id: `${r.sessionId || idx}-${r.updatedAt || r.startedAt || Date.now()}`,
+        ts: r.updatedAt || r.startedAt || Date.now(),
+        kind: r.status === 'running' ? 'running' : 'background',
+        title: r.request ? String(r.request).slice(0, 60) : '后台任务',
+        text: r.words ? String(r.words).slice(0, 160) : (r.current ? String(r.current) : '已完成自动化处理'),
+        thread: r.sessionId || 'main',
+        thread_title: r.request || '主会话',
+        quiet: false,
+      }))
+      return { items }
+    })
     for (const action of REMOTE_ACTIONS) {
       this.hub.handle(action, (args, call) => this.remote(action, args, call.from))
     }
@@ -3138,7 +3174,7 @@ export default class NanomuseCloud extends Service {
    * lists, and installing one later needs no new hello.
    */
   private actions(): string[] {
-    const out = [...ACTIONS, ...REMOTE_ACTIONS]
+    const out = [...ACTIONS, ...REMOTE_ACTIONS, 'feed.posts', 'feed.activity']
     if (this.tasks) out.push('approve', 'task', 'stop')
     out.push(...CODING_ACTIONS)
     return out

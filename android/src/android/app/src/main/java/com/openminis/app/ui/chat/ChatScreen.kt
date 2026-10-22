@@ -2639,29 +2639,11 @@ fun ChatScreen(
         // map (which is last-writer-wins across sessions).
         LocalMarkdownSessionId provides sessionId,
     ) {
-    val wallpaperPath = remember { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperPath(context) }
-    val wallpaperBlur = remember { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperBlur(context) }
-    val wallpaperDim = remember { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperDim(context) }
-    val wallpaperFile = remember(wallpaperPath) { wallpaperPath?.let { java.io.File(it) }?.takeIf { it.exists() } }
+    val hasAppWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
 
-    Box(modifier = Modifier.fillMaxSize().background(ChatColors.background)) {
-        if (wallpaperFile != null) {
-            AsyncImage(
-                model = wallpaperFile,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .let { if (wallpaperBlur > 0f) it.blur(wallpaperBlur.dp) else it },
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = wallpaperDim)),
-            )
-        }
+    Box(modifier = Modifier.fillMaxSize().background(if (hasAppWallpaper) Color.Transparent else ChatColors.background)) {
     Scaffold(
-        containerColor = if (wallpaperFile != null) Color.Transparent else ChatColors.background,
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0),
         topBar = {
             // nanoMuse: the header is an overlay with progressive gradient blur

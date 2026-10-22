@@ -46,44 +46,71 @@ object FeedSync {
     private val _lastSyncError = MutableStateFlow<String?>(null)
     val lastSyncError: StateFlow<String?> = _lastSyncError.asStateFlow()
 
-    fun triggerSync(context: Context) {
-        scope.launch { sync(context) }
+    fun triggerSync(context: Context, userInitiated: Boolean = false) {
+        scope.launch { sync(context, userInitiated) }
     }
 
-    suspend fun sync(context: Context): Boolean = withContext(Dispatchers.IO) {
+    suspend fun sync(context: Context, userInitiated: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         val app = context.applicationContext
         if (!Hub.isConnected) {
             AppLogger.debug(TAG, "sync skipped: Hub not connected")
+            if (userInitiated) {
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(app, "未连接到 Hub，正在尝试连接...", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
             return@withContext false
         }
 
-        // Find an online computer that can serve feed
-        val computers = Hub.others(app).filter { it.online && it.kind == "computer" }
-        if (computers.isEmpty()) {
-            AppLogger.debug(TAG, "sync skipped: no online computer found")
+        // Find an online computer or device that can serve feed
+        val others = Hub.others(app).filter { it.online }
+        if (others.isEmpty()) {
+            AppLogger.debug(TAG, "sync skipped: no online devices found")
+            if (userInitiated) {
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(app, "未发现其他在线设备", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
             return@withContext false
         }
 
-        val target = computers.firstOrNull { it.actions.contains("feed.posts") } ?: computers.first()
+        val target = others.firstOrNull { it.isComputer && it.actions.contains("feed.posts") }
+            ?: others.firstOrNull { it.actions.contains("feed.posts") }
+            ?: others.firstOrNull { it.isComputer }
+            ?: others.first()
+
         _isSyncing.value = true
         _lastSyncError.value = null
 
         var anySuccess = false
+        var totalImported = 0
         try {
             // 1. Fetch feed posts
             runCatching {
                 val res = Hub.call(target.id, "feed.posts", JSONObject(), CALL_TIMEOUT_MS)
                 val postsJson = res.optJSONArray("posts") ?: JSONArray()
                 val remotes = mutableListOf<FeedStore.RemotePost>()
+                val dayFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                val dayRegex = Regex("^\\d{4}-\\d{2}-\\d{2}$")
+
                 for (i in 0 until postsJson.length()) {
                     val p = postsJson.optJSONObject(i) ?: continue
                     val sources = mutableListOf<String>()
                     p.optJSONArray("source")?.let { arr ->
                         for (j in 0 until arr.length()) arr.optString(j)?.let { if (it.isNotBlank()) sources += it }
                     }
-                    val ts = p.optLong("created_at", p.optLong("ts", System.currentTimeMillis()))
+                    val ts = when {
+                        p.has("at") && p.optLong("at") > 0L -> p.optLong("at")
+                        p.has("created_at") && p.optLong("created_at") > 0L -> p.optLong("created_at")
+                        p.has("ts") && p.optLong("ts") > 0L -> p.optLong("ts")
+                        else -> System.currentTimeMillis()
+                    }
+                    var day = p.optString("day")
+                    if (!dayRegex.matches(day)) {
+                        day = dayFormat.format(java.util.Date(ts))
+                    }
                     remotes += FeedStore.RemotePost(
-                        day = p.optString("day"),
+                        day = day,
                         title = p.optString("title"),
                         type = p.optString("area").ifBlank { p.optString("type", "note") },
                         emoji = p.optString("emoji"),
@@ -95,6 +122,7 @@ object FeedSync {
                 }
                 if (remotes.isNotEmpty()) {
                     val imported = FeedStore.importRemotePosts(remotes)
+                    totalImported = imported
                     AppLogger.info(TAG, "feed.posts sync from ${target.name}: imported $imported / ${remotes.size} posts")
                     anySuccess = true
                 }
@@ -134,6 +162,18 @@ object FeedSync {
             AppLogger.warning(TAG, "feed sync general error: ${e.message}")
         } finally {
             _isSyncing.value = false
+        }
+
+        if (userInitiated) {
+            withContext(Dispatchers.Main) {
+                if (anySuccess) {
+                    val count = FeedStore.posts.value.size
+                    android.widget.Toast.makeText(app, "动态同步完成 (当前共 $count 条)", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    val msg = _lastSyncError.value ?: "未获取到新动态"
+                    android.widget.Toast.makeText(app, msg, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         anySuccess

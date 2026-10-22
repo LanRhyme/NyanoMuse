@@ -377,7 +377,7 @@ fun NanoMuseHome(
 
     val homeShell: @Composable () -> Unit = {
         val twoPane = shouldUseTwoPane()
-        val hasWallpaper = remember(context) { com.openminis.app.ui.theme.ChatWallpaperManager.getWallpaperPath(context) != null }
+        val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
         val holder = rememberSaveableStateHolder()
         var pageTab by remember { mutableStateOf(if (tab == HomeTab.CHAT) HomeTab.FEED else tab) }
         if (tab != HomeTab.CHAT) pageTab = tab
@@ -553,7 +553,7 @@ fun NanoMuseHome(
                         modifier = Modifier.fillMaxSize().zIndex(1f),
                     ) {
                         Surface(
-                            color = ChatColors.background,
+                            color = if (hasWallpaper) Color.Transparent else ChatColors.background,
                             modifier = Modifier.fillMaxSize(),
                         ) {
                             Box(
@@ -669,7 +669,7 @@ fun NanoMuseHome(
                             modifier = Modifier.fillMaxSize().zIndex(1f),
                         ) {
                             Surface(
-                                color = ChatColors.background,
+                                color = if (hasWallpaper) Color.Transparent else ChatColors.background,
                                 modifier = Modifier.fillMaxSize(),
                             ) {
                                 AnimatedContent(

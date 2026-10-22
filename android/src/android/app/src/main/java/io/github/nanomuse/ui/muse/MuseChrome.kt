@@ -120,12 +120,13 @@ fun MuseTopAppBar(
  */
 @Composable
 fun MuseDisc(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
     Box(
         modifier = modifier
             .size(40.dp)
             .shadow(2.dp, CircleShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.16f), spotColor = Color.Black.copy(alpha = 0.16f))
             .clip(CircleShape)
-            .background(MuseTones.surface),
+            .background(if (hasWallpaper) MuseTones.surface.copy(alpha = 0.88f) else MuseTones.surface),
         contentAlignment = Alignment.Center,
     ) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
@@ -137,8 +138,9 @@ fun MuseDisc(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
 /** A white card of rows on Muse's grey canvas. */
 @Composable
 fun MuseCard(modifier: Modifier = Modifier, inset: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
     Surface(
-        color = MuseTones.surface,
+        color = if (hasWallpaper) MuseTones.surface.copy(alpha = 0.88f) else MuseTones.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(16.dp),
         modifier = modifier

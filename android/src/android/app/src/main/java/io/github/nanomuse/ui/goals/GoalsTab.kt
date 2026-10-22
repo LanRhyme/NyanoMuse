@@ -130,9 +130,13 @@ fun GoalsTab(
     // Index of the "Create a goal" header, for the tracking "+" to scroll to.
     val createIndex = 1 + 1 + maxOf(activeGoals.size, 1) + (if (starAsk != null) 1 else 0) + 1 + maxOf(visibleRoutines.size, 1) + 1
 
+    val hasWallpaper = com.openminis.app.ui.theme.LocalHasAppWallpaper.current
+
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize().background(ChatColors.background),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (hasWallpaper) Color.Transparent else ChatColors.background),
         // The last row ends above the floating pill, which overlays the page.
         contentPadding = PaddingValues(bottom = 24.dp + bottomInset),
     ) {
@@ -241,7 +245,7 @@ fun GoalsTab(
         ModalBottomSheet(
             onDismissRequest = { sheetCategory = null },
             sheetState = sheetState,
-            containerColor = ChatColors.background,
+            containerColor = if (hasWallpaper) io.github.nanomuse.ui.home.MuseTones.surface else ChatColors.background,
         ) {
             val label = GoalFlow.categoryLabel(context, category)
             Column(

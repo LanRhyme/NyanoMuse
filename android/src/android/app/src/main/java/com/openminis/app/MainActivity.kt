@@ -598,16 +598,18 @@ class MainActivity : ComponentActivity() {
                     onDispose { job.cancel() }
                 }
 
-                AppNavigation(
-                    chatRepository = app.chatRepository,
-                    providerRepository = app.providerRepository,
-                    envVarRepository = app.envVarRepository,
-                    skillRepository = app.skillRepository,
-                    mcpRepository = app.mcpRepository,
-                    memoryRepository = app.memoryRepository,
-                    navController = navController,
-                    initialDeepLink = launchDeepLink,
-                )
+                com.openminis.app.ui.theme.AppWallpaperBackground {
+                    AppNavigation(
+                        chatRepository = app.chatRepository,
+                        providerRepository = app.providerRepository,
+                        envVarRepository = app.envVarRepository,
+                        skillRepository = app.skillRepository,
+                        mcpRepository = app.mcpRepository,
+                        memoryRepository = app.memoryRepository,
+                        navController = navController,
+                        initialDeepLink = launchDeepLink,
+                    )
+                }
 
                 // T-config: root-level minis-config confirm dialog.
                 // Bound to ConfigConfirmationGate.pending — the gate
