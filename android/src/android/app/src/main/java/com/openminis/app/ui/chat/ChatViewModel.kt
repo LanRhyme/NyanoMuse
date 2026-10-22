@@ -1598,17 +1598,10 @@ class ChatViewModel(
     ) {
         val displayText: String? get() {
             if (!isDeepSeek) return null
-            val costStr = if (todayCost == 0.0) {
-                "¥0.00"
-            } else if (todayCost < 0.01) {
-                String.format(java.util.Locale.US, "¥%.3f", todayCost)
-            } else {
-                String.format(java.util.Locale.US, "¥%.2f", todayCost)
-            }
             return if (!balance.isNullOrBlank()) {
-                "余额: ¥$balance · 今日花费: $costStr"
+                "¥$balance"
             } else {
-                "今日花费: $costStr"
+                null
             }
         }
     }

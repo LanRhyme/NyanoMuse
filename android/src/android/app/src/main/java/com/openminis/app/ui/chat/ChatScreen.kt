@@ -3774,25 +3774,37 @@ fun ChatScreen(
                                 if (stream.isEmpty() && rows.isNotEmpty()) {
                                     val prewarmRowLimit = 16
                                     val prewarmCharBudget = 96_000
-                                    val raws = mutableListOf<String>()
+                                    val viewportRaws = mutableListOf<String>()
+                                    val remainingRaws = mutableListOf<String>()
                                     var charSum = 0
                                     for (item in rows.asReversed()) {
-                                        if (raws.size >= prewarmRowLimit || charSum >= prewarmCharBudget) break
                                         val raw = (item as? FlatChatItem.AssistantMarkdownBlock)?.rawText ?: continue
-                                        raws.add(raw)
-                                        charSum += raw.length
+                                        if (viewportRaws.size < prewarmRowLimit && charSum + raw.length <= prewarmCharBudget) {
+                                            viewportRaws.add(raw)
+                                            charSum += raw.length
+                                        } else {
+                                            remainingRaws.add(raw)
+                                        }
                                     }
-                                    if (raws.isNotEmpty()) {
+                                    if (viewportRaws.isNotEmpty()) {
                                         launch(Dispatchers.Default) {
                                             val tPrewarmNs = System.nanoTime()
-                                            prewarmMarkdown(raws)
+                                            prewarmMarkdown(viewportRaws)
                                             val prewarmMs = (System.nanoTime() - tPrewarmNs) / 1_000_000
                                             lastColdPrewarmMs = prewarmMs
                                             com.openminis.app.diagnostics.PerfLongCtx.step(
                                                 sessionId,
                                                 "coldPrewarm.done",
-                                                "rows=${raws.size} chars=$charSum prewarmMs=$prewarmMs",
+                                                "rows=${viewportRaws.size} chars=$charSum prewarmMs=$prewarmMs",
                                             )
+                                            // Progressive background prewarm: warm the remaining conversation history
+                                            // in non-blocking batches so upward scrolling hits cached markdown with zero layout jumps
+                                            if (remainingRaws.isNotEmpty()) {
+                                                remainingRaws.chunked(16).forEach { batch ->
+                                                    kotlinx.coroutines.yield()
+                                                    prewarmMarkdown(batch)
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -4509,6 +4521,7 @@ fun ChatScreen(
                                     }
                                     val showTimestamp = isClusterTail && !item.isStreaming && timeStr.isNotEmpty()
                                     val isSingleLineCandidate = !cleanText.contains('\n') &&
+                                        cleanText.length <= 50 &&
                                         item.leadingThinking == null &&
                                         questionData == null &&
                                         !item.isStreaming &&

@@ -432,7 +432,7 @@ internal fun UserMessageBubble(
                                         .clip(shape)
                                         .then(dashedStroke)
                                         .padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 6.dp),
-                                    isSingleLineCandidate = !message.content.contains('\n'),
+                                    isSingleLineCandidate = !message.content.contains('\n') && message.content.length <= 50,
                                     gap = 8.dp,
                                     bottomSpacing = 2.dp,
                                     content = {

@@ -903,11 +903,14 @@ private fun MarkdownBlockBody(
             }
             coroutineContext.ensureActive()
             parsed = computed
-            com.openminis.app.logging.AppLogger.info(
-                "Perf",
-                "[Perf][ColdParse] step=coldParse.offmain chars=${rawText.length} " +
-                    "blocks=${computed.size} parseMs=${(System.nanoTime() - tStartNs) / 1_000_000}",
-            )
+            val parseMs = (System.nanoTime() - tStartNs) / 1_000_000
+            if (parseMs >= 15) {
+                com.openminis.app.logging.AppLogger.info(
+                    "Perf",
+                    "[Perf][ColdParse] step=coldParse.offmain chars=${rawText.length} " +
+                        "blocks=${computed.size} parseMs=$parseMs",
+                )
+            }
         }
         val blocks = parsed
         Column(modifier = modifier) {

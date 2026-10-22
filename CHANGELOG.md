@@ -82,7 +82,7 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
-- **Vertical compact top-bar balance placement and adaptive inline bubble timestamps.** DeepSeek balance pill moves directly beneath the more options button in the top right to completely prevent overlapping with the center avatar, and bubble timestamps automatically lay out inline horizontally for single-line short messages to eliminate awkward vertical spacing
+- **Pure balance capsule display, progressive markdown prewarming, and zero-jank long chat scrolling.** DeepSeek capsule displays pure balance avoiding redundant today spend text while opening Token Usage on tap; message list employs two-tier progressive background prewarming for entire conversation history, O(1) baseline comparison in ChatBubbleAdaptiveLayout eliminating secondary intrinsic measure passes, and throttled cold-parse diagnostics for fluid 120fps scrolling in long conversations
 
 - **Multi-bubble burst pacing and cross-device clustered message flow.** The companion model in Main Chat can split conversational responses into up to three clustered short bubbles using `<nm:bubble/>` with a 450ms typing cadence pause, Telegram-style adaptive corner radii, and synchronized clustered bubble rendering across Android devices and desktop
 

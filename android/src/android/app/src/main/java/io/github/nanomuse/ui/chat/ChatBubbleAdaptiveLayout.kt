@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -55,18 +56,27 @@ fun ChatBubbleAdaptiveLayout(
             }
         }
 
-        // Single line check:
-        // Must be a candidate (no newlines/complex blocks), fits horizontally with time and gap,
-        // and height must not exceed the single-line intrinsic height.
-        val singleLineHeight = if (isSingleLineCandidate) {
-            measurables[0].minIntrinsicHeight(Int.MAX_VALUE)
-        } else {
-            0
-        }
-
-        val isSingleLine = isSingleLineCandidate &&
-            (contentPlaceable.height <= singleLineHeight + 2) &&
+        // Fast horizontal check: if it cannot fit horizontally with the timestamp,
+        // it cannot be a single-line message inline.
+        val fitsHorizontal = isSingleLineCandidate &&
             (contentPlaceable.width + gapPx + timePlaceable.width <= constraints.maxWidth)
+
+        // Single line check:
+        // When content has multiple lines, FirstBaseline != LastBaseline.
+        // When content has exactly one line, FirstBaseline == LastBaseline.
+        // This is computed in O(1) from the already-measured placeable, eliminating secondary intrinsic passes.
+        val isSingleLine = if (fitsHorizontal) {
+            val contentFirstBaseline = contentPlaceable[FirstBaseline]
+            val contentLastBaseline = contentPlaceable[LastBaseline]
+            if (contentFirstBaseline != AlignmentLine.Unspecified && contentLastBaseline != AlignmentLine.Unspecified) {
+                contentFirstBaseline == contentLastBaseline
+            } else {
+                val singleLineHeight = measurables[0].minIntrinsicHeight(Int.MAX_VALUE)
+                contentPlaceable.height <= singleLineHeight + 2
+            }
+        } else {
+            false
+        }
 
         if (isSingleLine) {
             val totalWidth = contentPlaceable.width + gapPx + timePlaceable.width
