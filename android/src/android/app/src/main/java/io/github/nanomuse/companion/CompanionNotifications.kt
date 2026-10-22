@@ -77,6 +77,10 @@ object CompanionNotifications {
             CompanionEmotion.PrimaryMood.CURIOUS -> context.getString(R.string.nm_companion_mood_curious)
             CompanionEmotion.PrimaryMood.LONGING -> context.getString(R.string.nm_companion_mood_longing)
             CompanionEmotion.PrimaryMood.SLEEPY -> context.getString(R.string.nm_companion_mood_sleepy)
+            CompanionEmotion.PrimaryMood.SHY -> context.getString(R.string.nm_companion_mood_shy)
+            CompanionEmotion.PrimaryMood.CARING -> context.getString(R.string.nm_companion_mood_caring)
+            CompanionEmotion.PrimaryMood.TOUCHED -> context.getString(R.string.nm_companion_mood_touched)
+            CompanionEmotion.PrimaryMood.EXCITED -> context.getString(R.string.nm_companion_mood_excited)
         }
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)

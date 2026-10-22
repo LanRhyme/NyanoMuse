@@ -29,14 +29,19 @@ object CompanionWake {
             CompanionEmotion.PrimaryMood.CURIOUS -> context.getString(R.string.nm_companion_mood_curious)
             CompanionEmotion.PrimaryMood.LONGING -> context.getString(R.string.nm_companion_mood_longing)
             CompanionEmotion.PrimaryMood.SLEEPY -> context.getString(R.string.nm_companion_mood_sleepy)
+            CompanionEmotion.PrimaryMood.SHY -> context.getString(R.string.nm_companion_mood_shy)
+            CompanionEmotion.PrimaryMood.CARING -> context.getString(R.string.nm_companion_mood_caring)
+            CompanionEmotion.PrimaryMood.TOUCHED -> context.getString(R.string.nm_companion_mood_touched)
+            CompanionEmotion.PrimaryMood.EXCITED -> context.getString(R.string.nm_companion_mood_excited)
         }
 
+        val address = CompanionPrefs.getUserAddress(context)
         val promptText = when (moodState.scenario) {
-            CompanionEmotion.Scenario.MORNING_GREETING -> "（早晨元气满满地伸个懒腰，向老大问候早安）"
-            CompanionEmotion.Scenario.EVENING_CARE -> "（打个哈欠，提醒老大早点休息，明天再见）"
-            CompanionEmotion.Scenario.CURIOUS_CHECKIN -> "（探出小脑袋，轻声关心老大今天顺不顺利）"
-            CompanionEmotion.Scenario.LONGING_MISS -> "（好久没见老大了，软乎乎地蹭蹭求抱抱，表达想念）"
-            else -> "（亲昵地蹭蹭老大）"
+            CompanionEmotion.Scenario.MORNING_GREETING -> "（早晨元气满满地伸个懒腰，向${address}问候早安）"
+            CompanionEmotion.Scenario.EVENING_CARE -> "（打个哈欠，提醒${address}早点休息，明天再见）"
+            CompanionEmotion.Scenario.CURIOUS_CHECKIN -> "（探出小脑袋，轻声关心${address}今天顺不顺利）"
+            CompanionEmotion.Scenario.LONGING_MISS -> "（好久没见${address}了，软乎乎地蹭蹭求抱抱，表达想念）"
+            else -> "（亲昵地蹭蹭${address}）"
         }
 
         // 2. Arm companion routine wake with companion-specific framing instruction

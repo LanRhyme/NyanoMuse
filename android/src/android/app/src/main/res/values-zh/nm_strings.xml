@@ -1171,6 +1171,31 @@
     <string name="nm_companion_mood_curious">好奇探头</string>
     <string name="nm_companion_mood_longing">想老大了</string>
     <string name="nm_companion_mood_sleepy">困倦打哈欠</string>
+    <string name="nm_companion_mood_shy">害羞脸红</string>
+    <string name="nm_companion_mood_caring">关切倾听</string>
+    <string name="nm_companion_mood_touched">感动贴贴</string>
+    <string name="nm_companion_mood_excited">兴奋雀跃</string>
+
+    <string name="nm_companion_desc_happy">开心得尾巴直晃</string>
+    <string name="nm_companion_desc_shy">被夸得害羞啦</string>
+    <string name="nm_companion_desc_caring">关切地看着%1$s</string>
+    <string name="nm_companion_desc_touched">开心地贴贴中</string>
+    <string name="nm_companion_desc_excited">兴奋得直跳</string>
+    <string name="nm_companion_desc_curious">好奇地竖起耳朵</string>
+    <string name="nm_companion_desc_sleepy">困意袭来打哈欠</string>
+    <string name="nm_companion_desc_longing">黏人蹭蹭中</string>
+
+    <string name="nm_companion_emotion_toggle">双向心境与情绪系统</string>
+    <string name="nm_companion_emotion_toggle_desc">在主聊天中感知对话行为，展现生动心境与动作神态</string>
+    <string name="nm_companion_intensity_title">情绪表现强度</string>
+    <string name="nm_companion_intensity_subtle">克制</string>
+    <string name="nm_companion_intensity_normal">正常</string>
+    <string name="nm_companion_intensity_vivid">生动</string>
+    <string name="nm_companion_affection_title">当前亲密好感度</string>
+    <string name="nm_companion_affection_desc">由互动日与日常双向对话逐步沉淀</string>
+    <string name="nm_companion_reset_affection">重置亲密度</string>
+    <string name="nm_companion_reset_affection_confirm">确定将伴侣亲密好感度重置回初始值吗？</string>
+    <string name="nm_companion_probe_title">伴侣心境探针</string>
     <string name="nm_companion_settings_title">伴侣与情绪系统</string>
     <string name="nm_companion_proactive_toggle">伴侣主动对话</string>
     <string name="nm_companion_proactive_desc">允许 nanoMuse 结合心境主动发起关心与问候</string>

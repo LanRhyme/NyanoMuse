@@ -50,6 +50,9 @@ fun CompanionSettingsSheet(
     var minInterval by remember { mutableIntStateOf(CompanionPrefs.getMinIntervalHours(prefs)) }
     var dailyMax by remember { mutableIntStateOf(CompanionPrefs.getDailyMaxCount(prefs)) }
     var preferredScenarios by remember { mutableStateOf(CompanionPrefs.getPreferredScenarios(prefs)) }
+    var intensity by remember { mutableStateOf(CompanionPrefs.getEmotionIntensity(prefs)) }
+    var affection by remember { mutableStateOf(CompanionPrefs.getAffectionScore(prefs)) }
+    var emotionEnabled by remember { mutableStateOf(CompanionPrefs.isEmotionEnabled(prefs)) }
 
     val currentMoodSubtitle = remember { CompanionStatus.currentMoodSubtitle(context) }
 
@@ -228,6 +231,107 @@ fun CompanionSettingsSheet(
                             if (index < scenarioItems.lastIndex) {
                                 MuseRowDivider()
                             }
+                        }
+                    }
+                }
+            }
+
+            MuseGap()
+            MuseSectionLabel(stringResource(R.string.nm_companion_emotion_toggle))
+            MuseCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = stringResource(R.string.nm_companion_emotion_toggle),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = stringResource(R.string.nm_companion_emotion_toggle_desc),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = emotionEnabled,
+                        onCheckedChange = { next ->
+                            emotionEnabled = next
+                            CompanionPrefs.setEmotionEnabled(prefs, next)
+                        }
+                    )
+                }
+
+                if (emotionEnabled) {
+                    MuseRowDivider()
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Text(
+                            text = stringResource(R.string.nm_companion_intensity_title),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf(
+                                "subtle" to R.string.nm_companion_intensity_subtle,
+                                "normal" to R.string.nm_companion_intensity_normal,
+                                "vivid" to R.string.nm_companion_intensity_vivid,
+                            ).forEach { (id, labelRes) ->
+                                val selected = intensity == id
+                                androidx.compose.material3.FilterChip(
+                                    selected = selected,
+                                    onClick = {
+                                        intensity = id
+                                        CompanionPrefs.setEmotionIntensity(prefs, id)
+                                    },
+                                    label = { Text(stringResource(labelRes)) }
+                                )
+                            }
+                        }
+                    }
+
+                    MuseRowDivider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "${String.format(java.util.Locale.US, "%.2f", affection)} / 1.00",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = stringResource(R.string.nm_companion_affection_desc),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                CompanionPrefs.resetAffectionScore(prefs)
+                                affection = CompanionPrefs.getAffectionScore(prefs)
+                            }
+                        ) {
+                            Text(
+                                text = stringResource(R.string.nm_companion_reset_affection),
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 13.sp
+                            )
                         }
                     }
                 }

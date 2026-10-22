@@ -1185,4 +1185,29 @@
     <string name="nm_thinking_in_progress_simple">思考中…</string>
     <string name="nm_thinking_done">已深度思考 (%1$d秒)</string>
     <string name="nm_thinking_done_simple">已深度思考</string>
+    <string name="nm_companion_mood_shy">害羞開心</string>
+    <string name="nm_companion_mood_caring">溫柔關切</string>
+    <string name="nm_companion_mood_touched">感動依戀</string>
+    <string name="nm_companion_mood_excited">興奮雀躍</string>
+
+    <string name="nm_companion_desc_happy">開心晃尾巴</string>
+    <string name="nm_companion_desc_shy">被誇得害羞啦</string>
+    <string name="nm_companion_desc_caring">關切地看著%1$s</string>
+    <string name="nm_companion_desc_touched">開心地貼貼中</string>
+    <string name="nm_companion_desc_excited">興奮得直跳</string>
+    <string name="nm_companion_desc_curious">好奇地豎起耳朵</string>
+    <string name="nm_companion_desc_sleepy">困意襲來打哈欠</string>
+    <string name="nm_companion_desc_longing">黏人蹭蹭中</string>
+
+    <string name="nm_companion_emotion_toggle">雙向心境與情緒系統</string>
+    <string name="nm_companion_emotion_toggle_desc">在主聊天中感知對話行為，展現生動心境與動作神態</string>
+    <string name="nm_companion_intensity_title">情緒表現強度</string>
+    <string name="nm_companion_intensity_subtle">克制</string>
+    <string name="nm_companion_intensity_normal">正常</string>
+    <string name="nm_companion_intensity_vivid">生動</string>
+    <string name="nm_companion_affection_title">當前親密好感度</string>
+    <string name="nm_companion_affection_desc">由互動日與日常雙向對話逐步沉澱</string>
+    <string name="nm_companion_reset_affection">重置親密度</string>
+    <string name="nm_companion_reset_affection_confirm">確定將伴侶親密好感度重置回初始值嗎？</string>
+    <string name="nm_companion_probe_title">伴侶心境探針</string>
 </resources>

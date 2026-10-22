@@ -1227,4 +1227,29 @@
     <string name="nm_thinking_in_progress_simple">Myślenie…</string>
     <string name="nm_thinking_done">Myślał przez %1$ds</string>
     <string name="nm_thinking_done_simple">Głębokie myślenie</string>
+    <string name="nm_companion_mood_shy">Bashful &amp; Happy</string>
+    <string name="nm_companion_mood_caring">Warm &amp; Caring</string>
+    <string name="nm_companion_mood_touched">Touched &amp; Cuddly</string>
+    <string name="nm_companion_mood_excited">Excited &amp; Joyful</string>
+
+    <string name="nm_companion_desc_happy">Wagging tail happily</string>
+    <string name="nm_companion_desc_shy">Shy after being praised</string>
+    <string name="nm_companion_desc_caring">Looking at %1$s with care</string>
+    <string name="nm_companion_desc_touched">Cuddling warmly</string>
+    <string name="nm_companion_desc_excited">Bouncing with joy</string>
+    <string name="nm_companion_desc_curious">Perking ears with curiosity</string>
+    <string name="nm_companion_desc_sleepy">Yawning sleepily</string>
+    <string name="nm_companion_desc_longing">Rubbing and missing you</string>
+
+    <string name="nm_companion_emotion_toggle">Dynamic Emotion System</string>
+    <string name="nm_companion_emotion_toggle_desc">Perceive conversation sentiment dynamically in Main Chat and reflect emotional demeanor</string>
+    <string name="nm_companion_intensity_title">Expression Intensity</string>
+    <string name="nm_companion_intensity_subtle">Subtle</string>
+    <string name="nm_companion_intensity_normal">Normal</string>
+    <string name="nm_companion_intensity_vivid">Vivid</string>
+    <string name="nm_companion_affection_title">Current Intimacy</string>
+    <string name="nm_companion_affection_desc">Accumulated from daily interaction days and bidirectional dialogue</string>
+    <string name="nm_companion_reset_affection">Reset Intimacy</string>
+    <string name="nm_companion_reset_affection_confirm">Reset intimacy score back to initial baseline?</string>
+    <string name="nm_companion_probe_title">Companion Mood Probe</string>
 </resources>

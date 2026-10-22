@@ -3419,7 +3419,8 @@ fun ChatScreen(
             // nanoMuse: Independent overlay for enlarged avatar & live mood/status in Main Chat
             if (nmHome != null && isMainChat && nmAvatarSize.shown) {
                 val avatarDp = nmAvatarSize.disc ?: 56.dp
-                val liveMood = nmStatusLine ?: io.github.nanomuse.companion.CompanionStatus.currentMoodSubtitle(context)
+                val liveMood = nmStatusLine ?: io.github.nanomuse.companion.CompanionStatus.currentMoodDescription(context)
+                val compMood = io.github.nanomuse.companion.CompanionStatus.currentMood(context).primaryMood
 
                 Column(
                     modifier = Modifier
@@ -3431,6 +3432,7 @@ fun ChatScreen(
                 ) {
                     io.github.nanomuse.ui.avatar.AgentAvatar(
                         mood = nmMood,
+                        companionMood = compMood,
                         size = avatarDp,
                         contentDescription = stringResource(R.string.nm_avatar_content_description),
                         onClick = { io.github.nanomuse.ui.header.openAgentProfile(context) },
@@ -3442,7 +3444,16 @@ fun ChatScreen(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .clickable { io.github.nanomuse.ui.header.openAgentProfile(context) }
+                                .combinedClickable(
+                                    onClick = { io.github.nanomuse.ui.header.openAgentProfile(context) },
+                                    onLongClick = {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            io.github.nanomuse.companion.CompanionStatus.probeDetails(context),
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                )
                                 .padding(horizontal = 6.dp, vertical = 1.dp),
                         ) {
                             Box(

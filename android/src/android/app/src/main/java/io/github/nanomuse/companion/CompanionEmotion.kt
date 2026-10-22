@@ -19,8 +19,28 @@ object CompanionEmotion {
         HAPPY,   // 喜悦 / 元气 / 满足
         CURIOUS, // 好奇 / 探头 / 关切
         LONGING, // 思念 / 黏人 / 挂念
-        SLEEPY   // 困倦 / 恬静 / 打哈欠
+        SLEEPY,  // 困倦 / 恬静 / 打哈欠
+        SHY,     // 害羞 / 脸红 / 被夸赞
+        CARING,  // 关切 / 倾听 / 暖心安慰
+        TOUCHED, // 感动 / 依恋 / 贴贴
+        EXCITED  // 兴奋 / 雀跃 / 激动
     }
+
+    enum class DialogueAct {
+        PRAISE,          // 夸奖认可: 你真棒, 太可爱了, 喜欢你, 乖
+        VENTING,         // 倾诉烦恼: 好累, 太难了, 心烦, 倒霉, 难过
+        PLAYFUL_TEASE,   // 摸头贴贴: 摸摸头, 捏脸, 蹭蹭, 抱抱, 贴贴
+        GREETING_NIGHT,  // 晚安休眠: 晚安, 睡觉了, 困了, 休息吧
+        QUESTION_CURIOUS,// 探索提问: 为什么, 怎么做, 查一下, 考考你
+        CASUAL_CHAT      // 日常闲聊: 维持常态
+    }
+
+    data class EmotionImpulse(
+        val dP: Float,
+        val dA: Float,
+        val dAffection: Float,
+        val primaryMood: PrimaryMood,
+    )
 
     enum class Scenario(val tag: String) {
         NIGHT_REST("night_rest"),
@@ -172,5 +192,143 @@ object CompanionEmotion {
                 framingInstruction = "老大已经忙了好一会儿了，小猫好奇地探出小脑袋关心老大今天顺不顺利，语气温柔软萌，40字以内。"
             )
         }
+    }
+
+    /**
+     * Appraise the user's conversational intent into a structured DialogueAct.
+     * Pure and deterministic: examines strictly userText, protecting against self-referential loops.
+     */
+    fun appraiseUserTurn(userText: String): DialogueAct {
+        val clean = userText.trim().lowercase()
+        if (clean.isBlank()) return DialogueAct.CASUAL_CHAT
+
+        // 1. Sarcasm / Irony pre-check: e.g. "呵呵", "真棒呢", "可真行"
+        val isSarcastic = clean.contains("呵呵") || clean.contains("真棒呢") || clean.contains("可真行") || clean.contains("你可真行")
+        if (isSarcastic) return DialogueAct.CASUAL_CHAT
+
+        // 2. Playful tease / cuddling (摸头/蹭蹭/贴贴)
+        val teasePatterns = listOf(
+            "摸摸头", "摸摸", "揉揉", "捏捏", "蹭蹭", "抱抱", "贴贴", "求抱抱", "摸头", "挠挠",
+            "咕噜咕噜", "猫猫头", "捏一下", "抱一下", "亲亲", "给你吃", "投喂",
+            "pat pat", "hug", "cuddle"
+        )
+        if (teasePatterns.any { clean.contains(it) }) return DialogueAct.PLAYFUL_TEASE
+
+        // 3. Praise / Compliments (夸奖/认可)
+        val praisePatterns = listOf(
+            "真棒", "好棒", "太厉害", "真厉害", "真乖", "好乖", "可爱", "真萌", "喜欢你",
+            "太强了", "爱死你", "真聪明", "太聪明", "谢谢你", "多谢", "辛苦啦", "你最好", "真好",
+            "做得好", "干得漂亮", "超棒", "太神了", "aww", "awesome", "good job", "great", "love you", "cute", "clever", "thanks", "thank you"
+        )
+        if (praisePatterns.any { clean.contains(it) }) return DialogueAct.PRAISE
+
+        // 4. Venting / Fatigue / Sadness (倾诉/诉苦)
+        val ventingPatterns = listOf(
+            "好累", "太累", "好烦", "烦死", "心累", "难过", "伤心", "压力大", "倒霉",
+            "好难", "emo", "好丧", "崩溃", "抑郁", "委屈", "呜呜", "不想动", "哭哭",
+            "太惨了", "痛苦", "难受", "tired", "exhausted", "sad", "stressed", "unhappy"
+        )
+        if (ventingPatterns.any { clean.contains(it) }) return DialogueAct.VENTING
+
+        // 5. Night greeting / Sleepiness (晚安/准备睡觉)
+        val nightPatterns = listOf(
+            "晚安", "睡觉了", "去睡了", "准备睡", "好困", "困了", "梦里见", "安安", "歇了",
+            "good night", "sleepy", "going to bed"
+        )
+        if (nightPatterns.any { clean.contains(it) }) return DialogueAct.GREETING_NIGHT
+
+        // 6. Curiosity / Inquisitive (探索/提问)
+        val curiousPatterns = listOf(
+            "为什么", "怎么", "如何", "帮我查", "告诉我", "知道吗", "什么是", "怎么回事", "查一下", "考考你",
+            "why", "how", "what is", "tell me"
+        )
+        if (curiousPatterns.any { clean.contains(it) }) return DialogueAct.QUESTION_CURIOUS
+
+        return DialogueAct.CASUAL_CHAT
+    }
+
+    /**
+     * Compute emotional delta impulse for a given DialogueAct.
+     */
+    fun impulseForAct(act: DialogueAct): EmotionImpulse {
+        return when (act) {
+            DialogueAct.PRAISE -> EmotionImpulse(dP = 0.25f, dA = 0.15f, dAffection = 0.02f, primaryMood = PrimaryMood.SHY)
+            DialogueAct.PLAYFUL_TEASE -> EmotionImpulse(dP = 0.30f, dA = 0.20f, dAffection = 0.03f, primaryMood = PrimaryMood.TOUCHED)
+            DialogueAct.VENTING -> EmotionImpulse(dP = -0.15f, dA = 0.20f, dAffection = 0.015f, primaryMood = PrimaryMood.CARING)
+            DialogueAct.GREETING_NIGHT -> EmotionImpulse(dP = 0.10f, dA = -0.30f, dAffection = 0.01f, primaryMood = PrimaryMood.SLEEPY)
+            DialogueAct.QUESTION_CURIOUS -> EmotionImpulse(dP = 0.10f, dA = 0.20f, dAffection = 0.005f, primaryMood = PrimaryMood.CURIOUS)
+            DialogueAct.CASUAL_CHAT -> EmotionImpulse(dP = 0.05f, dA = 0.05f, dAffection = 0.005f, primaryMood = PrimaryMood.HAPPY)
+        }
+    }
+
+    /**
+     * Pure function: asymmetric emotional decay combining circadian base with dynamic bias.
+     * Positive half-life = 15m; Negative half-life = 5m (asymmetric quick recovery).
+     */
+    fun blendWithAsymmetricDecay(
+        baseState: MoodState,
+        biasP: Float,
+        biasA: Float,
+        elapsedMs: Long,
+        lastAct: DialogueAct? = null,
+    ): MoodState {
+        if (elapsedMs <= 0L && biasP == 0f && biasA == 0f) return baseState
+
+        // Positive half-life = 15 minutes, negative half-life = 5 minutes
+        val halfLifeMs = if (biasP >= 0f) 15 * 60_000L else 5 * 60_000L
+        val ratio = Math.pow(0.5, elapsedMs.toDouble() / halfLifeMs.toDouble()).toFloat()
+
+        val effBiasP = biasP * ratio
+        val effBiasA = biasA * ratio
+
+        val effValence = (baseState.valence + effBiasP).coerceIn(-1.0f, 1.0f)
+        val effArousal = (baseState.arousal + effBiasA).coerceIn(0.0f, 1.0f)
+
+        // When decay ratio is still active (> 0.25), target the dynamic mood from DialogueAct
+        val effMood = if (ratio > 0.25f && lastAct != null) {
+            when (lastAct) {
+                DialogueAct.PRAISE -> PrimaryMood.SHY
+                DialogueAct.PLAYFUL_TEASE -> PrimaryMood.TOUCHED
+                DialogueAct.VENTING -> PrimaryMood.CARING
+                DialogueAct.GREETING_NIGHT -> PrimaryMood.SLEEPY
+                DialogueAct.QUESTION_CURIOUS -> PrimaryMood.CURIOUS
+                DialogueAct.CASUAL_CHAT -> if (effValence > 0.7f) PrimaryMood.HAPPY else baseState.primaryMood
+            }
+        } else {
+            baseState.primaryMood
+        }
+
+        return baseState.copy(
+            primaryMood = effMood,
+            valence = effValence,
+            arousal = effArousal,
+        )
+    }
+
+    /**
+     * Build compact MATE-compliant prompt addendum for Main Chat.
+     */
+    fun promptAddendum(address: String, state: MoodState, intensity: String = "normal"): String {
+        val moodDesc = when (state.primaryMood) {
+            PrimaryMood.HAPPY -> "欢快愉悦，精力充沛"
+            PrimaryMood.SHY -> "被${address}夸奖后害羞开心，小脸微红"
+            PrimaryMood.TOUCHED -> "感受到${address}的亲昵爱抚（摸头/贴贴），非常依恋与感动"
+            PrimaryMood.CARING -> "专注倾听${address}的心事与烦恼，温柔关切，轻声安慰，绝不嬉皮笑脸"
+            PrimaryMood.SLEEPY -> "略感困倦，安宁温顺，轻声细语"
+            PrimaryMood.CURIOUS -> "充满好奇探究欲，耳朵竖起，认真关注"
+            PrimaryMood.EXCITED -> "兴奋雀跃，尾巴快速轻摇"
+            PrimaryMood.LONGING -> "思念${address}，软萌黏人"
+        }
+        val toneGuidance = when (intensity) {
+            "subtle" -> "Reflect this disposition subtly through warm tone and concise natural wording. Minimize repetitive action tags and kaomoji. Prioritize helpful assistance."
+            "vivid" -> "Vividly express this disposition with lively feline actions (*蹭蹭${address}*, *欢快摇尾巴*, *歪头好奇*), rich emotion, and expressive kaomoji ((ฅ>ω<*ฅ)). High warmth, affection, and closeness."
+            else -> "Reflect this disposition organically through tone of voice, gentle feline actions (*蹭蹭${address}*, *歪头好奇*, *轻晃尾巴*), and expressive kaomoji ((ฅ>ω<*ฅ)). Maintain helpfulness."
+        }
+        return """
+        [Companion Heart & Disposition]
+        - Current Internal State: [Pleasure: ${String.format(java.util.Locale.US, "%+.2f", state.valence)}, Arousal: ${String.format(java.util.Locale.US, "%.2f", state.arousal)}, Intimacy: ${String.format(java.util.Locale.US, "%.2f", state.affection)}]
+        - Heart Disposition: $moodDesc
+        - Tone Guidance: $toneGuidance
+        """.trimIndent()
     }
 }

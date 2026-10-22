@@ -1259,6 +1259,9 @@ class ChatViewModel(
     /** Structured agent history for the agent loop (contentParts-based). */
     private val agentHistory = mutableListOf<LLMMessage>()
 
+    /** Tracks the last assistant message id whose turn was appraised for companion emotion to prevent duplicate evaluation. */
+    private var lastAppraisedAssistantMsgId: String? = null
+
     /**
      * All agent tool definitions, recomputed on each read so the memory
      * toggle gate (see [_memoryEnabled]) takes effect immediately when
@@ -9351,6 +9354,25 @@ class ChatViewModel(
                 val turnParts = buildTurnParts(allToolBlocks, turnStartBlockIndex, toolInputMap)
                 val blockMeta = allToolBlocks.filter { it.kind == "tool_use" }.associateBy { it.id }
                 persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta)
+
+                // Companion emotion appraisal: trigger once per completed user-assistant exchange on Main Chat
+                val sid = realSessionId.ifEmpty { sessionId }
+                val emotionPrefs = io.github.nanomuse.companion.CompanionPrefs.prefs(context)
+                if (io.github.nanomuse.home.MainChat.isMain(context, sid) &&
+                    lastAppraisedAssistantMsgId != assistantId &&
+                    io.github.nanomuse.companion.CompanionPrefs.isEmotionEnabled(emotionPrefs)
+                ) {
+                    lastAppraisedAssistantMsgId = assistantId
+                    val lastUserMsg = agentHistory.findLast { it.role == LLMMessage.Role.USER }
+                    val lastUserText = lastUserMsg?.content?.takeIf { it.isNotBlank() }
+                        ?: lastUserMsg?.contentParts?.filterIsInstance<AgentContentPart.Text>()?.joinToString("\n") { it.text }
+                        ?: ""
+                    if (lastUserText.isNotBlank()) {
+                        val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(lastUserText)
+                        val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
+                        io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(emotionPrefs, impulse, act)
+                    }
+                }
                 // [T-error-persist-android] Empty-response hint: the model ended a
                 // turn (finish=stop/end_turn) with no visible text anywhere in the
                 // reply and no tool blocks — the user just sees a blank bubble.
@@ -11257,6 +11279,18 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         } else {
             null
         }
+        val emotionAddendum = if (io.github.nanomuse.home.MainChat.isMain(context, sessionKey) &&
+            io.github.nanomuse.companion.CompanionPrefs.isEmotionEnabled(io.github.nanomuse.companion.CompanionPrefs.prefs(context))
+        ) {
+            val ep = io.github.nanomuse.companion.CompanionPrefs.prefs(context)
+            io.github.nanomuse.companion.CompanionEmotion.promptAddendum(
+                address = io.github.nanomuse.companion.CompanionPrefs.getUserAddress(context),
+                state = io.github.nanomuse.companion.CompanionStatus.currentMood(context),
+                intensity = io.github.nanomuse.companion.CompanionPrefs.getEmotionIntensity(ep)
+            )
+        } else {
+            null
+        }
         return io.github.nanomuse.chat.PromptCacheLayout.build(
             stableSections = listOf(
                 base,
@@ -11267,6 +11301,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                 skillFragment,
                 mcpFragment,
                 namingAddendum,
+                emotionAddendum,
                 io.github.nanomuse.media.MediaModels.promptParagraph(context),
                 io.github.nanomuse.reach.Computers.promptParagraph(context),
                 io.github.nanomuse.chat.SessionAddenda.forPrompt(sessionKey),

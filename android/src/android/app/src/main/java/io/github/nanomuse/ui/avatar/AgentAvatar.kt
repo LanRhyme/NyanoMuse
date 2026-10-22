@@ -130,6 +130,7 @@ fun AgentAvatar(
     mood: AgentMood,
     size: Dp,
     modifier: Modifier = Modifier,
+    companionMood: io.github.nanomuse.companion.CompanionEmotion.PrimaryMood? = null,
     contentDescription: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -185,14 +186,25 @@ fun AgentAvatar(
         }
     }
 
-    val scale = when (mood) {
-        AgentMood.WORKING -> 1f + 0.045f * breath
-        AgentMood.HAPPY -> pop.value
+    val scale = when {
+        mood == AgentMood.WORKING -> 1f + 0.045f * breath
+        mood == AgentMood.HAPPY -> pop.value
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> 1f + 0.035f * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 1f + 0.025f * breath
         else -> 1f + 0.018f * breath
     }
-    val bobPx = if (mood == AgentMood.WORKING) with(density) { (-2.5).dp.toPx() } * breath else 0f
+    val bobPx = when {
+        mood == AgentMood.WORKING -> with(density) { (-2.5).dp.toPx() } * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> with(density) { (-1.5).dp.toPx() } * breath
+        else -> 0f
+    }
     val shakePx = with(density) { 3.dp.toPx() } * shake.value
-    val rotation = if (mood == AgentMood.WAITING) 4f * tilt else 0f
+    val rotation = when {
+        mood == AgentMood.WAITING -> 4f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> 3f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> 4.5f * tilt
+        else -> 0f
+    }
 
     val base = modifier
         .size(size)
@@ -282,6 +294,7 @@ fun AgentAvatarDisc(
     mood: AgentMood,
     discSize: Dp,
     modifier: Modifier = Modifier,
+    companionMood: io.github.nanomuse.companion.CompanionEmotion.PrimaryMood? = null,
     contentDescription: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -295,6 +308,7 @@ fun AgentAvatarDisc(
         AgentAvatar(
             mood = mood,
             size = discSize,
+            companionMood = companionMood,
             contentDescription = contentDescription,
             onClick = onClick,
         )
