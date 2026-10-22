@@ -88,6 +88,7 @@ object HubActions {
                 "task" -> task(context, call)
                 "approve" -> approve(call)
                 "stop" -> call.result(JSONObject().put("stopped", stop(context, call)))
+                "feed.posts" -> call.result(io.github.nanomuse.feed.FeedSync.handleLocalPostsCall())
                 else -> call.fail("unknown_action", "this phone does not do '${call.action}'")
             }
         } catch (e: Refused) {

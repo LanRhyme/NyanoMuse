@@ -130,7 +130,7 @@ class HubService:
     def _extra_actions(self) -> tuple[str, ...]:
         from nanomuse.coding.service import ACTIONS as CODING_ACTIONS
 
-        return ("task", "stop", "approve", *CODING_ACTIONS)
+        return ("task", "stop", "approve", "feed.posts", "feed.activity", *CODING_ACTIONS)
 
     # ------------------------------------------------------------------ lifecycle
     async def start(self) -> None:
@@ -743,6 +743,13 @@ class HubService:
                 tid = self._thread_for(call.sender_id, str(call.args.get("conversation") or ""))
             stopped = bool(tid) and self.svc.stop_thread(tid or "")
             await call.result({"stopped": stopped})
+            return
+        if call.action == "feed.posts":
+            await call.result(self.svc.feed_posts())
+            return
+        if call.action == "feed.activity":
+            limit = int(call.args.get("limit") or 60)
+            await call.result({"items": self.svc.feed(limit)})
             return
         if call.action.startswith("coding."):
             await self._coding_call(call)

@@ -104,6 +104,64 @@ object FeedStore {
 
     fun latestDay(): String? = _posts.value.firstOrNull()?.day
 
+    data class RemotePost(
+        val day: String,
+        val title: String,
+        val type: String = "note",
+        val emoji: String = "",
+        val body: String = "",
+        val source: List<String> = emptyList(),
+        val createdAt: Long = System.currentTimeMillis(),
+        val liked: Boolean = false,
+    )
+
+    /**
+     * Imports posts written by another device (e.g. computer), deduplicating by title per day.
+     * Returns the count of newly written posts.
+     */
+    fun importRemotePosts(remotes: List<RemotePost>): Int {
+        if (remotes.isEmpty()) return 0
+        var imported = 0
+        val byDay = remotes.groupBy { it.day.ifBlank { DAY.format(Date(it.createdAt)) } }
+        for ((day, list) in byDay) {
+            val dir = File(root, day).apply { mkdirs() }
+            val existingPosts = dir.listFiles()?.mapNotNull(FeedPost::parse).orEmpty()
+            var nextIndex = (existingPosts.maxOfOrNull { it.index } ?: 0) + 1
+            for (r in list) {
+                val cleanTitle = r.title.trim().take(80)
+                if (existingPosts.any { it.title.trim().equals(cleanTitle, ignoreCase = true) }) {
+                    continue
+                }
+                if (nextIndex > MAX_POSTS_PER_DAY) break
+                val file = File(dir, "%02d.md".format(Locale.ROOT, nextIndex))
+                val post = FeedPost(
+                    day = day,
+                    index = nextIndex,
+                    title = cleanTitle,
+                    type = r.type.ifBlank { "note" },
+                    emoji = r.emoji,
+                    body = r.body.trim(),
+                    source = r.source,
+                    createdAt = if (r.createdAt > 0L) r.createdAt else System.currentTimeMillis(),
+                    liked = r.liked,
+                    file = file,
+                )
+                runCatching { file.writeText(post.serialize()) }
+                    .onSuccess {
+                        imported++
+                        nextIndex++
+                    }
+                    .onFailure { AppLogger.warning(TAG, "remote post import failed: ${it.message}") }
+            }
+        }
+        if (imported > 0) {
+            prune()
+            reload()
+            AppLogger.info(TAG, "imported $imported remote post(s)")
+        }
+        return imported
+    }
+
     data class Draft(
         val title: String,
         val type: String,

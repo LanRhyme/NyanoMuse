@@ -295,7 +295,12 @@ object ConversationSync {
     /** The hub's `{"type": "sync", "what": "conversations", "from": …}`: another device pushed. */
     fun onFrame(context: Context, frame: JSONObject) {
         if (frame.optString("from") == Hub.deviceId(context)) return // our own write coming back
-        if (frame.has("what") && frame.optString("what") != "conversations") return
+        if (frame.has("what") && frame.optString("what") != "conversations") {
+            if (frame.optString("what") == "feed") {
+                io.github.nanomuse.feed.FeedSync.triggerSync(context)
+            }
+            return
+        }
         pullSoon(context)
     }
 

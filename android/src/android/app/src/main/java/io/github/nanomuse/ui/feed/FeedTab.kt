@@ -1,5 +1,6 @@
 package io.github.nanomuse.ui.feed
 
+import android.text.format.DateUtils
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -32,8 +33,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Launch
+import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,6 +87,7 @@ import com.openminis.app.ui.theme.ChatColors
 import io.github.nanomuse.feed.FeedFlow
 import io.github.nanomuse.feed.FeedPost
 import io.github.nanomuse.feed.FeedStore
+import io.github.nanomuse.feed.FeedSync
 import io.github.nanomuse.ui.home.MuseTones
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.text.DateFormat
@@ -104,6 +114,7 @@ fun FeedTab(
     header: @Composable () -> Unit,
     onDiscuss: (FeedPost) -> Unit,
     onEditRoutine: (String) -> Unit,
+    onOpenThread: (String) -> Unit = {},
     bottomInset: Dp = 0.dp,
 ) {
     val context = LocalContext.current
@@ -111,11 +122,17 @@ fun FeedTab(
     val introAck by FeedFlow.introAcknowledged.collectAsState()
     val generating by FeedFlow.generating.collectAsState()
     val settingsOpen by FeedUi.settingsOpen.collectAsState()
+    val activities by FeedSync.activities.collectAsState()
+    val isSyncing by FeedSync.isSyncing.collectAsState()
     var infoPost by remember { mutableStateOf<FeedPost?>(null) }
     var editPrefs by remember { mutableStateOf(false) }
 
     // The routine needs a model; retry quietly whenever the tab shows.
-    LaunchedEffect(Unit) { runCatching { FeedFlow.ensureRoutine(context) } }
+    // Also trigger feed sync from online computers via Hub.
+    LaunchedEffect(Unit) {
+        runCatching { FeedFlow.ensureRoutine(context) }
+        FeedSync.triggerSync(context)
+    }
 
     val days = remember(posts) { posts.groupBy { it.day }.toList() }
 
@@ -126,10 +143,21 @@ fun FeedTab(
     ) {
         item(key = "header") { header() }
 
+        if (isSyncing && days.isNotEmpty()) {
+            item(key = "syncing") { Box(Modifier.animateItem()) { SyncingCard() } }
+        }
+
         if (days.isEmpty()) {
             item(key = "today-title") { DayTitle(dayLabel(todayKey(), System.currentTimeMillis())) }
             if (!introAck) item(key = "intro") { IntroCard(onEdit = { editPrefs = true }, onAck = { FeedFlow.acknowledgeIntro(context) }) }
-            item(key = "empty") { EmptyState(generating = generating, onWriteNow = { FeedFlow.generateNow(context) }) }
+            item(key = "empty") {
+                EmptyState(
+                    generating = generating,
+                    isSyncing = isSyncing,
+                    onWriteNow = { FeedFlow.generateNow(context) },
+                    onSyncNow = { FeedSync.triggerSync(context) },
+                )
+            }
         } else {
             days.forEachIndexed { i, (day, dayPosts) ->
                 item(key = "day-$day") { DayTitle(dayLabel(day, dayPosts.first().createdAt)) }
@@ -146,6 +174,25 @@ fun FeedTab(
                         modifier = Modifier.animateItem(), // new posts settle in, removed ones fade out
                     )
                 }
+            }
+        }
+
+        if (activities.isNotEmpty()) {
+            item(key = "away-title") {
+                Text(
+                    text = stringResource(R.string.nm_feed_while_away),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ChatColors.secondaryText,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 6.dp),
+                )
+            }
+            items(activities, key = { it.id }) { act ->
+                ActivityCard(
+                    item = act,
+                    onClick = { onOpenThread(act.thread.ifBlank { "main" }) },
+                    modifier = Modifier.animateItem(),
+                )
             }
         }
     }
@@ -368,7 +415,12 @@ private fun IntroCard(onEdit: () -> Unit, onAck: () -> Unit) {
 }
 
 @Composable
-private fun EmptyState(generating: Boolean, onWriteNow: () -> Unit) {
+private fun EmptyState(
+    generating: Boolean,
+    isSyncing: Boolean,
+    onWriteNow: () -> Unit,
+    onSyncNow: () -> Unit,
+) {
     val context = LocalContext.current
     val task = remember { FeedFlow.task(context) }
     val time = task?.let { "%02d:%02d".format(java.util.Locale.ROOT, it.timeOfDayHour, it.timeOfDayMinute) }
@@ -390,6 +442,142 @@ private fun EmptyState(generating: Boolean, onWriteNow: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(containerColor = MuseTones.action, contentColor = Color.White),
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                 ) { Text(stringResource(R.string.nm_feed_write_now), fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+            }
+            Spacer(Modifier.height(8.dp))
+            if (isSyncing) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MuseTones.action)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.nm_feed_syncing), fontSize = 14.sp, color = ChatColors.secondaryText)
+                }
+            } else {
+                TextButton(
+                    onClick = onSyncNow,
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                ) {
+                    Icon(Icons.Outlined.Sync, contentDescription = null, tint = MuseTones.action, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.nm_feed_sync_from_computer), fontSize = 14.sp, color = MuseTones.action, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SyncingCard() {
+    FeedCard {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MuseTones.action)
+            Spacer(Modifier.width(10.dp))
+            Text(stringResource(R.string.nm_feed_syncing), fontSize = 14.sp, color = ChatColors.secondaryText)
+        }
+    }
+}
+
+@Composable
+private fun ActivityCard(
+    item: FeedSync.FeedActivityItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val (icon, iconTint, iconBg) = when {
+        item.kind == "approval" -> Triple(
+            Icons.Outlined.Shield,
+            Color(0xFFD97706),
+            Color(0xFFD97706).copy(alpha = 0.12f),
+        )
+        item.kind == "question" -> Triple(
+            Icons.Outlined.HelpOutline,
+            MuseTones.action,
+            MuseTones.action.copy(alpha = 0.12f),
+        )
+        item.kind == "artifact" -> Triple(
+            Icons.Outlined.Description,
+            ChatColors.secondaryText,
+            MuseTones.fill,
+        )
+        item.title.startsWith("New mail:") -> Triple(
+            Icons.Outlined.Email,
+            MuseTones.action,
+            MuseTones.action.copy(alpha = 0.12f),
+        )
+        item.title.startsWith("Coming up:") -> Triple(
+            Icons.Outlined.Schedule,
+            ChatColors.secondaryText,
+            MuseTones.fill,
+        )
+        else -> Triple(
+            Icons.Outlined.Psychology,
+            ChatColors.secondaryText,
+            MuseTones.fill,
+        )
+    }
+
+    FeedCard(modifier = modifier.clickable(onClick = onClick)) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(iconBg, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (item.text.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = item.text.trim(),
+                        fontSize = 13.5.sp,
+                        lineHeight = 19.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    val relTime = remember(item.ts) {
+                        DateUtils.getRelativeTimeSpanString(item.ts).toString()
+                    }
+                    Text(
+                        text = relTime,
+                        fontSize = 12.sp,
+                        color = ChatColors.secondaryText,
+                    )
+                    if (item.threadTitle.isNotBlank()) {
+                        Text(
+                            text = " · ${item.threadTitle}",
+                            fontSize = 12.sp,
+                            color = ChatColors.secondaryText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Icon(
+                        imageVector = Icons.Outlined.Launch,
+                        contentDescription = null,
+                        tint = MuseTones.action,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
             }
         }
     }
@@ -435,6 +623,7 @@ private fun FeedSettingsSheet(onDismiss: () -> Unit, onEditRoutine: (String) -> 
     val tasks by taskStore.observe().collectAsState(initial = taskStore.all())
     val task = remember(tasks) { FeedFlow.taskId(context)?.let { id -> tasks.firstOrNull { it.id == id } } }
     val generating by FeedFlow.generating.collectAsState()
+    val isSyncing by FeedSync.isSyncing.collectAsState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = ChatColors.background) {
         Column(
@@ -498,6 +687,23 @@ private fun FeedSettingsSheet(onDismiss: () -> Unit, onEditRoutine: (String) -> 
                                 stringResource(if (generating) R.string.nm_feed_generating else R.string.nm_feed_write_now),
                                 fontSize = 15.sp,
                                 color = if (generating) ChatColors.secondaryText else MuseTones.action,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                        HorizontalDivider(color = MuseTones.hairline, modifier = Modifier.padding(horizontal = 14.dp))
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isSyncing) { FeedSync.triggerSync(context); onDismiss() }
+                                .padding(horizontal = 14.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Outlined.Sync, contentDescription = null, tint = MuseTones.action, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(if (isSyncing) R.string.nm_feed_syncing else R.string.nm_feed_sync_from_computer),
+                                fontSize = 15.sp,
+                                color = if (isSyncing) ChatColors.secondaryText else MuseTones.action,
                                 fontWeight = FontWeight.Medium,
                             )
                         }

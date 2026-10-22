@@ -257,6 +257,9 @@
     <string name="nm_feed_part_morning">morning</string>
     <string name="nm_feed_part_afternoon">afternoon</string>
     <string name="nm_feed_part_evening">evening</string>
+    <string name="nm_feed_while_away">While you were away</string>
+    <string name="nm_feed_sync_from_computer">Sync from computer</string>
+    <string name="nm_feed_syncing">Syncing feed…</string>
     <string-array name="nm_weekdays">
         <item>Monday</item><item>Tuesday</item><item>Wednesday</item><item>Thursday</item><item>Friday</item><item>Saturday</item><item>Sunday</item>
     </string-array>

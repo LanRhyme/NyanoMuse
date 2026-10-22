@@ -409,6 +409,10 @@ fun NanoMuseHome(
                         header = header,
                         onDiscuss = { discussPost(it) },
                         onEditRoutine = { navController.safeNavigate(Routes.scheduledTaskEdit(it)) },
+                        onOpenThread = { threadId ->
+                            if (threadId == "main" || threadId.isBlank()) showMain()
+                            else showSession(threadId)
+                        },
                         bottomInset = bottomInset,
                     )
                     HomeTab.IDEAS -> IdeasTab(
