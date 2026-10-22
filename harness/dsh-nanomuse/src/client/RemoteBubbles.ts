@@ -70,7 +70,8 @@ function bubble(t: Translate, row: RemoteRow): HTMLElement {
   const root = el('div', `nm-remote nm-remote-${row.role}`)
   root.setAttribute(KEY, nodeKey(row.id))
   root.setAttribute('data-nm-remote-mid', row.mid)
-  const body = el('div', 'nm-remote-bubble', row.text)
+  const cleanText = row.text ? row.text.replace(/<nm:bubble\/>/g, '\n\n') : ''
+  const body = el('div', 'nm-remote-bubble', cleanText)
   root.append(body)
   const from = el('div', 'nm-remote-from', t('chFrom', { device: row.deviceName || row.device || '?' }))
   if (row.at > 0) from.title = new Date(row.at).toLocaleString()

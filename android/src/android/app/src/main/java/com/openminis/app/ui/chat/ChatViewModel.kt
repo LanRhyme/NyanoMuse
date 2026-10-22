@@ -506,6 +506,23 @@ class ChatViewModel(
         /** Auto-retry backoff schedule (seconds). Mirrors iOS retryDelays, scaled to task spec: 1s → 2s → 4s. */
         private val AUTO_RETRY_DELAYS_SEC = intArrayOf(1, 2, 4)
 
+        private const val NM_BUBBLE_TAG = "<nm:bubble/>"
+        private const val BUBBLE_CADENCE_DELAY_MS = 450L
+        private val USER_PROMPT_TIMESTAMP_REGEX = Regex("""\n*\[\d{4}-\d{2}-\d{2}[^\]]+\]$""")
+
+        internal fun countOccurrences(text: CharSequence, target: String): Int {
+            if (target.isEmpty()) return 0
+            var count = 0
+            var idx = 0
+            while (true) {
+                val next = text.indexOf(target, idx)
+                if (next < 0) break
+                count++
+                idx = next + target.length
+            }
+            return count
+        }
+
         /**
          * Factory for use with `viewModel(factory = ...)`. Binds the ChatViewModel
          * to a NavBackStackEntry's ViewModelStore so the streaming job survives
@@ -3264,14 +3281,17 @@ class ChatViewModel(
     private fun buildConversationTextForSummary(history: List<LLMMessage>): String = buildString {
         for (msg in history) {
             val role = msg.role.name.lowercase()
-            val text = msg.content.take(500)
+            val text = msg.content.replace(USER_PROMPT_TIMESTAMP_REGEX, "").take(500)
             if (text.isNotEmpty()) {
                 append(role).append(": ").append(text).append('\n')
             }
             for (part in msg.contentParts) {
                 when (part) {
                     is AgentContentPart.Text -> {
-                        append(role).append(": ").append(part.text.take(500)).append('\n')
+                        val cleaned = part.text.replace(USER_PROMPT_TIMESTAMP_REGEX, "").take(500)
+                        if (cleaned.isNotEmpty()) {
+                            append(role).append(": ").append(cleaned).append('\n')
+                        }
                     }
                     is AgentContentPart.ToolUse -> {
                         val preview = part.input.toString().take(200)
@@ -8805,7 +8825,7 @@ class ChatViewModel(
                         val unflushed = len - lastFlushedLen
                         val throttle = textDeltaThrottleMs(len)
                         val newlineFlush = len < 5_000 && chunk.text.contains('\n') && unflushed >= 50
-                        val currentBubbleCount = "<nm:bubble/>".toRegex().findAll(turnTextSb).count()
+                        val currentBubbleCount = countOccurrences(turnTextSb, NM_BUBBLE_TAG)
                         val hasNewBubble = currentBubbleCount > bubblesSeenInTurn && io.github.nanomuse.home.MainChat.isMain(context, activeSessionId)
                         if (hasNewBubble) {
                             bubblesSeenInTurn = currentBubbleCount
@@ -8826,7 +8846,7 @@ class ChatViewModel(
                                 updateAssistantMessage(assistantId, accumulatedText + turnSnap, true, allToolBlocks)
                             }
                             if (hasNewBubble) {
-                                kotlinx.coroutines.delay(450L)
+                                kotlinx.coroutines.delay(BUBBLE_CADENCE_DELAY_MS)
                             }
                         }
                     }
@@ -9338,10 +9358,21 @@ class ChatViewModel(
             val turnReasoningContent: String? = turnReasoningBlob
                 ?: turnThinking.toString().takeIf { it.isNotEmpty() }
 
+            val sanitizedTurnText = if (turnText.contains(NM_BUBBLE_TAG)) turnText.replace(NM_BUBBLE_TAG, "\n\n") else turnText
+            val sanitizedAssistantParts = if (assistantParts.any { it is AgentContentPart.Text && it.text.contains(NM_BUBBLE_TAG) }) {
+                assistantParts.map { part ->
+                    if (part is AgentContentPart.Text && part.text.contains(NM_BUBBLE_TAG)) {
+                        AgentContentPart.Text(part.text.replace(NM_BUBBLE_TAG, "\n\n"))
+                    } else part
+                }
+            } else {
+                assistantParts
+            }
+
             agentHistory.add(LLMMessage(
                 role = LLMMessage.Role.ASSISTANT,
-                content = turnText,
-                contentParts = assistantParts,
+                content = sanitizedTurnText,
+                contentParts = sanitizedAssistantParts,
                 reasoningContent = turnReasoningContent,
             ))
 
@@ -13367,6 +13398,16 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                     contentParts[lastTextIdx] = AgentContentPart.Text("$prevText\n\n$timeTag")
                 } else {
                     contentParts.add(AgentContentPart.Text(timeTag))
+                }
+            }
+        }
+
+        if (r == LLMMessage.Role.ASSISTANT && textContent.contains(NM_BUBBLE_TAG)) {
+            textContent = textContent.replace(NM_BUBBLE_TAG, "\n\n")
+            for (i in contentParts.indices) {
+                val part = contentParts[i]
+                if (part is AgentContentPart.Text && part.text.contains(NM_BUBBLE_TAG)) {
+                    contentParts[i] = AgentContentPart.Text(part.text.replace(NM_BUBBLE_TAG, "\n\n"))
                 }
             }
         }

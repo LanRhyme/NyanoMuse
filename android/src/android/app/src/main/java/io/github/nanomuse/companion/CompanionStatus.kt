@@ -74,7 +74,7 @@ object CompanionStatus {
         val act = CompanionPrefs.getLastDialogueAct(prefs)?.name ?: "NONE"
         val intensity = CompanionPrefs.getEmotionIntensity(prefs)
         return "PAD: [P=${String.format(java.util.Locale.US, "%+.2f", moodState.valence)}, A=${String.format(java.util.Locale.US, "%.2f", moodState.arousal)}, D=${String.format(java.util.Locale.US, "%.2f", moodState.affection)}]\n" +
-               "心境: ${moodState.primaryMood.name} | 最近意图: $act (${elapsedMin}m前)\n" +
-               "亲密好感度: ${String.format(java.util.Locale.US, "%.2f", moodState.affection)} / 1.00 | 表现档位: $intensity"
+               "Mood: ${moodState.primaryMood.name} | Last Act: $act (${elapsedMin}m ago)\n" +
+               "Affection: ${String.format(java.util.Locale.US, "%.2f", moodState.affection)} / 1.00 | Intensity: $intensity"
     }
 }

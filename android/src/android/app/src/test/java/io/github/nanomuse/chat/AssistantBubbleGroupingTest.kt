@@ -178,12 +178,14 @@ class AssistantBubbleGroupingTest {
         assertEquals(0, mdBlocks[0].clusterIndex)
         assertEquals(2, mdBlocks[0].clusterSize)
         assertEquals(0, mdBlocks[0].blockIndex)
+        assertEquals(0, mdBlocks[0].segmentIndex)
         assertFalse(mdBlocks[0].isLastBlockOfMessage)
 
         assertEquals("How can I help you today?", mdBlocks[1].rawText)
         assertEquals(1, mdBlocks[1].clusterIndex)
         assertEquals(2, mdBlocks[1].clusterSize)
-        assertEquals(1, mdBlocks[1].blockIndex)
+        assertEquals(0, mdBlocks[1].blockIndex)
+        assertEquals(1, mdBlocks[1].segmentIndex)
         assertTrue(mdBlocks[1].isLastBlockOfMessage)
     }
 

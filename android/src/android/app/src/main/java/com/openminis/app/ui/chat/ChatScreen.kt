@@ -4482,7 +4482,7 @@ fun ChatScreen(
                             } } // nanoMuse: bubble
                             is FlatChatItem.AssistantMarkdownBlock -> BoundsTrackedBlock(
                                 messageId = item.messageId,
-                                slotKey = "mdblock:${item.parentBlockId}:${item.blockIndex}",
+                                slotKey = "mdblock:${item.parentBlockId}:${item.blockIndex}:${item.segmentIndex}",
                                 markdown = item.messageMarkdown,
                             ) { io.github.nanomuse.ui.chat.NmAssistantBubble(
                                 enabled = nmHome != null,
@@ -4496,7 +4496,7 @@ fun ChatScreen(
                                 LargeContentGuard(
                                     content = cleanText.ifEmpty { item.rawText },
                                     isStreaming = item.isStreaming,
-                                    stableKey = "mdblock:${item.messageId}:${item.parentBlockId}:${item.blockIndex}",
+                                    stableKey = "mdblock:${item.messageId}:${item.parentBlockId}:${item.blockIndex}:${item.segmentIndex}",
                                 ) {
                                     SideEffect {
                                         selectionController.rememberMessageMarkdown(item.messageId, item.messageMarkdown)
@@ -4521,7 +4521,7 @@ fun ChatScreen(
                                                 isStreaming = item.isStreaming,
                                                 shardId = TextShardId(
                                                     messageId = item.messageId,
-                                                    shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}",
+                                                    shardId = "mdblock:${item.parentBlockId}:${item.blockIndex}:${item.segmentIndex}",
                                                 ),
                                             )
                                         } else if (item.isStreaming) {

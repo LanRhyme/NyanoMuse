@@ -98,8 +98,8 @@ fun NmAssistantBubble(
         content()
         return
     }
-    val topPad = if (clusterSize > 1 && clusterIndex > 0) 2.dp else 2.dp
-    val bottomPad = if (clusterSize > 1 && clusterIndex < clusterSize - 1) 2.dp else 2.dp
+    val topPad = if (clusterSize > 1 && clusterIndex > 0) 1.5.dp else 4.dp
+    val bottomPad = if (clusterSize > 1 && clusterIndex < clusterSize - 1) 1.5.dp else 6.dp
     val bubbleShape = if (clusterSize > 1) {
         when {
             clusterIndex == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 4.dp)

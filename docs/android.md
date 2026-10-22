@@ -136,8 +136,15 @@ pills with white text in light), the agent's replies sit in a pill a shade off t
 (`#1C1C1E` / `#F2F2F7`), and the send button and the scroll-to-latest disc are white with a
 black arrow (inverted in light); there is no blue in the conversation apart from links. The
 header is not a bar but a scrim: the conversation scrolls under it and dissolves into the
-canvas, and a second fade appears at the top edge while you read older messages. The palette
-is upstream's `com/openminis/app/ui/theme/ChatColors.kt`, written by `scripts/rebrand.py`.
+canvas, and a second fade appears at the top edge while you read older messages. The palette is upstream's `com/openminis/app/ui/theme/ChatColors.kt`, written by `scripts/rebrand.py`
+
+### Main Chat companion dynamics and message flow
+
+In the main companion chat (`isMain`), the model receives volatile real-time system prompt addenda that never persist into storage or cross-turn transcripts:
+- `[Companion Heart & Disposition]`: dynamic PAD emotional state and affection tier calculated via asymmetric time decay and dialogue acts
+- `[Messaging Flow Format]`: guidance on conversational rhythm, prompting short multi-bubble bursts via `<nm:bubble/>` tags instead of dense essays
+- User prompts include volatile real-time perception tags `[yyyy-MM-dd HH:mm:ss Weekday]` stripped automatically during context compaction
+- Cross-device sync transcripts and LLM history replay sanitize `<nm:bubble/>` to double newlines to prevent delimiter leak across sessions
 
 The message composer stays above the floating navigation pill, and the pill is as wide as the
 composer (the same 16 dp margins; 420 dp at most, centred on a wider screen), so the two

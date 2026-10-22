@@ -378,8 +378,9 @@ internal sealed class FlatChatItem {
         val clusterIndex: Int = 0,
         val clusterSize: Int = 1,
         val createdAt: Long = 0L,
+        val segmentIndex: Int = clusterIndex,
     ) : FlatChatItem() {
-        override val key = "mdblock:$messageId:$parentBlockId:$blockIndex"
+        override val key = "mdblock:$messageId:$parentBlockId:$blockIndex:$segmentIndex"
         override val contentType = "mdblock"
         /** True when this fragment is the streaming tail of a live message. */
         val isStreaming: Boolean get() = messageIsStreaming && isLastBlockOfMessage
@@ -389,6 +390,7 @@ internal sealed class FlatChatItem {
             return messageId == other.messageId &&
                 parentBlockId == other.parentBlockId &&
                 blockIndex == other.blockIndex &&
+                segmentIndex == other.segmentIndex &&
                 clusterIndex == other.clusterIndex &&
                 clusterSize == other.clusterSize &&
                 createdAt == other.createdAt &&
@@ -404,6 +406,7 @@ internal sealed class FlatChatItem {
             var h = messageId.hashCode()
             h = h * 31 + parentBlockId.hashCode()
             h = h * 31 + blockIndex
+            h = h * 31 + segmentIndex
             h = h * 31 + clusterIndex
             h = h * 31 + clusterSize
             h = h * 31 + createdAt.hashCode()
@@ -627,6 +630,7 @@ internal fun buildFlatChatItems(
                 clusterIndex = item.clusterIndex,
                 clusterSize = item.clusterSize,
                 createdAt = item.createdAt,
+                segmentIndex = item.segmentIndex,
             )
             is FlatChatItem.AssistantThinking -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantToolGroup -> item.copy(messageId = "${item.messageId}#$n")
@@ -793,7 +797,7 @@ internal fun buildFlatChatItems(
                                 messageId = message.id,
                                 parentBlockId = block.id,
                                 rawText = segText,
-                                blockIndex = segIdx,
+                                blockIndex = index,
                                 isLastBlockOfMessage = isLastText && isLastSeg,
                                 messageIsStreaming = message.isStreaming && isLastText && isLastSeg,
                                 messageMarkdown = joinedMarkdown,
@@ -803,6 +807,7 @@ internal fun buildFlatChatItems(
                                 clusterIndex = segIdx,
                                 clusterSize = segments.size,
                                 createdAt = message.createdAt,
+                                segmentIndex = segIdx,
                             )))
                         }
                     }
