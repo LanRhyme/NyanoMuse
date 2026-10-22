@@ -100,4 +100,13 @@ class MemoryExtractorTest {
         assertEquals(1, MemoryExtractor.extractPassiveMemories("我住在北京市海淀区 100871").size)
         assertEquals(1, MemoryExtractor.extractPassiveMemories("我电脑是 2008 年买的").size)
     }
+
+    @Test
+    fun testExtractPassiveMemoriesStripsPromptTimestampsBeforeExtraction() {
+        val raw = "我平时只喝无糖拿铁\n\n[2026-10-22 周四 16:05]"
+        val extracted = MemoryExtractor.extractPassiveMemories(raw)
+        assertTrue(extracted.isNotEmpty())
+        assertEquals("习惯：我平时只喝无糖拿铁", extracted[0].content)
+        assertTrue(extracted.none { it.content.contains("2026") })
+    }
 }

@@ -742,6 +742,7 @@ class ChatRepository(internal val dao: ChatDao) {
     companion object {
         private fun cleanPreview(raw: String): String {
             return stripSystemReminders(raw)
+                .replace("<nm:bubble/>", " ")
                 .replace(Regex("[\r\n]+"), " ")      // newlines → space
                 .replace(Regex("#{1,6}\\s"), "")      // headings: ## Title → Title
                 .replace(Regex("\\*{1,3}|_{1,3}"), "")// bold/italic markers

@@ -27,7 +27,8 @@ object MemoryExtractor {
     }
 
     fun extractPassiveMemories(text: String): List<ExtractedMemoryItem> {
-        val trimmed = text.trim()
+        val cleaned = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(text)
+        val trimmed = cleaned.trim()
         if (trimmed.isEmpty() || trimmed.startsWith("/") || trimmed.startsWith("!") || trimmed.startsWith("```")) return emptyList()
         if (trimmed.length > 800) return emptyList()
 

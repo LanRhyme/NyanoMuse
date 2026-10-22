@@ -72,7 +72,6 @@ object Transcript {
 
         private val rawText: String = parts.filter { it.optString("type") == "text" }
             .joinToString("\n") { systemReminder.replace(it.optString("value"), "").trim() }
-            .replace("<nm:bubble/>", "\n\n")
             .trim()
 
         val text: String = when {

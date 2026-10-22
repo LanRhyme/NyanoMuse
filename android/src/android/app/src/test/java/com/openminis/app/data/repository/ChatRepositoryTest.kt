@@ -60,4 +60,11 @@ class ChatRepositoryTest {
         val raw = "# Heading\n**bold** and `code` and a [link](https://example.com)"
         assertEquals(raw, ChatRepository.stripSystemReminders(raw))
     }
+
+    @Test
+    fun `extractTextPreview strips bubble delimiter tags from preview`() {
+        val partsJson = """[{"type":"text","value":"Hello!<nm:bubble/>How can I help you today?"}]"""
+        val preview = ChatRepository.extractTextPreview(partsJson)
+        assertEquals("Hello! How can I help you today?", preview)
+    }
 }

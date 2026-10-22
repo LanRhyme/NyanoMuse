@@ -46,4 +46,22 @@ class BubbleTimeFormatterTest {
         assertEquals("", BubbleTimeFormatter.formatUserPromptTimestamp(0L))
         assertEquals("", BubbleTimeFormatter.formatUserPromptTimestamp(-100L))
     }
+
+    @Test
+    fun `stripUserPromptTimestamp strips trailing prompt bracketed timestamp`() {
+        val original = "你好呀！\n\n[2026-10-22 周四 16:05]"
+        val stripped = BubbleTimeFormatter.stripUserPromptTimestamp(original)
+        assertEquals("你好呀！", stripped)
+
+        val withoutTimestamp = "普通消息内容"
+        assertEquals(withoutTimestamp, BubbleTimeFormatter.stripUserPromptTimestamp(withoutTimestamp))
+    }
+
+    @Test
+    fun `countOccurrences accurately counts occurrences without regex`() {
+        assertEquals(0, BubbleTimeFormatter.countOccurrences("Hello world", "<nm:bubble/>"))
+        assertEquals(1, BubbleTimeFormatter.countOccurrences("Hello<nm:bubble/>world", "<nm:bubble/>"))
+        assertEquals(3, BubbleTimeFormatter.countOccurrences("A<nm:bubble/>B<nm:bubble/>C<nm:bubble/>D", "<nm:bubble/>"))
+        assertEquals(0, BubbleTimeFormatter.countOccurrences("", "<nm:bubble/>"))
+    }
 }

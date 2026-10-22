@@ -260,6 +260,6 @@ export function Markdown({ text, className }: { text: string; className?: string
 
 /** The first `n` characters of Markdown as plain text (a card's preview). */
 export function plain(text: string, n = 160): string {
-  const s = text.replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`|]/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\s+/g, ' ').trim()
+  const s = text.replace(/<nm:bubble\/>/g, ' ').replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`|]/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\s+/g, ' ').trim()
   return s.length > n ? `${s.slice(0, n - 1)}…` : s
 }

@@ -70,9 +70,37 @@ function bubble(t: Translate, row: RemoteRow): HTMLElement {
   const root = el('div', `nm-remote nm-remote-${row.role}`)
   root.setAttribute(KEY, nodeKey(row.id))
   root.setAttribute('data-nm-remote-mid', row.mid)
-  const cleanText = row.text ? row.text.replace(/<nm:bubble\/>/g, '\n\n') : ''
-  const body = el('div', 'nm-remote-bubble', cleanText)
-  root.append(body)
+
+  const rawText = row.text || ''
+  if (row.role === 'assistant' && rawText.includes('<nm:bubble/>')) {
+    const rawSegments = rawText.split('<nm:bubble/>').map((s) => s.trim()).filter(Boolean)
+    const segments = rawSegments.length > 3
+      ? [rawSegments[0], rawSegments[1], rawSegments.slice(2).join('\n\n')]
+      : (rawSegments.length > 0 ? rawSegments : [rawText])
+
+    if (segments.length > 1) {
+      for (let i = 0; i < segments.length; i++) {
+        const body = el('div', 'nm-remote-bubble', segments[i])
+        if (i === 0) {
+          body.style.borderRadius = '18px 18px 18px 4px'
+        } else if (i === segments.length - 1) {
+          body.style.borderRadius = '4px 18px 18px 18px'
+        } else {
+          body.style.borderRadius = '4px 18px 18px 4px'
+        }
+        root.append(body)
+      }
+    } else {
+      const cleanText = segments[0] ? segments[0].replace(/<nm:bubble\/>/g, '\n\n') : ''
+      const body = el('div', 'nm-remote-bubble', cleanText)
+      root.append(body)
+    }
+  } else {
+    const cleanText = rawText ? rawText.replace(/<nm:bubble\/>/g, '\n\n') : ''
+    const body = el('div', 'nm-remote-bubble', cleanText)
+    root.append(body)
+  }
+
   const from = el('div', 'nm-remote-from', t('chFrom', { device: row.deviceName || row.device || '?' }))
   if (row.at > 0) from.title = new Date(row.at).toLocaleString()
   root.append(from)

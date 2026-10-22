@@ -82,6 +82,12 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Multi-bubble burst pacing and cross-device clustered message flow.** The companion model in Main Chat can split conversational responses into up to three clustered short bubbles using `<nm:bubble/>` with a 450ms typing cadence pause, Telegram-style adaptive corner radii, and synchronized clustered bubble rendering across Android devices and desktop
+
+- **Telegram-style corner timestamps and user message time perception.** User and assistant bubbles display subtle 11sp timestamps at their lower-trailing edge, suppressing during active streaming and deduplicating to the cluster tail; Main Chat user turns inject volatile real-time perception tags without breaking KV cache prefixes, cleanly filtered during conversation compaction and passive memory extraction
+
+- **Companion emotion closed loop with asymmetric decay and dialogue acts.** A deterministic PAD emotion engine models emotional valence and arousal driven by user dialogue acts, asymmetric half-life decay, and quiet hour schedules without runaway self-reference; header avatar reacts with subtle Compose micro-animations and diagnostic probe telemetry
+
 - **Bounded scroll layout and pinned save button for Feed settings sheet.** Feed preferences editing in `FeedSettingsSheet` now constrains `OutlinedTextField` height between 120dp and 220dp with internal scrolling, wraps the upper form in a non-greedy scrollable column with IME padding, and pins the Save button firmly at the bottom so long text and soft keyboard cannot push actions off-screen
 
 - **AI output completion notifications with high-priority heads-up banner, excerpt and haptics.** Background and cross-screen agent loop completions now post via an `IMPORTANCE_HIGH` heads-up notification channel carrying real assistant reply excerpts and subtle haptic vibration, suppressing redundant popups when actively viewing the session and clearing on chat resume

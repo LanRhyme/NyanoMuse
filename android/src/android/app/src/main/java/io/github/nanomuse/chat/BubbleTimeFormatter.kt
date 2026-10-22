@@ -33,4 +33,24 @@ object BubbleTimeFormatter {
             "[$formatted]"
         }.getOrDefault("")
     }
+
+    const val NM_BUBBLE_TAG = "<nm:bubble/>"
+    const val BUBBLE_CADENCE_DELAY_MS = 450L
+    val USER_PROMPT_TIMESTAMP_REGEX = Regex("""\n*\[\d{4}-\d{2}-\d{2}[^\]]+\]$""")
+
+    fun stripUserPromptTimestamp(text: String): String =
+        text.replace(USER_PROMPT_TIMESTAMP_REGEX, "").trimEnd()
+
+    fun countOccurrences(text: CharSequence, target: String): Int {
+        if (target.isEmpty()) return 0
+        var count = 0
+        var idx = 0
+        while (true) {
+            val next = text.indexOf(target, idx)
+            if (next < 0) break
+            count++
+            idx = next + target.length
+        }
+        return count
+    }
 }

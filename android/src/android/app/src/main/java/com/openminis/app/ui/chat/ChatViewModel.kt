@@ -506,22 +506,12 @@ class ChatViewModel(
         /** Auto-retry backoff schedule (seconds). Mirrors iOS retryDelays, scaled to task spec: 1s → 2s → 4s. */
         private val AUTO_RETRY_DELAYS_SEC = intArrayOf(1, 2, 4)
 
-        private const val NM_BUBBLE_TAG = "<nm:bubble/>"
-        private const val BUBBLE_CADENCE_DELAY_MS = 450L
-        private val USER_PROMPT_TIMESTAMP_REGEX = Regex("""\n*\[\d{4}-\d{2}-\d{2}[^\]]+\]$""")
+        private const val NM_BUBBLE_TAG = io.github.nanomuse.chat.BubbleTimeFormatter.NM_BUBBLE_TAG
+        private const val BUBBLE_CADENCE_DELAY_MS = io.github.nanomuse.chat.BubbleTimeFormatter.BUBBLE_CADENCE_DELAY_MS
+        private val USER_PROMPT_TIMESTAMP_REGEX = io.github.nanomuse.chat.BubbleTimeFormatter.USER_PROMPT_TIMESTAMP_REGEX
 
-        internal fun countOccurrences(text: CharSequence, target: String): Int {
-            if (target.isEmpty()) return 0
-            var count = 0
-            var idx = 0
-            while (true) {
-                val next = text.indexOf(target, idx)
-                if (next < 0) break
-                count++
-                idx = next + target.length
-            }
-            return count
-        }
+        internal fun countOccurrences(text: CharSequence, target: String): Int =
+            io.github.nanomuse.chat.BubbleTimeFormatter.countOccurrences(text, target)
 
         /**
          * Factory for use with `viewModel(factory = ...)`. Binds the ChatViewModel
