@@ -908,3 +908,43 @@ test('a sync frame arriving while a pull is in flight triggers a follow-up pull,
   e.stop()
 })
 
+test('main chat isolation: side chats cannot become main and are decoupled on pull', async () => {
+  const relay = fakeRelay()
+  relay.add('cid-s1', 'side', 'Side 1', 'desk-1', 'Mac')
+  relay.add('cid-main', 'main', 'Main Chat', 'desk-1', 'Mac')
+  relay.say('cid-s1', 'user', 'side query', 'desk-1', 'Mac')
+  relay.say('cid-main', 'user', 'main query', 'desk-1', 'Mac')
+
+  const sessions = fakeSessions()
+  sessions.add('s-side', 'Side 1', [{ id: 'u1', role: 'user', text: 'side query', at: 100 }], 100)
+
+  const { engine: e } = engine(relay, sessions)
+  await e.accountChanged('acct-1')
+  await until(() => e.state.cursor === relay.seq)
+
+  // Map s-side as a side chat
+  e.state.cids['s-side'] = 'cid-s1'
+  e.state.conversations['cid-s1'] = { cid: 'cid-s1', kind: 'side', title: 'Side 1', device: 'desk-1', deviceName: 'Mac', createdAt: 100, updatedAt: 100 }
+
+  // 1. setMain on s-side must be rejected
+  const res = await e.setMain('s-side')
+  assert.notEqual(res, 's-side')
+  assert.notEqual(e.state.mainSession, 's-side')
+
+  // 2. If mainSession was pointing to s-side, pulling main conversation decouples it
+  e.state.mainSession = 's-side'
+  e.state.cursor = 0
+  await e.pull()
+
+  // s-side must NOT be mapped to cid-main
+  assert.notEqual(e.state.cids['s-side'], 'cid-main')
+  assert.equal(e.state.cids['s-side'], 'cid-s1')
+  // A fresh session should have been created for main
+  assert.ok(e.state.mainSession && e.state.mainSession !== 's-side')
+  assert.equal(e.state.cids[e.state.mainSession], 'cid-main')
+  e.stop()
+})
+
+
+
+

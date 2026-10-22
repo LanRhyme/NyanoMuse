@@ -108,6 +108,30 @@ class SyncEngineTest {
         assertEquals(1, p.chats.messages(main).size)
     }
 
+    @Test fun `if mainSessionId points to a side chat, pulling main creates dedicated session and decouples it`() = runTest {
+        val relay = FakeRelay(mapOf("desk-1" to "Mac"))
+        relay.seed("desk-1", "cid-main", "main", "Main", 1_700_000_000)
+        relay.seedMessage("desk-1", "cid-main", "mid-1", "user", "hello main", 1_700_000_001)
+
+        val p = phone(relay, "phone-a")
+        // Existing side chat that was mistakenly marked as main
+        p.chats.addSession("side-1", "Side chat")
+        p.chats.main = "side-1"
+        p.store.convs["side-1"] = SyncConversation("side-1", "cid-side-1", "side", "phone-a", "Pixel", "Side chat", pushed = true, owner = "acct-1")
+        p.chats.user("side-1", "hello side")
+
+        p.engine.pull()
+
+        val main = p.chats.mainSessionId()
+        assertNotNull(main)
+        org.junit.Assert.assertNotEquals("side-1", main)
+        assertEquals("cid-main", p.store.convs.getValue(main!!).cid)
+        assertEquals("main", p.store.convs.getValue(main).kind)
+        // Side chat must remain intact and keep its original cid and kind
+        assertEquals("cid-side-1", p.store.convs.getValue("side-1").cid)
+        assertEquals("side", p.store.convs.getValue("side-1").kind)
+    }
+
     @Test fun `two devices race for main - the loser re-posts under cid_main`() = runTest {
         val relay = FakeRelay()
         val a = phone(relay, "phone-a")

@@ -346,19 +346,38 @@ class SyncEngine(
         if (c.kind == "main") {
             // C10: a home conversation synced under another account is not this account's
             // main chat — this account's arrives as a new chat and becomes the home
+            val existingMain = store.conversations().firstOrNull { it.kind == "main" && it.mine() }
+            if (existingMain != null) {
+                if (existingMain.cid != c.cid) {
+                    rehome(existingMain, c.cid, c.device, c.deviceName)
+                    store.putConversation(store.conversation(existingMain.sessionId)!!.copy(pushedTitle = c.title))
+                }
+                chats.setMainSession(existingMain.sessionId)
+                touched += existingMain.sessionId
+                return true
+            }
+
             val mainId = mainSessionId()
             if (mainId != null) {
                 val mine = store.conversation(mainId)
-                if (mine == null) {
+                if (mine != null && mine.kind == "side") {
+                    // mainId was mistakenly pointing to a side chat! Decouple it and create a dedicated main session
+                    chats.setMainSession(null)
+                } else if (mine == null) {
                     // first sight of the account's main chat: ours is it from now on
                     store.putConversation(SyncConversation(mainId, c.cid, "main", c.device, c.deviceName, pushedTitle = c.title, pushed = true, owner = account))
+                    touched += mainId
+                    return true
                 } else if (mine.cid != c.cid) {
                     // the relay's main is not the one we minted: move under it, post ours again
                     rehome(mine, c.cid, c.device, c.deviceName)
                     store.putConversation(store.conversation(mainId)!!.copy(pushedTitle = c.title))
+                    touched += mainId
+                    return true
+                } else {
+                    touched += mainId
+                    return true
                 }
-                touched += mainId
-                return true
             }
             val id = chats.createSession(c.title, c.createdAt * 1000, c.updatedAt * 1000, main = true)
             store.putConversation(SyncConversation(id, c.cid, "main", c.device, c.deviceName, pushedTitle = c.title, pushed = true, owner = account))

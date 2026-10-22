@@ -761,6 +761,7 @@ export class SyncEngine {
     const current = this.state.mainSession
     if (!sessionId || current === sessionId) return current
     if (!this.owns(sessionId)) return current
+    if (this.state.cids[sessionId] && this.state.conversations[this.state.cids[sessionId]]?.kind === 'side') return current
     if (current && this.holdsMain(current)) return current
     this.state.mainSession = sessionId
     const mainCid = this.mainCid()
@@ -1245,18 +1246,25 @@ export class SyncEngine {
     }
     if (!sessionId) {
       if (c.kind === 'main' && this.state.mainSession) {
-        // Identifiers: the account's main conversation already exists — our main chat adopts its id
-        // (ours was never accepted as main, or the relay would have refused theirs: its lines are
-        // still unpushed and go up under the adopted id)
-        sessionId = this.state.mainSession
-        this.state.cids[sessionId] = c.cid
-        this.adopt(sessionId)
-        if (c.title) this.state.titles[sessionId] = c.title
-        else delete this.state.titles[sessionId]
-        this.dirty.add(sessionId)
-        this.pushSoon(500)
-        this.log('info', 'nanomuse sync: the main chat adopts the account’s conversation id')
-      } else {
+        const curCid = this.state.cids[this.state.mainSession]
+        const isSide = Boolean(curCid && this.state.conversations[curCid]?.kind === 'side')
+        if (isSide) {
+          this.state.mainSession = ''
+        } else {
+          // Identifiers: the account's main conversation already exists — our main chat adopts its id
+          // (ours was never accepted as main, or the relay would have refused theirs: its lines are
+          // still unpushed and go up under the adopted id)
+          sessionId = this.state.mainSession
+          this.state.cids[sessionId] = c.cid
+          this.adopt(sessionId)
+          if (c.title) this.state.titles[sessionId] = c.title
+          else delete this.state.titles[sessionId]
+          this.dirty.add(sessionId)
+          this.pushSoon(500)
+          this.log('info', 'nanomuse sync: the main chat adopts the account’s conversation id')
+        }
+      }
+      if (!sessionId) {
         // one thread (C8): a conversation from elsewhere is a chat here from the moment it is known
         const title = c.title || (c.kind === 'main' ? 'Main chat' : 'New chat')
         try {
@@ -1271,6 +1279,9 @@ export class SyncEngine {
         if (c.kind === 'main') this.state.mainSession = sessionId
       }
       return
+    }
+    if (c.kind === 'main' && this.state.mainSession !== sessionId) {
+      this.state.mainSession = sessionId
     }
     if (c.title && known && known.title !== c.title && this.state.titles[sessionId] !== c.title) {
       // renamed elsewhere: renamed here, and not pushed back

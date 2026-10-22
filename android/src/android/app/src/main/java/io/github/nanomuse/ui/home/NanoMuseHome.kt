@@ -193,8 +193,15 @@ fun NanoMuseHome(
     }
 
     fun showMain() {
-        val id = mainSessionId ?: return
-        showSession(id)
+        val id = mainSessionId
+        if (id != null) {
+            showSession(id)
+        } else {
+            scope.launch {
+                val resolved = MainChat.resolve(context, chatRepository)
+                showSession(resolved)
+            }
+        }
     }
 
     // Requests from cards inside messages, idea sheets, etc.

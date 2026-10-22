@@ -73,15 +73,15 @@ object MainChat {
             chatRepository.getSession(lastActiveId)
         } else null
 
-        val latestSession = chatRepository.dao.listSessions().firstOrNull { it.id !in hidden }
+        // In Mode 0 (Auto), if user was active within 15 minutes, resume last active session.
+        // Otherwise, land on the designated Main Chat.
+        val autoThresholdMs = 15L * 60 * 1000
+        val isFresh = (System.currentTimeMillis() - lastActiveTime) < autoThresholdMs
 
         val targetId = when {
-            latestSession == null && lastActiveSession == null -> resolve(context, chatRepository)
-            lastActiveSession == null -> latestSession!!.id
-            latestSession == null -> lastActiveSession.id
-            latestSession.id == lastActiveSession.id -> lastActiveSession.id
-            latestSession.updatedAt > lastActiveTime -> latestSession.id
-            else -> lastActiveSession.id
+            mode == 1 && lastActiveSession != null -> lastActiveSession.id
+            mode == 0 && lastActiveSession != null && isFresh -> lastActiveSession.id
+            else -> resolve(context, chatRepository)
         }
 
         setLastActive(context, targetId)
@@ -89,28 +89,72 @@ object MainChat {
     }
 
     /**
-     * Picks the main chat: the persisted one if it still exists, else the first-conversation
-     * session, else the most recently updated session (so a 0.1.2 user's current chat becomes
-     * home), else a fresh draft that becomes real on first send. A chat synced under another
-     * account (contract C10, [io.github.nanomuse.sync.ConversationSync.hidden]) is never it, and
-     * neither is the feed's working conversation ([io.github.nanomuse.feed.FeedFlow.hidden]).
+     * Picks the main chat:
+     * 1. The persisted main chat if valid and not a known side chat in [io.github.nanomuse.sync.SyncDatabase].
+     * 2. An authentic main conversation synced in [io.github.nanomuse.sync.SyncDatabase].
+     * 3. The first-conversation session (if not a side chat).
+     * 4. Else an independent fresh draft that promotes to real on first send.
+     *
+     * It NEVER falls back to hijacking existing side chat sessions!
      */
     suspend fun resolve(context: Context, chatRepository: ChatRepository): String {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val hidden = io.github.nanomuse.sync.ConversationSync.hidden.value + io.github.nanomuse.feed.FeedFlow.hidden.value
-        prefs.getString(KEY_SESSION, null)?.let { id ->
-            if (id !in hidden && chatRepository.getSession(id) != null) return publish(id)
-        }
-        prefs.getString(KEY_FIRST_CONVERSATION_SESSION, null)?.let { id ->
-            if (!isDraftId(id) && id !in hidden && chatRepository.getSession(id) != null) {
-                prefs.edit().putString(KEY_SESSION, id).apply()
-                return publish(id)
+
+        val persistedId = prefs.getString(KEY_SESSION, null)
+        if (persistedId != null && persistedId !in hidden) {
+            val session = chatRepository.getSession(persistedId)
+            if (session != null) {
+                // Sanity check: Ensure this session is not a known side chat in SyncDatabase
+                val isSideChat = runCatching {
+                    io.github.nanomuse.sync.SyncDatabase.get(context).dao().conversations()
+                        .any { it.sessionId == persistedId && it.kind == "side" }
+                }.getOrDefault(false)
+
+                val currentAccount = io.github.nanomuse.account.AccountData.key(context)
+                val realMain = runCatching {
+                    io.github.nanomuse.sync.SyncDatabase.get(context).dao().conversations()
+                        .firstOrNull { it.kind == "main" && (it.owner == null || it.owner == currentAccount) && it.sessionId !in hidden }
+                }.getOrNull()
+
+                if (isSideChat || (realMain != null && realMain.sessionId != persistedId)) {
+                    prefs.edit().remove(KEY_SESSION).apply()
+                    if (realMain != null && chatRepository.getSession(realMain.sessionId) != null) {
+                        prefs.edit().putString(KEY_SESSION, realMain.sessionId).apply()
+                        return publish(realMain.sessionId)
+                    }
+                } else {
+                    return publish(persistedId)
+                }
             }
         }
-        chatRepository.dao.listSessions().firstOrNull { it.id !in hidden }?.let { latest ->
-            prefs.edit().putString(KEY_SESSION, latest.id).apply()
-            return publish(latest.id)
+
+        // Check if SyncDatabase already has an authentic main conversation for this account
+        val currentAccount = io.github.nanomuse.account.AccountData.key(context)
+        val syncedMain = runCatching {
+            io.github.nanomuse.sync.SyncDatabase.get(context).dao().conversations()
+                .firstOrNull { it.kind == "main" && (it.owner == null || it.owner == currentAccount) && it.sessionId !in hidden }
+        }.getOrNull()
+        if (syncedMain != null && chatRepository.getSession(syncedMain.sessionId) != null) {
+            prefs.edit().putString(KEY_SESSION, syncedMain.sessionId).apply()
+            return publish(syncedMain.sessionId)
         }
+
+        // Backward compatibility: first conversation session if it exists and is not a side chat
+        prefs.getString(KEY_FIRST_CONVERSATION_SESSION, null)?.let { id ->
+            if (!isDraftId(id) && id !in hidden && chatRepository.getSession(id) != null) {
+                val isSide = runCatching {
+                    io.github.nanomuse.sync.SyncDatabase.get(context).dao().conversations()
+                        .any { it.sessionId == id && it.kind == "side" }
+                }.getOrDefault(false)
+                if (!isSide) {
+                    prefs.edit().putString(KEY_SESSION, id).apply()
+                    return publish(id)
+                }
+            }
+        }
+
+        // Do NOT hijack listSessions()! Maintain complete independence for main chat.
         val d = draft ?: "__new__${UUID.randomUUID()}".also { draft = it }
         return publish(d)
     }

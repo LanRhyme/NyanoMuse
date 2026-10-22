@@ -242,10 +242,6 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
   // Under the hood, keep a main session mapped for cloud relay sync compatibility
   let mainId = sync.mainSession && visible.some((s) => s.id === sync.mainSession) ? sync.mainSession : undefined
   if (!mainId) mainId = mainStored && visible.some((s) => s.id === mainStored) ? mainStored : undefined
-  if (!mainId && visible.length > 0) {
-    const candidates = visible.filter((s) => !s.blank || s.id === current || sync.sessions.has(s.id))
-    mainId = [...candidates].sort((a, b) => a.updatedAt - b.updatedAt)[0]?.id ?? visible[0]!.id
-  }
   useEffect(() => {
     if (state.phase !== 'ready') return
     if (mainId !== mainStored) { writeMain(mainId); setMainStored(mainId) }

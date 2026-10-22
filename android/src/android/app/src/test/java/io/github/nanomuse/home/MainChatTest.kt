@@ -122,16 +122,16 @@ class MainChatTest {
     }
 
     @Test
-    fun `resolveLaunchSession defaults to most recently updated session`() = runBlocking {
+    fun `resolveLaunchSession lands on main chat on cold launch`() = runBlocking {
         val s1 = session("s1", 2000L)
-        val s2 = session("s2", 5000L) // newer
+        val s2 = session("s2", 5000L)
         Mockito.`when`(dao.listSessions()).thenReturn(listOf(s2, s1))
         Mockito.`when`(dao.getSession("s2")).thenReturn(s2)
         Mockito.`when`(dao.getSession("s1")).thenReturn(s1)
 
         val sid = MainChat.resolveLaunchSession(context, repo)
-        assertEquals("s2", sid)
-        assertEquals("s2", MainChat.getLastActive(context))
+        // Cold launch with no recent activity lands on Main Chat (fresh draft)
+        assertTrue(sid.startsWith("__new__"))
     }
 
     @Test
@@ -150,21 +150,32 @@ class MainChatTest {
     }
 
     @Test
-    fun `resolveLaunchSession picks latestSession if synced messages are newer than local last active time`() = runBlocking {
+    fun `resolveLaunchSession lands on main chat if last active session is stale`() = runBlocking {
         val s1 = session("s1", 1000L)
-        val s2 = session("s2", 5000L) // received via sync in background
-        Mockito.`when`(dao.listSessions()).thenReturn(listOf(s2, s1))
+        Mockito.`when`(dao.listSessions()).thenReturn(listOf(s1))
         Mockito.`when`(dao.getSession("s1")).thenReturn(s1)
-        Mockito.`when`(dao.getSession("s2")).thenReturn(s2)
 
-        // User had last opened s1 at t=2000, but s2 updated at t=5000
+        // User had last opened s1 2 hours ago (stale > 15m)
         context.getSharedPreferences("nanomuse", Context.MODE_PRIVATE)
             .edit()
             .putString("last_active.session", "s1")
-            .putLong("last_active.time", 2000L)
+            .putLong("last_active.time", System.currentTimeMillis() - 2 * 3600 * 1000L)
             .apply()
 
         val sid = MainChat.resolveLaunchSession(context, repo)
-        assertEquals("s2", sid)
+        assertTrue(sid.startsWith("__new__"))
+    }
+
+    @Test
+    fun `resolve never hijacks side chats from listSessions`() = runBlocking {
+        val s1 = session("side-1", 1000L)
+        val s2 = session("side-2", 2000L)
+        Mockito.`when`(dao.listSessions()).thenReturn(listOf(s2, s1))
+
+        val resolved = MainChat.resolve(context, repo)
+        assertTrue(resolved.startsWith("__new__"))
+        // KEY_SESSION in prefs must remain unset/unpolluted
+        val persisted = MainChat.persisted(context)
+        org.junit.Assert.assertNull(persisted)
     }
 }
