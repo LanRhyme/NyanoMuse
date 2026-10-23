@@ -82,6 +82,9 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Interactive terminal and shell execution support for native Root and Host modes**
+  TerminalSession and ShellExecutor dynamically adapt to the selected ExecutionMode; in Root mode the terminal spawns su directly into the PTY with Android root environment paths and storage working directory while ShellExecutor executes via host su without booting PRoot; in Host mode commands spawn /system/bin/sh natively; OnDemandBash disables Alpine apk install attempts when outside the PRoot container; HubActions bypasses PRoot initialization under non-proot modes; terminal top bar displays active execution mode badge
+
 - **Companion prompt golden self-checks, confusables guide, and empathy boundary reinforcement**
   The dual-outlet companion prompt instructions inject three golden self-check heuristics (relevance across contexts, zero presumption of unstated facts, substance over mere posturing), disambiguation rules for five easily confused emotion pairs (annoyed vs sulk, numb vs checkedout, anxious vs burnout, cracked vs conflict, excited vs hyper), empathetic boundaries on future promises and feelings, and immediate role surrender during genuine distress
 
