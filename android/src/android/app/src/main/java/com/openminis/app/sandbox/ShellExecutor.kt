@@ -46,6 +46,11 @@ object ShellExecutor {
         environment: Map<String, String> = emptyMap(),
         lineCallback: ((String) -> Unit)? = null
     ): ShellResult = withContext(Dispatchers.IO) {
+        val mode = ExecutionMode.getMode(context)
+        if (mode != ExecutionMode.PROOT_SANDBOX) {
+            return@withContext executeHostOrRoot(context, command, timeout, environment, lineCallback, isRoot = (mode == ExecutionMode.ROOT))
+        }
+
         check(PRootKernel.isBooted) { "PRootKernel must be booted before executing commands" }
 
         val first = runOnce(context, command, timeout, environment, lineCallback, noSeccomp = false)
@@ -192,6 +197,107 @@ object ShellExecutor {
         val durationMs = System.currentTimeMillis() - startTime
         Log.d(TAG, "Command completed in ${durationMs}ms with exit code $exitCode")
 
+        ShellResult(
+            output = output.toString().trimEnd(),
+            exitCode = exitCode,
+            durationMs = durationMs
+        )
+    }
+
+    private suspend fun executeHostOrRoot(
+        context: Context,
+        command: String,
+        timeout: Long,
+        environment: Map<String, String>,
+        lineCallback: ((String) -> Unit)?,
+        isRoot: Boolean,
+    ): ShellResult = withContext(Dispatchers.IO) {
+        val startTime = System.currentTimeMillis()
+        val cmd = if (isRoot) {
+            val suBinary = listOf(
+                "/system/bin/su",
+                "/system/xbin/su",
+                "/sbin/su",
+                "/data/adb/ksu/bin/su",
+                "/data/adb/magisk/su"
+            ).firstOrNull { java.io.File(it).exists() } ?: "su"
+            listOf(suBinary, "-c", command)
+        } else {
+            val shBinary = if (java.io.File("/system/bin/sh").exists()) "/system/bin/sh" else "/bin/sh"
+            listOf(shBinary, "-c", command)
+        }
+
+        val processBuilder = ProcessBuilder(cmd)
+        processBuilder.redirectErrorStream(true)
+        val env = processBuilder.environment()
+        env["TERM"] = "dumb"
+        env["PATH"] = "/system/bin:/system/xbin:/sbin:/data/adb/ksu/bin:/data/adb/magisk:/data/adb/ap/bin:" + (System.getenv("PATH") ?: "/system/bin")
+        if (isRoot) {
+            env["USER"] = "root"
+            val storageDir = java.io.File("/storage/emulated/0")
+            env["HOME"] = if (storageDir.exists() && storageDir.canRead()) "/storage/emulated/0" else "/data/local/tmp"
+        } else {
+            env["HOME"] = context.filesDir.absolutePath
+        }
+        environment.forEach { (k, v) -> env[k] = v }
+
+        val storageDir = java.io.File("/storage/emulated/0")
+        if (storageDir.exists() && storageDir.canRead()) {
+            processBuilder.directory(storageDir)
+        } else {
+            processBuilder.directory(context.filesDir)
+        }
+
+        val output = StringBuilder()
+        var exitCode = -1
+
+        try {
+            val process = processBuilder.start()
+            currentProcess = process
+
+            withTimeout(timeout) {
+                try {
+                    val reader = BufferedReader(InputStreamReader(process.inputStream, StandardCharsets.UTF_8))
+                    val buf = CharArray(4096)
+                    val lastLineForCallback = StringBuilder()
+                    var n: Int
+                    while (reader.read(buf).also { n = it } != -1) {
+                        output.append(buf, 0, n)
+                        if (lineCallback != null) {
+                            for (i in 0 until n) {
+                                val c = buf[i]
+                                if (c == '\n') {
+                                    lineCallback.invoke(lastLineForCallback.toString())
+                                    lastLineForCallback.clear()
+                                } else if (c != '\r') {
+                                    lastLineForCallback.append(c)
+                                }
+                            }
+                        }
+                    }
+                    if (lineCallback != null && lastLineForCallback.isNotEmpty()) {
+                        lineCallback.invoke(lastLineForCallback.toString())
+                    }
+                    exitCode = process.waitFor()
+                } finally {
+                    currentProcess = null
+                }
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            Log.w(TAG, "Command timed out after ${timeout}ms: $command")
+            currentProcess?.destroyForcibly()
+            currentProcess = null
+            output.appendLine("\n[Command timed out after ${timeout / 1000}s]")
+            exitCode = 124
+        } catch (e: Exception) {
+            Log.e(TAG, "Command failed: $command", e)
+            currentProcess?.destroyForcibly()
+            currentProcess = null
+            output.appendLine("\n[Error: ${e.message}]")
+            exitCode = -1
+        }
+
+        val durationMs = System.currentTimeMillis() - startTime
         ShellResult(
             output = output.toString().trimEnd(),
             exitCode = exitCode,

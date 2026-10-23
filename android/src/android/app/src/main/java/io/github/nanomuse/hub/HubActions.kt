@@ -153,6 +153,7 @@ object HubActions {
 
     /** The sandbox boots on first use, exactly as it does for the phone's own agent. */
     private fun boot(context: Context) {
+        if (com.openminis.app.sandbox.ExecutionMode.getMode(context) != com.openminis.app.sandbox.ExecutionMode.PROOT_SANDBOX) return
         if (PRootKernel.isBooted) return
         try {
             runBlocking { PRootKernel.boot(context.applicationContext) }

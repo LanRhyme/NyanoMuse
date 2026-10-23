@@ -68,6 +68,11 @@ object OnDemandBash {
             return Outcome.Available
         }
 
+        if (com.openminis.app.sandbox.ExecutionMode.getMode(context) != com.openminis.app.sandbox.ExecutionMode.PROOT_SANDBOX) {
+            markUnavailable()
+            return Outcome.Unavailable("bash is not installed in native host/root environment")
+        }
+
         if (attemptedInstallThisLaunch) {
             markUnavailable()
             return Outcome.Unavailable("bash install already attempted this session")

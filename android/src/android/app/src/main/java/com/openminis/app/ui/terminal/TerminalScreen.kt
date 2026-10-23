@@ -238,6 +238,14 @@ fun TerminalScreen(
             }
         }
 
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val currentExecMode = remember { com.openminis.app.sandbox.ExecutionMode.getMode(context) }
+        val modeBadge = when (currentExecMode) {
+            com.openminis.app.sandbox.ExecutionMode.ROOT -> "Root"
+            com.openminis.app.sandbox.ExecutionMode.HOST_SHELL -> "Host"
+            com.openminis.app.sandbox.ExecutionMode.PROOT_SANDBOX -> "PRoot"
+        }
+
         // Top bar pinned at top — never moves with IME.
         Box(
             modifier = Modifier
@@ -248,6 +256,7 @@ fun TerminalScreen(
                 .background(TerminalBg),
         ) {
             TerminalTopBar(
+                modeBadge = modeBadge,
                 onClose = {
                     terminalSession.stop()
                     onBack()
@@ -320,6 +329,7 @@ private fun <T> kotlinx.coroutines.flow.StateFlow<T>.collectAsStateEffect(): and
 private fun TerminalTopBar(
     onClose: () -> Unit,
     onClear: () -> Unit,
+    modeBadge: String = "",
 ) {
     Row(
         modifier = Modifier
@@ -336,7 +346,7 @@ private fun TerminalTopBar(
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            stringResource(R.string.terminal_title),
+            if (modeBadge.isNotEmpty()) "${stringResource(R.string.terminal_title)} ($modeBadge)" else stringResource(R.string.terminal_title),
             color = TerminalFg,
             style = TextStyle(
                 fontFamily = JetBrainsMonoFontFamily,

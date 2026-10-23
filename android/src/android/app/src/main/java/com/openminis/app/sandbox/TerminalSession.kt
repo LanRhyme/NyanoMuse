@@ -131,45 +131,95 @@ class TerminalSession(private val context: Context) {
 
         scope.launch {
             try {
-                PRootKernel.boot(context)
+                val mode = ExecutionMode.getMode(context)
+                if (mode == ExecutionMode.PROOT_SANDBOX) {
+                    PRootKernel.boot(context)
+                }
 
-                if (sessionId != null) {
+                if (sessionId != null && mode == ExecutionMode.PROOT_SANDBOX) {
                     ExecutionCoordinator.envVarRepository?.allAsDict()?.let { envVars ->
                         PRootKernel.customEnvironment.putAll(envVars)
                     }
                 }
 
-                val cmdList = buildInteractiveCommand()
-                val cmd = cmdList.first()
-                val argv = cmdList.toTypedArray()
-
-                // Environment in KEY=VALUE form
+                val cmdList: List<String>
+                val cwd: String?
                 val envMap = LinkedHashMap<String, String>()
-                envMap["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
-                if (PRootKernel.nativeLibDir.isNotEmpty())
-                    envMap["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
-                if (PRootKernel.prootLoaderPath.isNotEmpty())
-                    envMap["PROOT_LOADER"] = PRootKernel.prootLoaderPath
-                if (PRootKernel.prootLoader32Path.isNotEmpty())
-                    envMap["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
-                envMap["TERM"] = "xterm-256color"
-                envMap["LANG"] = "C.UTF-8"
-                envMap["LC_ALL"] = "C.UTF-8"
-                // Timezone: PRootKernel.boot() already seeded customEnvironment["TZ"],
-                // but set a fresh value here too in case the kernel was booted earlier
-                // and the system timezone changed since.
-                envMap["TZ"] = PRootKernel.posixTz()
-                for ((k, v) in PRootKernel.customEnvironment) envMap[k] = v
-                ExecutionCoordinator.envVarRepository?.allAsDict()?.forEach { (k, v) -> envMap[k] = v }
 
-                // [T-android-seccomp-selfheal / GH#186] Applied last so nothing
-                // above can clobber it once this device is known to need it.
-                if (useNoSeccomp) {
-                    envMap[SeccompFallbackPolicy.NO_SECCOMP_ENV] = SeccompFallbackPolicy.NO_SECCOMP_VALUE
+                when (mode) {
+                    ExecutionMode.ROOT -> {
+                        val suBinary = listOf(
+                            "/system/bin/su",
+                            "/system/xbin/su",
+                            "/sbin/su",
+                            "/data/adb/ksu/bin/su",
+                            "/data/adb/magisk/su"
+                        ).firstOrNull { File(it).exists() } ?: "su"
+                        cmdList = listOf(suBinary)
+                        envMap["TERM"] = "xterm-256color"
+                        envMap["LANG"] = "C.UTF-8"
+                        envMap["LC_ALL"] = "C.UTF-8"
+                        envMap["PATH"] = "/system/bin:/system/xbin:/sbin:/data/adb/ksu/bin:/data/adb/magisk:/data/adb/ap/bin:" + (System.getenv("PATH") ?: "/system/bin")
+                        val storageDir = File("/storage/emulated/0")
+                        envMap["HOME"] = if (storageDir.exists() && storageDir.canRead()) "/storage/emulated/0" else "/data/local/tmp"
+                        envMap["USER"] = "root"
+                        envMap["SHELL"] = "/system/bin/sh"
+                        if (File("/system/etc/mkshrc").exists()) {
+                            envMap["ENV"] = "/system/etc/mkshrc"
+                        }
+                        val sessionHostDir = if (sessionId != null) File(context.filesDir, "minis-sessions/$sessionId") else null
+                        cwd = when {
+                            sessionHostDir != null && sessionHostDir.exists() -> sessionHostDir.absolutePath
+                            storageDir.exists() && storageDir.canRead() -> storageDir.absolutePath
+                            else -> "/"
+                        }
+                    }
+                    ExecutionMode.HOST_SHELL -> {
+                        val shBinary = if (File("/system/bin/sh").exists()) "/system/bin/sh" else "/bin/sh"
+                        cmdList = listOf(shBinary, "-i")
+                        envMap["TERM"] = "xterm-256color"
+                        envMap["LANG"] = "C.UTF-8"
+                        envMap["LC_ALL"] = "C.UTF-8"
+                        envMap["PATH"] = "/system/bin:/system/xbin:" + (System.getenv("PATH") ?: "/system/bin")
+                        envMap["HOME"] = context.filesDir.absolutePath
+                        envMap["SHELL"] = shBinary
+                        if (File("/system/etc/mkshrc").exists()) {
+                            envMap["ENV"] = "/system/etc/mkshrc"
+                        }
+                        val storageDir = File("/storage/emulated/0")
+                        val sessionHostDir = if (sessionId != null) File(context.filesDir, "minis-sessions/$sessionId") else null
+                        cwd = when {
+                            sessionHostDir != null && sessionHostDir.exists() -> sessionHostDir.absolutePath
+                            storageDir.exists() && storageDir.canRead() -> storageDir.absolutePath
+                            else -> context.filesDir.absolutePath
+                        }
+                    }
+                    ExecutionMode.PROOT_SANDBOX -> {
+                        cmdList = buildInteractiveCommand()
+                        envMap["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
+                        if (PRootKernel.nativeLibDir.isNotEmpty())
+                            envMap["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
+                        if (PRootKernel.prootLoaderPath.isNotEmpty())
+                            envMap["PROOT_LOADER"] = PRootKernel.prootLoaderPath
+                        if (PRootKernel.prootLoader32Path.isNotEmpty())
+                            envMap["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
+                        envMap["TERM"] = "xterm-256color"
+                        envMap["LANG"] = "C.UTF-8"
+                        envMap["LC_ALL"] = "C.UTF-8"
+                        envMap["TZ"] = PRootKernel.posixTz()
+                        for ((k, v) in PRootKernel.customEnvironment) envMap[k] = v
+                        if (useNoSeccomp) {
+                            envMap[SeccompFallbackPolicy.NO_SECCOMP_ENV] = SeccompFallbackPolicy.NO_SECCOMP_VALUE
+                        }
+                        cwd = File(cmdList.first()).parentFile?.absolutePath
+                    }
                 }
 
+                ExecutionCoordinator.envVarRepository?.allAsDict()?.forEach { (k, v) -> envMap[k] = v }
+
+                val cmd = cmdList.first()
+                val argv = cmdList.toTypedArray()
                 val envp = envMap.map { (k, v) -> "$k=$v" }.toTypedArray()
-                val cwd = File(cmd).parentFile?.absolutePath
 
                 val outPid = IntArray(1)
                 val fd = PtyBridge.forkExec(cmd, argv, envp, cwd, cols, rows, outPid)
@@ -183,9 +233,9 @@ class TerminalSession(private val context: Context) {
                 childPid = outPid[0]
                 _state.value = State.RUNNING
                 liveSessions.add(WeakReference(this@TerminalSession))
-                Log.i(TAG, "PTY started: fd=$fd pid=$childPid cols=$cols rows=$rows")
+                Log.i(TAG, "PTY started: fd=$fd pid=$childPid cols=$cols rows=$rows mode=${mode.name}")
 
-                if (sessionId != null) {
+                if (sessionId != null && mode == ExecutionMode.PROOT_SANDBOX) {
                     kotlinx.coroutines.delay(300)
                     writeInput("cd /var/minis && clear\n".toByteArray())
                 }
@@ -196,16 +246,10 @@ class TerminalSession(private val context: Context) {
                 val spawnedAt = System.currentTimeMillis()
                 scope.launch {
                     val status = PtyBridge.waitFor(childPid)
-                    Log.i(TAG, "Child exited: status=$status")
+                    Log.i(TAG, "Child exited: status=$status mode=${mode.name}")
 
-                    // [T-android-seccomp-selfheal / GH#186] PtyBridge reports a
-                    // signal death as -(128+signal) (pty_bridge.c:234), so
-                    // negate before consulting the policy. If the interactive
-                    // shell died on an early fatal signal, restart it once with
-                    // PROOT_NO_SECCOMP=1 rather than leaving the user staring
-                    // at a dead terminal they cannot fix from the UI.
                     val aliveMs = System.currentTimeMillis() - spawnedAt
-                    if (SeccompFallbackPolicy.shouldRetryWithoutSeccomp(
+                    if (mode == ExecutionMode.PROOT_SANDBOX && SeccompFallbackPolicy.shouldRetryWithoutSeccomp(
                             exitCode = if (status < 0) -status else null,
                             durationMs = aliveMs,
                             producedOutput = sawOutput,
@@ -225,7 +269,11 @@ class TerminalSession(private val context: Context) {
                         return@launch
                     }
 
-                    _outputBytes.emit("\r\n[Process exited: $status]\r\n".toByteArray())
+                    if (mode == ExecutionMode.ROOT && !sawOutput && status != 0) {
+                        _outputBytes.emit("\r\n[Root 模式未能获取 root 权限 (code=$status)。请在 KernelSU / Magisk / APatch 中为 nanoMuse 授权]\r\n".toByteArray())
+                    } else {
+                        _outputBytes.emit("\r\n[Process exited: $status]\r\n".toByteArray())
+                    }
                     _state.value = State.STOPPED
                 }
             } catch (t: Throwable) {

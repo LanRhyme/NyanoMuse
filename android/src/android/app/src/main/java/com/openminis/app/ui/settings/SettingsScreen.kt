@@ -432,6 +432,7 @@ fun SettingsScreen(
                             .clip(RoundedCornerShape(12.dp))
                             .clickable {
                                 com.openminis.app.sandbox.ExecutionMode.setMode(context, mode)
+                                com.openminis.app.sandbox.ExecutionCoordinator.stopCurrentCommand()
                                 currentExecMode = mode
                                 showExecutionModeSheet = false
                             }
@@ -442,6 +443,7 @@ fun SettingsScreen(
                             selected = currentExecMode == mode,
                             onClick = {
                                 com.openminis.app.sandbox.ExecutionMode.setMode(context, mode)
+                                com.openminis.app.sandbox.ExecutionCoordinator.stopCurrentCommand()
                                 currentExecMode = mode
                                 showExecutionModeSheet = false
                             },
