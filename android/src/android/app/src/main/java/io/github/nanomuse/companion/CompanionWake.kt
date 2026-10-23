@@ -37,7 +37,7 @@ object CompanionWake {
 
         val address = CompanionPrefs.getUserAddress(context)
         val promptText = when (moodState.scenario) {
-            CompanionEmotion.Scenario.MORNING_GREETING -> "（早晨元气满满地伸个懒腰，可调用工具感知${address}的电量和状态，向${address}问候早安）"
+            CompanionEmotion.Scenario.MORNING_GREETING -> "（早晨元气满满地伸个懒腰，可调用工具感知${address}的电量和状态，向${address}问候早安，若前文已有交流则自然承接）"
             CompanionEmotion.Scenario.EVENING_CARE -> "（夜深了，打个哈欠，感知${address}是否还在用手机，提醒${address}早点休息）"
             CompanionEmotion.Scenario.CURIOUS_CHECKIN -> "（探出小脑袋，可调用工具看看${address}当前正在忙什么，轻声关心${address}）"
             CompanionEmotion.Scenario.LONGING_MISS -> "（好久没见${address}了，感知${address}的动态，软乎乎地蹭蹭求抱抱，表达想念）"

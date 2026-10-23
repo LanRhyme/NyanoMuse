@@ -920,6 +920,7 @@ class ChatViewModel(
      *  this, opening a session that previously fell back mid-run flashes the
      *  default model name for one frame before the persisted binding settles. */
     private val sessionLoaded = MutableStateFlow(false)
+    val isSessionLoaded: StateFlow<Boolean> = sessionLoaded.asStateFlow()
 
     private val _sessionTitle = MutableStateFlow("New Chat")
     val sessionTitle: StateFlow<String> = _sessionTitle.asStateFlow()
@@ -7158,6 +7159,8 @@ class ChatViewModel(
             var streamLaunched = false
             var userRowShown = false // nanoMuse: set once the person's line is on screen; a Stop before that gives the composer its text back (#340)
             try {
+            // nanoMuse: wait for loadSession() to finish so agentHistory is fully hydrated
+            sessionLoaded.first { it }
             // Ensure session exists in DB (creates on first message for draft sessions)
             val activeSessionId = ensureSession()
 
@@ -7337,6 +7340,18 @@ class ChatViewModel(
 
                     // Build full fallback provider list upfront (mirrors iOS triedEntries approach)
                     val fallbackProviders = buildFallbackProviders(provider)
+
+                    // nanoMuse: context integrity safeguard — ensure agentHistory contains all persisted messages from DB
+                    if (agentHistory.size <= 1) {
+                        val dbMsgs = chatRepository.loadMessages(activeSessionId)
+                        if (dbMsgs.size > 1) {
+                            AppLogger.warning(TAG_STREAM, "agentHistory out of sync with DB (history=${agentHistory.size}, db=${dbMsgs.size}), rebuilding from DB")
+                            agentHistory.clear()
+                            for (entity in dbMsgs) {
+                                agentHistory.add(entity.toLLMMessage())
+                            }
+                        }
+                    }
 
                     try {
                         AppLogger.info(TAG_STREAM, "send runAgentLoop CALL")

@@ -32,6 +32,7 @@ object CompanionPrefs {
     const val KEY_CACHED_ACTIVE_DAYS = "companion_cached_active_days"
     const val KEY_CACHED_ACTIVE_DAYS_DATE = "companion_cached_active_days_date"
     const val KEY_LAST_REAL_USER_MESSAGE_TIME = "companion_last_real_user_message_time"
+    const val KEY_LAST_MORNING_GREETING_DATE = "companion_last_morning_greeting_date"
 
     // Dynamic emotion & affective computing keys
     const val KEY_DYNAMIC_BIAS_P = "companion_dynamic_bias_p"
@@ -196,6 +197,16 @@ object CompanionPrefs {
         }
     }
 
+    fun hasGreetedMorningToday(prefs: SharedPreferences, now: Long, timeZone: TimeZone = TimeZone.getDefault()): Boolean {
+        val todayStr = formatDate(now, timeZone)
+        return prefs.getString(KEY_LAST_MORNING_GREETING_DATE, null) == todayStr
+    }
+
+    fun recordMorningGreeting(prefs: SharedPreferences, now: Long, timeZone: TimeZone = TimeZone.getDefault()) {
+        val todayStr = formatDate(now, timeZone)
+        prefs.edit().putString(KEY_LAST_MORNING_GREETING_DATE, todayStr).apply()
+    }
+
     /**
      * Pure condition check on raw primitive values: can a proactive trigger fire?
      */
@@ -208,7 +219,8 @@ object CompanionPrefs {
         todayCount: Int,
         dailyMaxCount: Int,
         lastProactiveTime: Long,
-        minIntervalHours: Int
+        minIntervalHours: Int,
+        lastRealUserMessageTime: Long = 0L,
     ): Boolean {
         if (!enabled) return false
         if (isQuietHours(hourOfDay, quietStart, quietEnd)) return false
@@ -216,6 +228,9 @@ object CompanionPrefs {
 
         val minIntervalMs = minIntervalHours * 3600_000L
         if (lastProactiveTime > 0L && now - lastProactiveTime < minIntervalMs) return false
+
+        // Do not interrupt if the user sent a real message recently (< 1 hour)
+        if (lastRealUserMessageTime > 0L && now - lastRealUserMessageTime < 3600_000L) return false
 
         return true
     }
@@ -239,7 +254,8 @@ object CompanionPrefs {
             todayCount = getTodayTriggerCount(prefs, now, timeZone),
             dailyMaxCount = getDailyMaxCount(prefs),
             lastProactiveTime = getLastProactiveTime(prefs),
-            minIntervalHours = getMinIntervalHours(prefs)
+            minIntervalHours = getMinIntervalHours(prefs),
+            lastRealUserMessageTime = getLastRealUserMessageTime(prefs),
         )
     }
 

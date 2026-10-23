@@ -86,12 +86,14 @@ class CompanionAlarmReceiver : BroadcastReceiver() {
         // 5. Evaluate mood and proactive willingness via pure function
         val quietStart = CompanionPrefs.getQuietStartHour(prefs)
         val quietEnd = CompanionPrefs.getQuietEndHour(prefs)
+        val hasGreetedMorning = CompanionPrefs.hasGreetedMorningToday(prefs, now)
         val moodState = CompanionEmotion.evaluate(
             now = now,
             lastUserMessageTime = lastUserTime,
             activeDaysCount = activeDays,
             quietHoursStart = quietStart,
-            quietHoursEnd = quietEnd
+            quietHoursEnd = quietEnd,
+            hasGreetedMorningToday = hasGreetedMorning
         )
 
         // 6. Check proactive score threshold and user preferred scenarios (flexible prefix/tag matching)
@@ -101,6 +103,9 @@ class CompanionAlarmReceiver : BroadcastReceiver() {
             val ok = CompanionWake.dispatch(context, mainChatId, moodState)
             if (ok) {
                 CompanionPrefs.recordProactiveTriggered(prefs, now)
+                if (moodState.scenario == CompanionEmotion.Scenario.MORNING_GREETING) {
+                    CompanionPrefs.recordMorningGreeting(prefs, now)
+                }
             }
         }
     }

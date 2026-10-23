@@ -57,6 +57,51 @@ class CompanionEmotionTest {
     }
 
     @Test
+    fun testMorningHoursWithRecentInteractionYieldsFreshResonance() {
+        // 08:59 in the morning, user just messaged 23 minutes ago: must yield FRESH_RESONANCE with low score
+        val now = timeAt(8, 59)
+        val state = CompanionEmotion.evaluate(
+            now = now,
+            lastUserMessageTime = now - 23 * 60_000L,
+            activeDaysCount = 5,
+            timeZone = utc
+        )
+
+        assertEquals(CompanionEmotion.PrimaryMood.HAPPY, state.primaryMood)
+        assertEquals(CompanionEmotion.Scenario.FRESH_RESONANCE, state.scenario)
+        assertTrue(state.proactiveScore < 0.3f)
+    }
+
+    @Test
+    fun testMorningHoursWithEarlierInteractionTodayYieldsCalmCompanion() {
+        // 08:30 in the morning, but user already chatted 2 hours ago (at 06:30 today, after waking up)
+        val now = timeAt(8, 30)
+        val state = CompanionEmotion.evaluate(
+            now = now,
+            lastUserMessageTime = now - 2 * 3600_000L, // 06:30 today
+            activeDaysCount = 5,
+            timeZone = utc
+        )
+
+        assertEquals(CompanionEmotion.Scenario.CALM_COMPANION, state.scenario)
+    }
+
+    @Test
+    fun testMorningHoursWhenAlreadyGreetedTodayYieldsCuriousCheckinOnLongIdle() {
+        // 08:30 in the morning, user messaged 8 hours ago, but morning greeting already fired today -> falls to CURIOUS_CHECKIN
+        val now = timeAt(8, 30)
+        val state = CompanionEmotion.evaluate(
+            now = now,
+            lastUserMessageTime = now - 8 * 3600_000L,
+            activeDaysCount = 5,
+            timeZone = utc,
+            hasGreetedMorningToday = true
+        )
+
+        assertEquals(CompanionEmotion.Scenario.CURIOUS_CHECKIN, state.scenario)
+    }
+
+    @Test
     fun testPostMorningThresholdDoesNotTriggerMorningGreeting() {
         // 09:31 in the morning: morning window ends at 09:30
         val now = timeAt(9, 31)

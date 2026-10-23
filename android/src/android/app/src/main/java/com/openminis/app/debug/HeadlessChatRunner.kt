@@ -199,16 +199,19 @@ internal object HeadlessChatRunner {
         //
         // Hop off Main for the wait: the VM's resolver runs on Main.immediate,
         // so suspending Main here would deadlock the resolver (same pattern as
-        // the thinkingLevel wait above).
+        // the thinkingLevel wait above). Also wait for isSessionLoaded so that
+        // loadSession() has fully loaded historical messages from Room DB into
+        // agentHistory before sendMessage is called.
         val ready = withContext(Dispatchers.Default) {
-            withTimeoutOrNull(5000L) {
+            withTimeoutOrNull(8000L) {
+                vm.isSessionLoaded.first { it }
                 vm.activeEntryId.first { it != null }
             }
         }
         if (ready == null) {
             return@withContext PromptResult(
                 status = "Error",
-                responseText = "no_provider_resolved_in_5s",
+                responseText = "no_session_or_provider_resolved_in_8s",
                 timedOut = false,
             )
         }

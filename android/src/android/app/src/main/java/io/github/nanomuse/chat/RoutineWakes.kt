@@ -72,6 +72,9 @@ object RoutineWakes {
             appendLine("- You can call `foreground_app` or `device_info` to sense what app the user is currently using, their battery, and current time.")
             appendLine("- If the foreground app is interesting or you need visual details of what's on screen (e.g. game, video, chat, code), you can optionally call `screen_capture`.")
             appendLine("- Based on what you sense (or their absence), speak to them naturally and warmly!")
+            appendLine("Context Continuity & Coherence:")
+            appendLine("- Read the conversation history above! Seamlessly weave your proactive thought into the ongoing conversation.")
+            appendLine("- If you already greeted or talked with the user today (e.g. said good morning, asked about their sleep, discussed plans), do NOT repeat greetings or pretend this is your first interaction of the day. Connect naturally with what was previously said!")
             appendLine("Stay strictly in persona. Do NOT sound like an assistant or customer service. Keep it under 50 Chinese characters or 25 words.")
         }
         SessionAddenda.add(sessionId, ADDENDUM_TAG, promptFraming, turns = 1)

@@ -86,7 +86,8 @@ object CompanionEmotion {
         activeDaysCount: Int = 1,
         quietHoursStart: Int = CompanionPrefs.DEFAULT_QUIET_START_HOUR,
         quietHoursEnd: Int = CompanionPrefs.DEFAULT_QUIET_END_HOUR,
-        timeZone: TimeZone = TimeZone.getDefault()
+        timeZone: TimeZone = TimeZone.getDefault(),
+        hasGreetedMorningToday: Boolean = false,
     ): MoodState {
         val cal = Calendar.getInstance(timeZone).apply { timeInMillis = now }
         val hour = cal.get(Calendar.HOUR_OF_DAY)
@@ -132,9 +133,32 @@ object CompanionEmotion {
             )
         }
 
-        // 3. Early morning (07:00 ~ 09:30): Cheerful awakening
+        // 3. Fresh interaction (< 1 hour): basking in the joy of chatting, zero interruption
+        if (idleMs < 1 * 3600_000L) {
+            return MoodState(
+                primaryMood = PrimaryMood.HAPPY,
+                valence = 0.90f,
+                arousal = 0.65f,
+                affection = intimacy,
+                proactiveScore = applyIntimacyBoost(0.15f),
+                scenario = Scenario.FRESH_RESONANCE,
+                framingInstruction = "刚刚和老大聊过天，小猫心里满是喜悦，静静趴在老大身边打呼噜陪伴。"
+            )
+        }
+
+        // 4. Early morning (07:00 ~ 09:30): Cheerful awakening
+        // Only trigger if no morning greeting occurred today and user hasn't already chatted this morning
         val isMorning = (hour in 7..8) || (hour == 9 && minute <= 30)
-        if (isMorning) {
+        val todayMorningStartMs = Calendar.getInstance(timeZone).apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, 6)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val hasAlreadyInteractedThisMorning = lastUserMessageTime >= todayMorningStartMs
+
+        if (isMorning && !hasGreetedMorningToday && !hasAlreadyInteractedThisMorning) {
             return MoodState(
                 primaryMood = PrimaryMood.HAPPY,
                 valence = 0.85f,
@@ -146,7 +170,7 @@ object CompanionEmotion {
             )
         }
 
-        // 4. Evening Care (21:30 ~ 22:59, before quiet hours): Gentle reminder to sleep soon when not actively chatting
+        // 5. Evening Care (21:30 ~ 22:59, before quiet hours): Gentle reminder to sleep soon when not actively chatting
         val isEveningCare = (hour == 21 && minute >= 30) || (hour == 22)
         if (isEveningCare && !isActivelyEngaged) {
             return MoodState(
@@ -160,18 +184,8 @@ object CompanionEmotion {
             )
         }
 
-        // 5. Daytime & Regular hours: tiered by idle duration
+        // 6. Daytime & Regular hours: tiered by idle duration
         return when {
-            // Fresh interaction (< 1 hour): basking in the joy of chatting
-            idleMs < 1 * 3600_000L -> MoodState(
-                primaryMood = PrimaryMood.HAPPY,
-                valence = 0.90f,
-                arousal = 0.65f,
-                affection = intimacy,
-                proactiveScore = applyIntimacyBoost(0.15f),
-                scenario = Scenario.FRESH_RESONANCE,
-                framingInstruction = "刚刚和老大聊过天，小猫心里满是喜悦，静静趴在老大身边打呼噜陪伴。"
-            )
             // Moderate idle (1 hour <= idle < 4 hours): calm companionship
             idleMs < 4 * 3600_000L -> MoodState(
                 primaryMood = PrimaryMood.HAPPY,

@@ -30,7 +30,8 @@ object CompanionStatus {
             lastUserMessageTime = lastTime,
             activeDaysCount = activeDays,
             quietHoursStart = CompanionPrefs.getQuietStartHour(prefs),
-            quietHoursEnd = CompanionPrefs.getQuietEndHour(prefs)
+            quietHoursEnd = CompanionPrefs.getQuietEndHour(prefs),
+            hasGreetedMorningToday = CompanionPrefs.hasGreetedMorningToday(prefs, now)
         )
 
         val biasP = CompanionPrefs.getDynamicBiasP(prefs)
