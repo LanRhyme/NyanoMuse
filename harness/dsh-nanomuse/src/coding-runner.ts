@@ -154,6 +154,7 @@ const AGENT_ENV_PREFIXES: Record<AgentId, string[]> = {
   codex: ['OPENAI_', 'CODEX_'],
   claude: ['ANTHROPIC_', 'CLAUDE_'],
   dsh: ['DSH_', 'DEEPSEEK_'],
+  antigravity: ['GEMINI_', 'GOOGLE_', 'ANTIGRAVITY_', 'AGY_'],
 }
 const CLAUDE_CLOUD: Record<string, string[]> = {
   CLAUDE_CODE_USE_BEDROCK: ['AWS_'],
@@ -224,6 +225,13 @@ export function commandFor(agent: AgentId, cli: string, sessionId: string, works
     cmd.push('--profile', 'headless', '--json')
     if (resume && sessionId) cmd.push('--session-id', sessionId)
     cmd.push(text)
+    return cmd
+  }
+  if (agent === 'antigravity') {
+    const cmd = [cli, '--output-format', 'stream-json', '--dangerously-skip-permissions']
+    if (resume && sessionId) cmd.push('--conversation', sessionId)
+    if (workspace) cmd.push('--add-dir', workspace)
+    cmd.push('--print', text)
     return cmd
   }
   const cmd = [cli, '-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits']
@@ -383,6 +391,33 @@ export function normalise(agent: AgentId, obj: Obj, run: Run): RunEvent[] {
       if (String(reason.kind ?? '') === 'error') {
         const err = isObj(reason.error) ? reason.error : {}
         out.push({ kind: 'error', text: String(err.message ?? '') })
+      }
+    }
+  } else if (agent === 'antigravity') {
+    const evt = String(obj.event ?? '')
+    if (evt === 'init') {
+      const sid = String(obj.conversation_id ?? '')
+      if (sid) run.result_session_id = sid
+      out.push({ kind: 'started', text: '', session_id: sid })
+    } else if (evt === 'step_update') {
+      const su = isObj(obj.step_update) ? obj.step_update : {}
+      const stepType = String(su.step_type ?? '')
+      const state = String(su.state ?? '')
+      const delta = typeof su.text_delta === 'string' ? su.text_delta : ''
+      if (delta) {
+        run.current = append(run.current, delta)
+        out.push({ kind: 'text', text: delta, partial: true })
+      }
+      if (stepType === 'tool_call') {
+        run.tools += 1
+        const toolName = String(su.tool_name ?? 'tool')
+        out.push({ kind: 'tool', text: `tool: ${toolName}`, phase: state })
+      }
+      if (state === 'DONE' && stepType === 'agent_response') {
+        run.commit()
+        const sid = String(su.conversation_id ?? run.result_session_id)
+        run.result_session_id = sid || run.result_session_id
+        out.push({ kind: 'done', text: run.output, session_id: sid, duration_s: su.duration_seconds })
       }
     }
   } else {

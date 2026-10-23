@@ -29,7 +29,7 @@ import { homedir } from 'node:os'
 import { basename, delimiter, join, resolve } from 'node:path'
 import { zstdDecompressSync } from 'node:zlib'
 
-export type AgentId = 'cursor' | 'codex' | 'claude' | 'dsh'
+export type AgentId = 'cursor' | 'codex' | 'claude' | 'dsh' | 'antigravity'
 
 export interface AgentSpec {
   name: string
@@ -45,6 +45,7 @@ export const AGENTS: Record<AgentId, AgentSpec> = {
   codex: { name: 'Codex', bins: ['codex'], process: ['codex'] },
   claude: { name: 'Claude Code', bins: ['claude'], process: ['claude'] },
   dsh: { name: 'DeepSeek Harness', bins: ['dsh'], process: ['dsh'] },
+  antigravity: { name: 'Antigravity', bins: ['agy'], process: ['agy', 'antigravity'] },
 }
 
 export const AGENT_IDS = Object.keys(AGENTS) as AgentId[]
@@ -118,6 +119,8 @@ export function sessionsRoot(agent: AgentId, env: NodeJS.ProcessEnv = process.en
       return join(h, '.claude', 'projects')
     case 'dsh':
       return join(h, '.dsh', 'sessions')
+    case 'antigravity':
+      return join(h, '.gemini', 'antigravity', 'brain')
   }
 }
 
@@ -187,7 +190,7 @@ export type ProcessRow = [comm: string, argv: string]
 
 /** How many processes of each agent the rows hold; the node-bundled Cursor CLI counts through its argv. */
 export function countProcesses(rows: readonly ProcessRow[]): Record<AgentId, number> {
-  const counts: Record<AgentId, number> = { cursor: 0, codex: 0, claude: 0, dsh: 0 }
+  const counts: Record<AgentId, number> = { cursor: 0, codex: 0, claude: 0, dsh: 0, antigravity: 0 }
   for (const [comm, argv] of rows) {
     let base = basename(comm.trim()).toLowerCase()
     if (base.endsWith('.exe')) base = base.slice(0, -4)
@@ -287,7 +290,7 @@ export async function processRows(platform: NodeJS.Platform = process.platform):
   return []
 }
 
-let processCache: { at: number; counts: Record<AgentId, number> } = { at: 0, counts: { cursor: 0, codex: 0, claude: 0, dsh: 0 } }
+let processCache: { at: number; counts: Record<AgentId, number> } = { at: 0, counts: { cursor: 0, codex: 0, claude: 0, dsh: 0, antigravity: 0 } }
 
 /** The process table, read once for all agents and kept two seconds (the apps ask about the three together). */
 export async function runningProcesses(platform: NodeJS.Platform = process.platform): Promise<Record<AgentId, number>> {
@@ -935,6 +938,97 @@ async function dshSessions(limit: number, workspace: string | undefined, env: No
   return out
 }
 
+// ------------------------------------------------------------------------- antigravity
+
+async function antigravitySession(file: string, full: boolean, source = 'ide'): Promise<CodingSession | undefined> {
+  const st = await statOf(file)
+  if (!st) return undefined
+  const parts = resolve(file).split(/[/\\]/)
+  const logsIdx = parts.lastIndexOf('logs')
+  const sid = (logsIdx > 1 && parts[logsIdx - 1] === '.system_generated') ? parts[logsIdx - 2] : parts[parts.length - 2]
+  const lines = await readLines(file)
+  let firstUser = ''
+  let lastUser = ''
+  let lastAssistant = ''
+  let openTurn = false
+  let n = 0
+  const transcript: CodingMessage[] = []
+
+  for (const obj of lines) {
+    const t = obj.type
+    let text = ''
+    if (typeof obj.content === 'string') text = obj.content
+    else if (Array.isArray(obj.content)) text = dshContentText(obj.content)
+
+    if (t === 'USER_INPUT') {
+      const cleaned = clean(text)
+      if (!cleaned) continue
+      if (!firstUser) firstUser = cleaned
+      lastUser = cleaned
+      openTurn = true
+      n += 1
+      if (full) transcript.push({ role: 'user', text: cleaned })
+    } else if (t === 'PLANNER_RESPONSE') {
+      if (!text.trim() && Array.isArray(obj.tool_calls) && obj.tool_calls.length) {
+        const call = isObj(obj.tool_calls[0]) ? obj.tool_calls[0] : {}
+        text = `Tool: ${String(call.name ?? 'tool')}`
+      }
+      const cleaned = text.trim()
+      if (!cleaned) continue
+      lastAssistant = cleaned
+      n += 1
+      openTurn = false
+      if (full) transcript.push({ role: 'assistant', text: cleaned })
+    }
+  }
+
+  const session: CodingSession = {
+    agent: 'antigravity',
+    id: sid || basename(resolve(file, '..', '..')),
+    title: title(firstUser) || 'Untitled session',
+    workspace: '',
+    path: file,
+    created_at: st.mtime,
+    updated_at: st.mtime,
+    messages: n,
+    status: status(st.mtime, openTurn),
+    last_user: title(lastUser, 160),
+    last_assistant: title(lastAssistant, 160),
+    source,
+    resumable: true,
+  }
+  if (full) session.transcript = transcript.slice(-TRANSCRIPT_KEEP)
+  return session
+}
+
+async function antigravitySessions(limit: number, workspace: string | undefined, env: NodeJS.ProcessEnv): Promise<CodingSession[]> {
+  const h = home(env)
+  const sources = [
+    { src: 'ide', dir: join(h, '.gemini', 'antigravity', 'brain') },
+    { src: 'cli', dir: join(h, '.gemini', 'antigravity-cli', 'brain') },
+  ]
+  const files: [number, string, string][] = []
+  for (const { src, dir } of sources) {
+    if (!(await isDir(dir))) continue
+    for (const sid of await readdir(dir).catch(() => [] as string[])) {
+      const sdir = join(dir, sid)
+      if (!(await isDir(sdir))) continue
+      const f = join(sdir, '.system_generated', 'logs', 'transcript.jsonl')
+      const st = await statOf(f)
+      if (st) files.push([st.mtime, f, src])
+    }
+  }
+  files.sort((a, b) => b[0] - a[0])
+  const out: CodingSession[] = []
+  for (const [, f, src] of files.slice(0, Math.max(limit * 2, 20))) {
+    const s = await antigravitySession(f, false, src)
+    if (!s || (workspace && !samePath(s.workspace || '', workspace))) continue
+    out.push(s)
+    if (out.length >= limit) break
+  }
+  return out
+}
+
 // ------------------------------------------------------------------------- the public readers
 
 /** Newest first, across the agents asked for (all when `agent` is undefined). */
@@ -945,6 +1039,7 @@ export async function sessions(agent?: AgentId, limit = 30, workspace?: string, 
     codex: codexSessions,
     claude: claudeSessions,
     dsh: dshSessions,
+    antigravity: antigravitySessions,
   }
   const picked = agent ? [agent] : AGENT_IDS
   const out: CodingSession[] = []
@@ -978,6 +1073,14 @@ export async function readSession(agent: AgentId, sessionId: string, env: NodeJS
       if (await statOf(f)) return dshSession(f, true)
       const legacy = join(sdir, 'session.jsonl')
       if (await statOf(legacy)) return dshSession(legacy, true)
+    }
+    return undefined
+  }
+  if (agent === 'antigravity') {
+    const h = home(env)
+    for (const base of [join(h, '.gemini', 'antigravity'), join(h, '.gemini', 'antigravity-cli')]) {
+      const f = join(base, 'brain', sessionId, '.system_generated', 'logs', 'transcript.jsonl')
+      if (await statOf(f)) return antigravitySession(f, true)
     }
     return undefined
   }

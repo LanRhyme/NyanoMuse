@@ -94,7 +94,7 @@ export const VERSION = `dsh-nanomuse ${BUNDLE_VERSION}`
 /** The hub actions this computer answers whatever the remote-control switch says (`docs/hub.md`). */
 export const ACTIONS = ['info', 'notify']
 /** Incoming actions worth a toast — the ones that act or look, not a folder listing. */
-const TOAST_ACTIONS = new Set(['shell', 'file.get', 'file.put', 'open', 'screen'])
+const TOAST_ACTIONS = new Set(['shell', 'file.get', 'file.put', 'open', 'screen', 'image.generate'])
 
 export interface Config {
   /** The relay origin. */

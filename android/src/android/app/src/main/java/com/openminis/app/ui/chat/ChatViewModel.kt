@@ -18,6 +18,7 @@ import com.openminis.app.data.db.MessageEntity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.outlined.Build
@@ -1917,6 +1918,12 @@ class ChatViewModel(
             title = "Thinking",
             subtitle = "",
         ),
+        SlashCommand(
+            id = "image",
+            icon = Icons.Default.Image,
+            title = "image",
+            subtitle = "调用 Antigravity CLI 跨端生图 (/image <提示词>)",
+        ),
     )
 
     // [T-android-split-chat] filteredSlashCommands / updateSlashMenuState /
@@ -1949,7 +1956,7 @@ class ChatViewModel(
         // they're a typing aid. Fill the composer with the literal slash
         // command; the user then taps Send and the model handles the skill via
         // the existing SKILL.md fragment injection in runAgentLoop.
-        if (cmd.isSkill || cmd.id == "grill-me") {
+        if (cmd.isSkill || cmd.id == "grill-me" || cmd.id == "image") {
             AppLogger.info(TAG, "[Slash] tap skill id=${cmd.id} title=${cmd.title} → composer fill only")
             savedInputBeforeSlash = null
             _showSlashMenu.value = false
@@ -2077,11 +2084,88 @@ class ChatViewModel(
         if (trimmed.isEmpty()) return false
         val first = trimmed[0]
         if (first != '/' && first != '／') return false
-        val name = trimmed.drop(1).lowercase()
+        val line = trimmed.drop(1)
+        val spaceIdx = line.indexOfAny(charArrayOf(' ', '　'))
+        val name = if (spaceIdx != -1) line.substring(0, spaceIdx).lowercase() else line.lowercase()
+        val args = if (spaceIdx != -1) line.substring(spaceIdx + 1).trim() else ""
+
+        if (name == "image" || name == "draw") {
+            if (args.isEmpty()) {
+                appendSystemInfo(
+                    text = "用法: /image <生图提示词> 或 /draw <生图提示词>，调用 Antigravity CLI 跨端生成图片。",
+                    iconKind = "info",
+                )
+            } else {
+                executeImageGenerateCommand(args)
+            }
+            return true
+        }
+
         val cmd = availableSlashCommands.firstOrNull { it.title.lowercase() == name }
             ?: return false
         executeSlashCommand(cmd)
         return true
+    }
+
+    private fun executeImageGenerateCommand(prompt: String) {
+        viewModelScope.launch {
+            val realSid = ensureSession()
+            nmAppendUserLine(realSid, "/image $prompt")
+
+            val toolId = "call_img_${System.currentTimeMillis()}"
+            val initialBlock = AssistantBlock(
+                id = toolId,
+                kind = "tool_use",
+                toolName = com.openminis.app.tools.NativeSystemTools.TOOL_IMAGE_GENERATE,
+                toolTitle = "Antigravity 生图: $prompt",
+                toolArgs = JSONObject().put("prompt", prompt).put("tool_title", "Antigravity 生图: $prompt").toString(),
+                toolStatus = ToolBlockStatus.RUNNING,
+                content = "正在连接桌面端 Antigravity CLI 生成图片...",
+            )
+            val placeholderMsg = ChatMessage(
+                id = "nm_img_assistant_${System.currentTimeMillis()}",
+                role = "assistant",
+                content = "",
+                toolBlocks = listOf(initialBlock),
+                isStreaming = true,
+            )
+            _messages.value = _messages.value + placeholderMsg
+
+            val argsJson = JSONObject().put("prompt", prompt).put("tool_title", "Antigravity 生图: $prompt").toString()
+            val result = withContext(Dispatchers.IO) {
+                com.openminis.app.tools.NativeSystemTools.executeImageGenerate(argsJson, context)
+            }
+
+            val finalBlock = if (result.success) {
+                initialBlock.copy(
+                    toolStatus = ToolBlockStatus.SUCCESS,
+                    content = result.output,
+                    imageFilePath = result.imageFilePath,
+                )
+            } else {
+                initialBlock.copy(
+                    toolStatus = ToolBlockStatus.FAILED,
+                    content = result.output,
+                )
+            }
+
+            val finalText = if (result.success) {
+                result.output
+            } else {
+                "生图遇到问题喵：${result.output}"
+            }
+
+            _messages.value = _messages.value.filterNot { it.id == placeholderMsg.id }
+            val parts = listOf<AgentContentPart>(AgentContentPart.Text(finalText))
+            val entity = chatRepository.appendMessage(realSid, "assistant", buildAssistantPartsJson(parts))
+            agentHistory.add(LLMMessage(role = LLMMessage.Role.ASSISTANT, content = finalText, contentParts = parts))
+            _messages.value = _messages.value + ChatMessage(
+                id = entity.id,
+                role = "assistant",
+                content = finalText,
+                toolBlocks = listOf(finalBlock),
+            )
+        }
     }
 
     /**
@@ -10126,6 +10210,7 @@ class ChatViewModel(
             com.openminis.app.tools.NativeSystemTools.TOOL_APP_LAUNCH -> com.openminis.app.tools.NativeSystemTools.executeAppLaunch(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SYSTEM_NOTIFY -> com.openminis.app.tools.NativeSystemTools.executeSystemNotify(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SCREEN_CAPTURE -> executeScreenCaptureTool(argsJson)
+            com.openminis.app.tools.NativeSystemTools.TOOL_IMAGE_GENERATE -> com.openminis.app.tools.NativeSystemTools.executeImageGenerate(argsJson, context)
             com.openminis.app.tools.AgentTools.TOOL_ASK_USER_QUESTION, "ask_user_question", "ask_question", "ask_user", "ask" -> executeAskUserQuestion(toolId, argsJson)
             else -> ToolExecutionResult("Unknown tool: $name", false)
         }

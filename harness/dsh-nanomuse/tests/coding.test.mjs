@@ -100,6 +100,11 @@ async function fixtureHome(home) {
     [{ type: 'session', version: 4, id: 'session-9999-8888-7777', cwd: ws, origin: 'subagent', parentSession: 'session-1111-2222-3333' }],
     [{ type: 'user/message', seq: 1, data: { content: [{ type: 'text', text: 'You are researching something' }], source: { kind: 'user' } } }],
   ])
+  // Antigravity: brain session
+  await write(join(home, '.gemini', 'antigravity', 'brain', 'ag-1111-2222-3333', '.system_generated', 'logs', 'transcript.jsonl'), [
+    { type: 'USER_INPUT', content: 'Design an icon' },
+    { type: 'PLANNER_RESPONSE', content: 'Icon designed' },
+  ])
   return { ws, slug }
 }
 
@@ -111,7 +116,7 @@ test('readers: a fixture home gives one session per agent, in the runtime shape'
     const env = { ...process.env, NANOMUSE_CODING_HOME: home }
     assert.equal(sessionsRoot('codex', env), join(home, '.codex', 'sessions'))
     const all = await sessions(undefined, 30, undefined, env)
-    assert.equal(all.length, 5)
+    assert.equal(all.length, 6)
     for (const s of all) for (const k of SESSION_KEYS) assert.ok(k in s, `${s.agent} session carries ${k}`)
     assert.ok(all.every((s) => !('transcript' in s)), 'the list carries no transcripts')
     assert.ok(!all.some((s) => s.id === 'session-9999-8888-7777'), 'a subagent session is not one of the person’s chats')
@@ -186,6 +191,11 @@ test('readers: one session comes with its transcript; a bad id is nothing', { sk
       { role: 'user', text: 'Refactor the loader' },
       { role: 'assistant', text: 'The loader is now two functions.' },
     ])
+    const ag = await readSession('antigravity', 'ag-1111-2222-3333', env)
+    assert.deepEqual(ag.transcript, [
+      { role: 'user', text: 'Design an icon' },
+      { role: 'assistant', text: 'Icon designed' },
+    ])
     assert.equal(await readSession('dsh', 'session-9999-8888-7777', env), undefined, 'a subagent session is not readable as a chat')
     assert.equal(await readSession('claude', 'nope', env), undefined)
     assert.equal(await readSession('cursor', '../ide-1', env), undefined)
@@ -198,7 +208,7 @@ test('readers: a missing home is every agent with no sessions', async () => {
     const env = { ...process.env, NANOMUSE_CODING_HOME: join(home, 'nothing'), PATH: join(home, 'emptybin') }
     assert.deepEqual(await sessions(undefined, 30, undefined, env), [])
     const agents = await detect(false, env)
-    assert.deepEqual(agents.map((a) => a.id), ['cursor', 'codex', 'claude', 'dsh'])
+    assert.deepEqual(agents.map((a) => a.id), ['cursor', 'codex', 'claude', 'dsh', 'antigravity'])
     for (const a of agents) {
       assert.deepEqual(Object.keys(a).sort(), ['cli', 'id', 'installed', 'name', 'running', 'sessions_root', 'version'])
       assert.equal(a.installed, false)
@@ -270,15 +280,15 @@ test('processes: ps and tasklist parsers, and the count by agent', () => {
   const ps = parsePs(['bash /bin/bash --login', 'node /usr/bin/node /home/me/.local/bin/cursor-agent --server extra words', 'codex codex exec --json', 'claude claude -p', 'cursor-agent cursor-agent -p hi', 'Cursor.exe', ''].join('\n'))
   assert.deepEqual(ps[1], ['node', '/usr/bin/node /home/me/.local/bin/cursor-agent --server'])
   assert.deepEqual(ps[5], ['Cursor.exe', ''])
-  assert.deepEqual(countProcesses(ps), { cursor: 3, codex: 1, claude: 1, dsh: 0 })
+  assert.deepEqual(countProcesses(ps), { cursor: 3, codex: 1, claude: 1, dsh: 0, antigravity: 0 })
 
   const tl = parseTasklist(['"System Idle Process","0","Services","0","8 K"', '"node.exe","1234","Console","1","50,000 K"', '"node.exe","1235","Console","1","50,000 K"', '"codex.exe","99","Console","1","1 K"', '"Claude.exe","98","Console","1","1 K"'].join('\r\n'), ['"C:\\Program Files\\nodejs\\node.exe" C:\\Users\\me\\AppData\\cursor-agent\\index.js', '"C:\\Program Files\\nodejs\\node.exe" something-else.js'])
   assert.equal(tl.length, 5)
   assert.deepEqual(tl[1], ['node.exe', '"C:\\Program Files\\nodejs\\node.exe" C:\\Users\\me\\AppData\\cursor-agent\\index.js'])
   assert.deepEqual(tl[2], ['node.exe', '"C:\\Program Files\\nodejs\\node.exe" something-else.js'])
-  assert.deepEqual(countProcesses(tl), { cursor: 1, codex: 1, claude: 1, dsh: 0 })
+  assert.deepEqual(countProcesses(tl), { cursor: 1, codex: 1, claude: 1, dsh: 0, antigravity: 0 })
   // our own command line never matches: there is no `pgrep -f`, only names and node's argv
-  assert.deepEqual(countProcesses([['python3', 'python3 -m nanomuse serve --coding cursor-agent']]), { cursor: 0, codex: 0, claude: 0, dsh: 0 })
+  assert.deepEqual(countProcesses([['python3', 'python3 -m nanomuse serve --coding cursor-agent']]), { cursor: 0, codex: 0, claude: 0, dsh: 0, antigravity: 0 })
 })
 
 test('runner: the command lines the docs give', () => {
@@ -556,7 +566,7 @@ test('service: coding.agents / sessions / session / runs answer in the runtime s
     const env = { ...process.env, NANOMUSE_CODING_HOME: home, PATH: join(home, 'emptybin') }
     const svc = new CodingService({ hub: fakeHub(), env, storePath: join(home, 'state', 'runs.json') })
     const agents = await svc.handle('coding.agents', {})
-    assert.equal(agents.agents.length, 4)
+    assert.equal(agents.agents.length, 5)
     assert.ok(agents.agents.every((a) => a.installed && a.cli === null), 'stores without CLIs')
     const list = await svc.handle('coding.sessions', { agent: 'cursor', limit: 10 })
     assert.equal(list.sessions.length, 2)

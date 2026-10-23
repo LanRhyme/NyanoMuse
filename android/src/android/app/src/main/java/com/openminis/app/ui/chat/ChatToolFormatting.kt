@@ -56,7 +56,7 @@ internal fun toolAccentColor(toolName: String): Color = when (toolName) {
     "file_write" -> Color(0xFF015CFB)
     "file_edit" -> Color(0xFFFF9500)
     "browser_use" -> Color(0xFF015CFB)
-    "read_image" -> Color(0xFFAF52DE)
+    "read_image", "image_generate" -> Color(0xFFAF52DE)
     "memory_write", "memory_get" -> Color(0xFFFF2D55)
     "web_search" -> Color(0xFF32ADE6)    // iOS: .cyan for search
     else -> Color(0xFF8E8E93)
@@ -69,7 +69,7 @@ internal fun toolIconFor(toolName: String) = when (toolName) {
     "file_write" -> Icons.AutoMirrored.Filled.NoteAdd   // iOS: doc.text.fill (filled variant)
     "file_edit" -> Icons.Default.EditNote             // iOS: square.and.pencil
     "browser_use" -> Icons.Default.Language            // iOS: globe
-    "read_image" -> Icons.Default.Image                // iOS: photo
+    "read_image", "image_generate" -> Icons.Default.Image // iOS: photo
     "memory_write", "memory_get" -> Icons.Default.Psychology // iOS: brain.head.profile
     "web_search" -> Icons.Default.Search               // iOS: magnifyingglass
     else -> Icons.Default.Build
@@ -83,6 +83,7 @@ internal fun toolDisplayName(toolName: String): String = when (toolName) {
     "file_edit" -> "file editor"
     "browser_use" -> "browser"
     "read_image" -> "image viewer"
+    "image_generate" -> "image generator"
     "memory_write" -> "memory"
     "memory_get" -> "memory"
     "web_search" -> "search"
@@ -100,6 +101,7 @@ internal fun toolTitleLabel(toolName: String): String = when (toolName) {
     "file_edit" -> "nanoMuse is editing File"
     "browser_use" -> "nanoMuse is using Browser"
     "read_image" -> "nanoMuse is reading Image"
+    "image_generate" -> "nanoMuse is generating Image"
     "memory_write", "memory_get" -> "nanoMuse is using Memory"
     "web_search" -> "nanoMuse is using Search"
     else -> "nanoMuse is using ${toolDisplayName(toolName)}"
@@ -117,6 +119,7 @@ internal fun toolTitleLabel(toolName: String, status: ToolBlockStatus?): String 
         "file_edit" -> "nanoMuse edited File"
         "browser_use" -> "nanoMuse used Browser"
         "read_image" -> "nanoMuse read Image"
+        "image_generate" -> "nanoMuse generated Image"
         "memory_write", "memory_get" -> "nanoMuse used Memory"
         "web_search" -> "nanoMuse used Search"
         else -> "nanoMuse used ${toolDisplayName(toolName)}"

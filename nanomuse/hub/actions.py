@@ -36,7 +36,7 @@ FILE_LIMIT = 8 * 1024 * 1024  # base64 inside one hub frame
 SHELL_TIMEOUT_MAX = 900.0
 
 # what this device announces in `hello`; `task`, `stop` and `approve` are the service's
-ACTIONS = ("info", "shell", "files", "file.get", "file.put", "open", "screen", "notify")
+ACTIONS = ("info", "shell", "files", "file.get", "file.put", "open", "screen", "notify", "image.generate")
 
 
 class ActionError(Exception):
@@ -278,6 +278,90 @@ def _ps(s: str) -> str:
     return s.replace("'", "''")[:400]
 
 
+def image_generate(args: dict[str, Any]) -> dict[str, Any]:
+    prompt = str(args.get("prompt") or "").strip()
+    if not prompt:
+        raise ActionError("empty_prompt", "prompt must not be empty")
+    aspect_ratio = str(args.get("aspect_ratio") or "1:1").strip()
+    image_name = str(args.get("image_name") or "generated_image").strip()
+
+    agy_cli = shutil.which("agy")
+    if not agy_cli:
+        raise ActionError("agy_not_found", "Antigravity CLI (agy) is not installed on this computer")
+
+    escaped_prompt = prompt.replace("'", "\\'")
+    task_desc = f"Call generate_image tool with Prompt='{escaped_prompt}' and ImageName='{image_name}' and AspectRatio='{aspect_ratio}'"
+    cmd = [
+        agy_cli,
+        "--output-format",
+        "json",
+        "--dangerously-skip-permissions",
+        "--print",
+        task_desc,
+    ]
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        raise ActionError("timeout", "Image generation timed out after 120 seconds")
+    except Exception as exc:
+        raise ActionError("execution_failed", str(exc))
+
+    if proc.returncode != 0 and not proc.stdout:
+        raise ActionError("execution_error", proc.stderr.strip() or "Antigravity CLI failed")
+
+    data: dict[str, Any] = {}
+    try:
+        import json
+        data = json.loads(proc.stdout)
+    except Exception:
+        import json
+        lines = [line.strip() for line in proc.stdout.splitlines() if line.strip().startswith("{")]
+        if lines:
+            data = json.loads(lines[-1])
+
+    response_text = str(data.get("response") or "")
+    cid = str(data.get("conversation_id") or "")
+
+    import re
+    m = re.search(r"file://([^\s\)]+\.(?:jpg|jpeg|png|webp))", response_text)
+    img_path = Path(m.group(1)) if m else None
+
+    if not img_path or not img_path.is_file():
+        if cid:
+            for base in [Path.home() / ".gemini" / "antigravity-cli", Path.home() / ".gemini" / "antigravity"]:
+                bdir = base / "brain" / cid
+                if bdir.is_dir():
+                    candidates = list(bdir.glob("*.jpg")) + list(bdir.glob("*.png")) + list(bdir.glob("*.webp"))
+                    if candidates:
+                        candidates.sort(key=lambda p: -p.stat().st_mtime)
+                        img_path = candidates[0]
+                        break
+
+    if not img_path or not img_path.is_file():
+        raise ActionError("image_not_found", f"Image output not found: {response_text[:200]}")
+
+    desc_m = re.search(r"\*\*Description\*\*:\s*([^\n]+)", response_text)
+    description = desc_m.group(1).strip() if desc_m else ""
+
+    raw_bytes = img_path.read_bytes()
+    b64_data = base64.b64encode(raw_bytes).decode("ascii")
+    mime, _ = mimetypes.guess_type(str(img_path))
+    mime = mime or "image/jpeg"
+
+    return {
+        "ok": True,
+        "path": str(img_path),
+        "filename": img_path.name,
+        "mime_type": mime,
+        "size": len(raw_bytes),
+        "data": b64_data,
+        "prompt": prompt,
+        "aspect_ratio": aspect_ratio,
+        "description": description,
+    }
+
+
 def run(action: str, args: dict[str, Any]) -> dict[str, Any]:
     """Dispatch by the hub's action name (blocking; the service runs it in a thread)."""
     if action == "info":
@@ -298,6 +382,8 @@ def run(action: str, args: dict[str, Any]) -> dict[str, Any]:
         return screen()
     if action == "notify":
         return notify(str(args.get("text", "")), str(args.get("title") or "nanoMuse"))
+    if action == "image.generate":
+        return image_generate(args)
     raise ActionError("unknown_action", f"this computer does not do '{action}'")
 
 
@@ -309,6 +395,7 @@ __all__ = [
     "file_get",
     "file_put",
     "files",
+    "image_generate",
     "info",
     "notify",
     "open_target",

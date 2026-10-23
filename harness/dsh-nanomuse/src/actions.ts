@@ -17,6 +17,7 @@ import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { HubError } from './hub.ts'
+import { cliFor, which } from './coding-readers.ts'
 
 /** Characters of stdout or stderr a `shell` result carries. */
 export const OUTPUT_LIMIT = 200_000
@@ -27,7 +28,7 @@ export const SHELL_TIMEOUT_MAX_S = 900
 export const ENTRY_LIMIT = 2000
 
 /** The actions this module answers, in the order the runtime announces them. */
-export const REMOTE_ACTIONS = ['shell', 'files', 'file.get', 'file.put', 'open', 'screen'] as const
+export const REMOTE_ACTIONS = ['shell', 'files', 'file.get', 'file.put', 'open', 'screen', 'image.generate'] as const
 export type RemoteAction = (typeof REMOTE_ACTIONS)[number]
 
 export type Args = Record<string, unknown>
@@ -325,6 +326,158 @@ export function pngSize(data: Buffer): { width: number; height: number } {
   return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) }
 }
 
+/**
+ * Uses Antigravity CLI to generate an image from a prompt, returning the base64-encoded image and metadata.
+ */
+export async function imageGenerate(args: Args, env: NodeJS.ProcessEnv = process.env): Promise<Result> {
+  const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : ''
+  if (!prompt) {
+    throw new HubError('usage', 'prompt is required')
+  }
+  const aspectRatio = typeof args.aspect_ratio === 'string' ? args.aspect_ratio.trim() : '1:1'
+  let imageName = typeof args.image_name === 'string' ? args.image_name.trim() : ''
+  if (!imageName) {
+    const slug = prompt.slice(0, 30).toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'generated_image'
+    imageName = `${slug}_${Date.now()}`
+  }
+
+  const agy = cliFor('antigravity', env) ?? which('antigravity', env) ?? 'agy'
+  const taskDesc = `Call generate_image tool with Prompt=${JSON.stringify(prompt)} and ImageName=${JSON.stringify(imageName)} and AspectRatio=${JSON.stringify(aspectRatio)}`
+  const argv = [
+    '--output-format',
+    'json',
+    '--dangerously-skip-permissions',
+    '--print',
+    taskDesc,
+  ]
+
+  const timeoutMs = 120_000
+  const { stdout, stderr, timedOut, code } = await new Promise<{ stdout: string; stderr: string; timedOut: boolean; code: number }>((done) => {
+    let child: ReturnType<typeof spawn>
+    try {
+      child = spawn(agy, argv, { stdio: ['ignore', 'pipe', 'pipe'], env, windowsHide: true })
+    } catch (err: unknown) {
+      done({ stdout: '', stderr: message(err), timedOut: false, code: 127 })
+      return
+    }
+    const out: Buffer[] = []
+    const err: Buffer[] = []
+    let isTimedOut = false
+    let settled = false
+    const finish = (exitCode: number | null) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      done({
+        stdout: Buffer.concat(out).toString('utf8'),
+        stderr: Buffer.concat(err).toString('utf8'),
+        timedOut: isTimedOut,
+        code: isTimedOut ? 124 : (exitCode ?? 1),
+      })
+    }
+    const timer = setTimeout(() => {
+      isTimedOut = true
+      killTree(child.pid, process.platform)
+      setTimeout(() => finish(124), 2000).unref()
+    }, timeoutMs)
+    child.stdout?.on('data', (c: Buffer) => out.push(c))
+    child.stderr?.on('data', (c: Buffer) => err.push(c))
+    child.on('error', (e) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      done({ stdout: '', stderr: e.message, timedOut: false, code: 127 })
+    })
+    child.on('close', (c) => finish(c))
+  })
+
+  if (timedOut) {
+    throw new HubError('timeout', 'Image generation timed out after 120 seconds')
+  }
+  if (code !== 0 && !stdout.trim()) {
+    throw new HubError('execution_error', stderr.trim() || 'Antigravity CLI failed')
+  }
+
+  let data: Record<string, unknown> = {}
+  try {
+    data = JSON.parse(stdout)
+  } catch {
+    const lines = stdout.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('{'))
+    if (lines.length > 0) {
+      try {
+        data = JSON.parse(lines[lines.length - 1] ?? '{}')
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const responseText = String(data.response || '')
+  const cid = String(data.conversation_id || '')
+
+  let imgPath = ''
+  const m = responseText.match(/file:\/\/([^\s)]+\.(?:jpg|jpeg|png|webp))/i)
+  if (m && m[1]) {
+    imgPath = m[1]
+  }
+
+  if (!imgPath || !(await stat(imgPath).then((s) => s.isFile()).catch(() => false))) {
+    if (cid) {
+      const bases = [
+        join(homedir(), '.gemini', 'antigravity-cli'),
+        join(homedir(), '.gemini', 'antigravity'),
+      ]
+      for (const base of bases) {
+        const bdir = join(base, 'brain', cid)
+        try {
+          const files = await readdir(bdir)
+          const valid: { path: string; mtime: number }[] = []
+          for (const f of files) {
+            if (/\.(jpe?g|png|webp)$/i.test(f)) {
+              const full = join(bdir, f)
+              const s = await stat(full).catch(() => null)
+              if (s && s.isFile()) {
+                valid.push({ path: full, mtime: s.mtimeMs })
+              }
+            }
+          }
+          if (valid.length > 0 && valid[0]) {
+            valid.sort((a, b) => b.mtime - a.mtime)
+            imgPath = valid[0]?.path ?? ''
+            break
+          }
+        } catch {
+          // directory may not exist
+        }
+      }
+    }
+  }
+
+  if (!imgPath || !(await stat(imgPath).then((s) => s.isFile()).catch(() => false))) {
+    throw new HubError('image_not_found', `Image output not found: ${responseText.slice(0, 200)}`)
+  }
+
+  const descM = responseText.match(/\*\*Description\*\*:\s*([^\n]+)/)
+  const description = descM?.[1]?.trim() ?? ''
+
+  const rawBytes = await readFile(imgPath)
+  const b64Data = rawBytes.toString('base64')
+  const ext = extname(imgPath).toLowerCase()
+  const mimeType = MIME[ext] || 'image/jpeg'
+
+  return {
+    ok: true,
+    path: imgPath,
+    filename: basename(imgPath),
+    mime_type: mimeType,
+    size: rawBytes.length,
+    data: b64Data,
+    prompt,
+    aspect_ratio: aspectRatio,
+    description,
+  }
+}
+
 /** Runs one of this module's actions by its hub name. */
 export function run(action: RemoteAction, args: Args, platform: Platform = nodePlatform()): Promise<Result> {
   switch (action) {
@@ -340,6 +493,8 @@ export function run(action: RemoteAction, args: Args, platform: Platform = nodeP
       return open(args, platform)
     case 'screen':
       return screen(platform)
+    case 'image.generate':
+      return imageGenerate(args, platform.env)
   }
 }
 
@@ -378,6 +533,8 @@ export function brief(action: string, args: Args): string {
       return text(args.url)
     case 'notify':
       return text(args.text)
+    case 'image.generate':
+      return text(args.prompt)
     default:
       return ''
   }

@@ -117,6 +117,21 @@ object Computers {
     fun notify(c: Computer, text: String, title: String?): JSONObject =
         hub(c, "notify", JSONObject().put("text", text).apply { if (!title.isNullOrBlank()) put("title", title) })
 
+    /** Generates an image using Antigravity on the remote device. */
+    @Throws(IOException::class)
+    fun generateImage(
+        c: Computer,
+        prompt: String,
+        aspectRatio: String = "1:1",
+        imageName: String = "",
+    ): JSONObject {
+        val body = JSONObject()
+            .put("prompt", prompt)
+            .put("aspect_ratio", aspectRatio)
+        if (imageName.isNotBlank()) body.put("image_name", imageName)
+        return hub(c, "image.generate", body, timeoutMs = 150_000L)
+    }
+
     /**
      * Hands a whole task to the Muse running on the device and waits for its answer. Progress
      * arrives through [onEvent]; an `approval` event is a question from that Muse, answered with

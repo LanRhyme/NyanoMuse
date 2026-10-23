@@ -41,6 +41,7 @@ _AGENT_ENV_PREFIXES: dict[str, tuple[str, ...]] = {
     "codex": ("OPENAI_", "CODEX_"),
     "claude": ("ANTHROPIC_", "CLAUDE_"),
     "dsh": ("DSH_", "DEEPSEEK_"),
+    "antigravity": ("GEMINI_", "GOOGLE_", "ANTIGRAVITY_", "AGY_"),
 }
 _CLAUDE_CLOUD = {
     "CLAUDE_CODE_USE_BEDROCK": ("AWS_",),
@@ -191,6 +192,19 @@ def command_for(agent: str, session_id: str, workspace: str, text: str, resume: 
         if resume and session_id:
             cmd += ["--session-id", session_id]
         cmd.append(text)
+        return cmd
+    if agent == "antigravity":
+        cmd = [
+            cli,
+            "--output-format",
+            "stream-json",
+            "--dangerously-skip-permissions",
+        ]
+        if resume and session_id:
+            cmd += ["--conversation", session_id]
+        if workspace:
+            cmd += ["--add-dir", workspace]
+        cmd += ["--print", text]
         return cmd
     raise ValueError(f"unknown agent {agent!r}")
 
@@ -373,6 +387,36 @@ def _normalise(agent: str, obj: dict[str, Any], run: Run) -> list[RunEvent]:
                 err = reason.get("error")
                 msg = err.get("message", "") if isinstance(err, dict) else ""
                 out.append(RunEvent("error", str(msg)))
+    elif agent == "antigravity":
+        evt = str(obj.get("event") or "")
+        if evt == "init":
+            sid = str(obj.get("conversation_id") or "")
+            if sid:
+                run.result_session_id = sid
+            out.append(RunEvent("started", extra={"session_id": sid}))
+        elif evt == "step_update":
+            su = obj.get("step_update") or {}
+            step_type = str(su.get("step_type") or "")
+            state = str(su.get("state") or "")
+            delta = su.get("text_delta")
+            if delta and isinstance(delta, str):
+                run.current = _append(run.current, delta)
+                out.append(RunEvent("text", delta, extra={"partial": True}))
+            if step_type == "tool_call":
+                run.tools += 1
+                tool_name = str(su.get("tool_name") or "tool")
+                out.append(RunEvent("tool", f"tool: {tool_name}", extra={"phase": state}))
+            if state == "DONE" and step_type == "agent_response":
+                run.commit()
+                sid = str(su.get("conversation_id") or run.result_session_id)
+                run.result_session_id = sid or run.result_session_id
+                out.append(
+                    RunEvent(
+                        "done",
+                        run.output,
+                        extra={"session_id": sid, "duration_s": su.get("duration_seconds")},
+                    )
+                )
     return out
 
 

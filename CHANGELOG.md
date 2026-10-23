@@ -16,6 +16,9 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 - **What the runtime remembers follows the account.** Every write is queued with an id of its own and sent to the relay, which gives it a sequence number the other devices apply in order; only the text travels and each device keeps its own index, so a change made offline waits and goes up on the next sync. The web console's memory page then shows what the account's devices know, and forgetting something there is forgotten on all of them.
 
+- **Antigravity joined the coding agents catalogue and provides cross-device image generation**
+  `nanomuse.coding` recognizes `antigravity` (`agy`) as the 5th coding agent, scanning both IDE sessions (`~/.gemini/antigravity`) and CLI sessions (`~/.gemini/antigravity-cli`), reading conversation summaries SQLite databases and transcript JSONL streams; Hub remote actions gain `image.generate` invoking `agy` in JSON output mode with base64 encoded image return
+
 - **Responses API requests kept repeated tool calls paired in accumulated or restored request history.** When history contains the same provider `call_id` more than once, the first call keeps it and later calls use deterministic suffixes that remain unique across the request; each tool output follows its call's rewritten id instead of the provider rejecting the next turn with `400 Duplicate call_id`. For [#501](https://github.com/nano-muse/nanoMuse/issues/501).
 
 - **Serply is a keyed web search provider for Google results.** `provider = "serply"` under `[connectors.search]`, or the Serply chip under *Connections → Web search*, queries `https://api.serply.io/v1/search` with `X-Api-Key` (`SEARCH_API_KEY`), passes the country from `region` as `gl`, caps `num` at 10 and falls back to DuckDuckGo with a note on error. Proposed by @googio ([#483](https://github.com/nano-muse/nanoMuse/issues/483)).
@@ -37,6 +40,9 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **Each Feed section showed its own load error and retry.** Posts, activity, Next up and calendar requests kept their last successful content when a refresh failed; retrying one section no longer refetched the others.
 
 ### Desktop
+
+- **Antigravity coding agent integration and image generation Hub action in desktop harness**
+  `dsh-nanomuse` supports `antigravity` in agent detection, session reading, stream normalization and CLI execution; `image.generate` remote action executes `agy` tool calls on desktop, resolves output artifacts, and provides image generation toasts
 
 - **Pinned Main Chat shortcut in sidebar chats column.** A dedicated Main Chat button sits directly beneath the New chat action with home icon and active selection indicator, filtering the main session out of the ordinary side chats list to prevent duplication
 
@@ -81,6 +87,9 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **The bundled runtime kept its library links.** Staging the PyInstaller output preserved relative library aliases and macOS framework links instead of copying their targets into duplicate files and directories.
 
 ### Android
+
+- **Antigravity cross-device image generation with dual-mode triggers and picture card actions**
+  Companion autonomous tool call `image_generate` and slash commands (`/image <prompt>` and `/draw <prompt>`) invoke desktop Antigravity CLI via Relay Hub; generated images render inline in chat markdown and inside tool detail cards, offering one-tap wallpaper setting via ChatWallpaperManager and saving to system gallery via MediaStore
 
 - **Interactive terminal and shell execution support for native Root and Host modes**
   TerminalSession and ShellExecutor dynamically adapt to the selected ExecutionMode; in Root mode the terminal spawns su directly into the PTY with Android root environment paths and storage working directory while ShellExecutor executes via host su without booting PRoot; in Host mode commands spawn /system/bin/sh natively; OnDemandBash disables Alpine apk install attempts when outside the PRoot container; HubActions bypasses PRoot initialization under non-proot modes; terminal top bar displays active execution mode badge

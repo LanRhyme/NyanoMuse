@@ -49,6 +49,11 @@ AGENTS: dict[str, dict[str, Any]] = {
     "codex": {"name": "Codex", "bins": ("codex",), "process": ("codex",)},
     "claude": {"name": "Claude Code", "bins": ("claude",), "process": ("claude",)},
     "dsh": {"name": "DeepSeek Harness", "bins": ("dsh",), "process": ("dsh",)},
+    "antigravity": {
+        "name": "Antigravity",
+        "bins": ("agy",),
+        "process": ("agy", "antigravity"),
+    },
 }
 
 # A session whose transcript changed this recently is "active" (the agent is working or
@@ -260,6 +265,7 @@ def sessions_root(agent: str) -> Path:
         "codex": h / ".codex" / "sessions",
         "claude": h / ".claude" / "projects",
         "dsh": h / ".dsh" / "sessions",
+        "antigravity": h / ".gemini" / "antigravity" / "brain",
     }[agent]
 
 
@@ -875,6 +881,186 @@ def _dsh_sessions(limit: int, workspace: str | None) -> list[Session]:
     return out
 
 
+# -- Antigravity ------------------------------------------------------------------------------
+def _antigravity_db_metadata(db_path: Path) -> dict[str, dict[str, Any]]:
+    """Mapping of conversation_id -> metadata from conversation_summaries.db."""
+    if not db_path.is_file():
+        return {}
+    import sqlite3
+
+    out: dict[str, dict[str, Any]] = {}
+    try:
+        conn = sqlite3.connect(str(db_path), timeout=1.0)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT conversation_id, title, preview, step_count, last_modified_time, workspace_uris, status "
+            "FROM conversation_summaries ORDER BY last_modified_time DESC LIMIT 200"
+        )
+        for row in cur.fetchall():
+            cid, title_str, preview, step_cnt, mod_time, ws_uris_str, status_str = row
+            ws = ""
+            if ws_uris_str:
+                try:
+                    uris = json.loads(ws_uris_str)
+                    if isinstance(uris, list) and uris:
+                        ws = uris[0].replace("file://", "")
+                except Exception:
+                    pass
+            ts = 0.0
+            if mod_time:
+                ts = _iso_to_ts(str(mod_time))
+            out[str(cid)] = {
+                "title": title_str or preview,
+                "workspace": ws,
+                "step_count": int(step_cnt or 0),
+                "updated_at": ts,
+                "status": str(status_str or ""),
+            }
+        conn.close()
+    except Exception:
+        pass
+    return out
+
+
+def _antigravity_session(
+    f: Path,
+    full: bool,
+    source: str = "ide",
+    meta: dict[str, Any] | None = None,
+) -> Session | None:
+    lines = _read_lines(f)
+    try:
+        st = f.stat()
+    except OSError:
+        return None
+    # path is <root>/<sid>/.system_generated/logs/transcript.jsonl
+    if f.parent.name == "logs" and f.parent.parent.name == ".system_generated":
+        sid = f.parent.parent.parent.name
+    elif f.parent.name == "logs":
+        sid = f.parent.parent.name
+    else:
+        sid = f.parent.name
+    created = st.st_ctime
+    updated = st.st_mtime
+    first_user = last_user = last_assistant = ""
+    open_turn = False
+    n = 0
+    transcript: list[dict[str, Any]] = []
+
+    for obj in lines:
+        t = obj.get("type")
+        raw_content = obj.get("content")
+        text = ""
+        if isinstance(raw_content, str):
+            text = raw_content
+        elif isinstance(raw_content, list):
+            text = _text_of(raw_content)
+
+        if t == "USER_INPUT":
+            cleaned = _clean(text)
+            if not cleaned:
+                continue
+            first_user = first_user or cleaned
+            last_user = cleaned
+            open_turn = True
+            n += 1
+            if full:
+                transcript.append({"role": "user", "text": cleaned})
+        elif t == "PLANNER_RESPONSE":
+            if not text.strip():
+                calls = obj.get("tool_calls")
+                if isinstance(calls, list) and calls:
+                    call = calls[0] if isinstance(calls[0], dict) else {}
+                    tool_name = call.get("name") or "tool"
+                    text = f"Tool: {tool_name}"
+            cleaned = text.strip()
+            if not cleaned:
+                continue
+            last_assistant = cleaned
+            n += 1
+            open_turn = False
+            if full:
+                transcript.append({"role": "assistant", "text": cleaned})
+
+    if full:
+        transcript = transcript[-400:]
+
+    workspace = ""
+    title_text = ""
+    status_text = ""
+    if meta:
+        title_text = meta.get("title") or ""
+        workspace = meta.get("workspace") or ""
+        if meta.get("updated_at"):
+            updated = float(meta["updated_at"])
+        if meta.get("status"):
+            st_raw = str(meta["status"])
+            if "RUNNING" in st_raw:
+                status_text = "running"
+            elif "IDLE" in st_raw:
+                status_text = "idle"
+
+    if not status_text:
+        status_text = _status(updated, open_turn)
+
+    return Session(
+        agent="antigravity",
+        id=sid,
+        title=_title(title_text or first_user) or "Untitled session",
+        workspace=workspace,
+        path=str(f),
+        created_at=created,
+        updated_at=updated,
+        messages=n,
+        status=status_text,
+        last_user=_title(last_user, 160),
+        last_assistant=_title(last_assistant, 160),
+        source=source,
+        resumable=True,
+        transcript=transcript,
+    )
+
+
+def _antigravity_sessions(limit: int, workspace: str | None) -> list[Session]:
+    h = home()
+    sources = [
+        ("ide", h / ".gemini" / "antigravity"),
+        ("cli", h / ".gemini" / "antigravity-cli"),
+    ]
+    all_sessions: list[Session] = []
+    for src, base in sources:
+        brain = base / "brain"
+        if not brain.is_dir():
+            continue
+        db_path = base / "conversation_summaries.db"
+        meta_map = _antigravity_db_metadata(db_path)
+        files: list[tuple[float, Path, str, dict[str, Any] | None]] = []
+        for sdir in brain.iterdir():
+            if not sdir.is_dir():
+                continue
+            tf = sdir / ".system_generated" / "logs" / "transcript.jsonl"
+            if not tf.is_file():
+                continue
+            meta = meta_map.get(sdir.name)
+            try:
+                mtime = float(meta["updated_at"]) if (meta and meta.get("updated_at")) else tf.stat().st_mtime
+                files.append((mtime, tf, src, meta))
+            except OSError:
+                continue
+
+        files.sort(key=lambda t: -t[0])
+        for _, tf, source_name, meta in files[: max(limit * 2, 20)]:
+            s = _antigravity_session(tf, full=False, source=source_name, meta=meta)
+            if s is None or (
+                workspace and os.path.realpath(s.workspace or "") != os.path.realpath(workspace)
+            ):
+                continue
+            all_sessions.append(s)
+
+    all_sessions.sort(key=lambda s: -s.updated_at)
+    return all_sessions[:limit]
+
+
 # ---------------------------------------------------------------------- the public readers
 def sessions(
     agent: str | None = None, limit: int = 30, workspace: str | None = None
@@ -886,6 +1072,7 @@ def sessions(
         "codex": _codex_sessions,
         "claude": _claude_sessions,
         "dsh": _dsh_sessions,
+        "antigravity": _antigravity_sessions,
     }
     picked = [agent] if agent else list(readers)
     out: list[Session] = []
@@ -930,6 +1117,19 @@ def read_session(agent: str, session_id: str) -> Session | None:
                     f = sdir / name
                     if f.is_file():
                         return _dsh_session(f, full=True)
+    elif agent == "antigravity":
+        h = home()
+        for base, src in [
+            (h / ".gemini" / "antigravity", "ide"),
+            (h / ".gemini" / "antigravity-cli", "cli"),
+        ]:
+            tf = base / "brain" / session_id / ".system_generated" / "logs" / "transcript.jsonl"
+            if tf.is_file():
+                db_path = base / "conversation_summaries.db"
+                meta_map = _antigravity_db_metadata(db_path) if db_path.is_file() else {}
+                return _antigravity_session(
+                    tf, full=True, source=src, meta=meta_map.get(session_id)
+                )
     return None
 
 

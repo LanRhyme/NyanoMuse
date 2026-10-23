@@ -158,6 +158,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material.icons.filled.SaveAlt
+import android.widget.Toast
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -1055,8 +1059,8 @@ internal fun ToolDetailSheet(
                         )
                     }
 
-                    // ── read_image: inline image preview + metadata (iOS parity) ──
-                    "read_image" -> {
+                    // ── read_image & image_generate: inline image preview + metadata (iOS parity) ──
+                    "read_image", com.openminis.app.tools.NativeSystemTools.TOOL_IMAGE_GENERATE -> {
                         val imgPath = block.imageFilePath
                         // T285: async decode (was sync inside remember{}, blocking the
                         // composition thread when the chat list scrolled into view).
@@ -1098,6 +1102,57 @@ internal fun ToolDetailSheet(
                                         .border(0.5.dp, ChatColors.separator, RoundedCornerShape(10.dp)),
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
+
+                                if (block.toolName == com.openminis.app.tools.NativeSystemTools.TOOL_IMAGE_GENERATE && imgPath != null) {
+                                    val ctx = LocalContext.current
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                val file = File(imgPath)
+                                                if (file.exists()) {
+                                                    val path = com.openminis.app.ui.theme.ChatWallpaperManager.saveWallpaperFromFile(ctx, file)
+                                                    if (path != null) {
+                                                        Toast.makeText(ctx, "已设为应用壁纸", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(ctx, "设为壁纸失败", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                        ) {
+                                            Icon(Icons.Default.Wallpaper, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("设为壁纸", fontSize = 12.sp)
+                                        }
+                                        OutlinedButton(
+                                            onClick = {
+                                                val file = File(imgPath)
+                                                if (file.exists()) {
+                                                    val ok = com.openminis.app.tools.NativeSystemTools.saveImageToGallery(ctx, file)
+                                                    if (ok) {
+                                                        Toast.makeText(ctx, "已保存至系统相册", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(ctx, "保存相册失败", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                        ) {
+                                            Icon(Icons.Default.SaveAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("保存相册", fontSize = 12.sp)
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
                             }
                             if (block.content.isNotEmpty()) {
                                 Text(

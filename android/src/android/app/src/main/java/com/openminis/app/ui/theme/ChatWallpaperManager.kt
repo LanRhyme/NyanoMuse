@@ -47,6 +47,32 @@ object ChatWallpaperManager {
         prefs(context).edit().putFloat(KEY_WALLPAPER_BLUR, blur.coerceIn(0f, 25f)).apply()
     }
 
+    fun saveWallpaperFromFile(context: Context, file: File): String? {
+        return try {
+            val wallpaperDir = File(context.filesDir, "wallpaper").apply { mkdirs() }
+            val destFile = File(wallpaperDir, "chat_wallpaper_${System.currentTimeMillis()}.jpg")
+
+            file.inputStream().use { input ->
+                FileOutputStream(destFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            // Remove old wallpapers
+            wallpaperDir.listFiles()?.forEach { f ->
+                if (f.absolutePath != destFile.absolutePath) {
+                    f.delete()
+                }
+            }
+
+            val path = destFile.absolutePath
+            prefs(context).edit().putString(KEY_WALLPAPER_PATH, path).apply()
+            path
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun saveWallpaperFromUri(context: Context, uri: Uri): String? {
         return try {
             val wallpaperDir = File(context.filesDir, "wallpaper").apply { mkdirs() }

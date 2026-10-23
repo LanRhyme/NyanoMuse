@@ -34,6 +34,7 @@ object NativeSystemTools {
     const val TOOL_APP_LAUNCH = "app_launch"
     const val TOOL_SYSTEM_NOTIFY = "system_notify"
     const val TOOL_SCREEN_CAPTURE = "screen_capture"
+    const val TOOL_IMAGE_GENERATE = "image_generate"
 
     const val CHANNEL_ID = "nanomuse_agent_notifications"
     private const val CHANNEL_NAME = "NyanoMuse Notifications"
@@ -49,6 +50,22 @@ object NativeSystemTools {
         appLaunchDefinition(),
         systemNotifyDefinition(),
         screenCaptureDefinition(),
+        imageGenerateDefinition(),
+    )
+
+    fun imageGenerateDefinition(): AgentToolDefinition = AgentToolDefinition(
+        name = TOOL_IMAGE_GENERATE,
+        description = "Generate an image via Antigravity CLI on the user's connected desktop computer. " +
+            "Supports text prompt, aspect ratio ('1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'), and image name. " +
+            "The generated image is returned and rendered in chat for the user to view, save, or set as wallpaper.",
+        parameters = mapOf(
+            "tool_title" to AgentToolParam("string", "A concise summary like 'Generating Morandi cat wallpaper'."),
+            "prompt" to AgentToolParam("string", "The detailed prompt describing what image to generate."),
+            "aspect_ratio" to AgentToolParam("string", "Optional aspect ratio: '1:1' (default), '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'."),
+            "image_name" to AgentToolParam("string", "Optional short name for the generated image file (lowercase with underscores)."),
+        ),
+        required = listOf("tool_title", "prompt"),
+        propertyOrdering = listOf("tool_title", "prompt", "aspect_ratio", "image_name"),
     )
 
     fun foregroundAppDefinition(): AgentToolDefinition = AgentToolDefinition(
@@ -482,6 +499,97 @@ object NativeSystemTools {
         )
     }
 
+    suspend fun executeImageGenerate(argsJson: String, context: Context): ToolExecutionResult {
+        val json = try {
+            JSONObject(argsJson)
+        } catch (e: Exception) {
+            return ToolExecutionResult("Error: Invalid JSON arguments: ${e.message}", false)
+        }
+        val prompt = json.optString("prompt", "").trim()
+        val toolTitle = json.optString("tool_title", "Antigravity 生图").ifBlank { "Antigravity 生图" }
+        if (prompt.isEmpty()) {
+            return ToolExecutionResult("Error: 'prompt' parameter is required for image_generate", false, toolTitle = toolTitle)
+        }
+        val aspectRatio = json.optString("aspect_ratio", "1:1").ifBlank { "1:1" }
+        val imageName = json.optString("image_name", "").trim()
+
+        val allDevices = io.github.nanomuse.reach.Computers.all(context)
+        val target = allDevices.firstOrNull { it.online && it.kind == "computer" }
+            ?: allDevices.firstOrNull { it.online }
+
+        if (target == null) {
+            return ToolExecutionResult(
+                "生图功能需要连接运行 Antigravity CLI 的电脑设备，但当前 Hub 暂无在线的电脑设备。请确保电脑端已启动 NyanoMuse Desktop 并连接到 Relay Hub。",
+                false,
+                toolTitle = toolTitle
+            )
+        }
+
+        return try {
+            val resp = io.github.nanomuse.reach.Computers.generateImage(target, prompt, aspectRatio, imageName)
+            val b64 = resp.optString("data")
+            val filename = resp.optString("filename", "generated_${System.currentTimeMillis()}.jpg")
+            val mimeType = resp.optString("mime_type", "image/jpeg")
+            val desc = resp.optString("description", "")
+
+            if (b64.isEmpty()) {
+                return ToolExecutionResult("生图失败: 电脑端未返回图片数据", false, toolTitle = toolTitle)
+            }
+
+            val imageBytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+            val imagesDir = File(context.filesDir, "generated_images").apply { mkdirs() }
+            val localFile = File(imagesDir, filename)
+            localFile.writeBytes(imageBytes)
+
+            val markdownLink = "![${filename}](file://${localFile.absolutePath})"
+            val output = buildString {
+                append("使用 Antigravity 成功生成图片：\n")
+                append("- 提示词: $prompt\n")
+                append("- 画面比例: $aspectRatio\n")
+                if (desc.isNotEmpty()) append("- 描述: $desc\n")
+                append("- 本地存储: ${localFile.absolutePath}\n\n")
+                append(markdownLink)
+            }
+
+            ToolExecutionResult(
+                output = output,
+                success = true,
+                imageData = imageBytes,
+                imageMimeType = mimeType,
+                imageFilePath = localFile.absolutePath,
+                toolTitle = toolTitle
+            )
+        } catch (e: Exception) {
+            ToolExecutionResult("在设备 ${target.name} 上生成图片失败: ${e.message}", false, toolTitle = toolTitle)
+        }
+    }
+
+    fun saveImageToGallery(context: Context, file: File): Boolean {
+        return try {
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, file.name)
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/NyanoMuse")
+                    put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            val uri = context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                ?: return false
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                file.inputStream().use { inp -> inp.copyTo(out) }
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                values.clear()
+                values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+                context.contentResolver.update(uri, values, null, null)
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun ensureNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -529,6 +637,14 @@ object ToolSelfHealing {
             }
             NativeSystemTools.TOOL_APP_LAUNCH -> {
                 suggestions.add("If the target app could not be found, try checking installed package names with shell_execute ('pm list packages') or broadening your query.")
+            }
+            NativeSystemTools.TOOL_IMAGE_GENERATE -> {
+                if (lower.contains("暂无在线") || lower.contains("offline") || lower.contains("no computer")) {
+                    suggestions.add("Ensure your computer is connected to the Relay Hub and NyanoMuse Desktop is running.")
+                }
+                if (lower.contains("timed out") || lower.contains("timeout")) {
+                    suggestions.add("Image generation timed out. Try simplifying the prompt or check the computer's network connectivity.")
+                }
             }
         }
 
