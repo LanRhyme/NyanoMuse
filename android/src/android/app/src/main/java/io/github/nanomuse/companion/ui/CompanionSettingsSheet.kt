@@ -36,6 +36,8 @@ import io.github.nanomuse.ui.muse.MuseGap
 import io.github.nanomuse.ui.muse.MuseRowDivider
 import io.github.nanomuse.ui.muse.MuseSectionLabel
 
+import androidx.compose.runtime.collectAsState
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompanionSettingsSheet(
@@ -43,6 +45,7 @@ fun CompanionSettingsSheet(
 ) {
     val context = LocalContext.current
     val prefs = remember { CompanionPrefs.prefs(context) }
+    val emotionVersion by CompanionStatus.emotionVersion.collectAsState()
 
     var enabled by remember { mutableStateOf(CompanionPrefs.isEnabled(prefs)) }
     var quietStart by remember { mutableIntStateOf(CompanionPrefs.getQuietStartHour(prefs)) }
@@ -51,11 +54,11 @@ fun CompanionSettingsSheet(
     var dailyMax by remember { mutableIntStateOf(CompanionPrefs.getDailyMaxCount(prefs)) }
     var preferredScenarios by remember { mutableStateOf(CompanionPrefs.getPreferredScenarios(prefs)) }
     var intensity by remember { mutableStateOf(CompanionPrefs.getEmotionIntensity(prefs)) }
-    var affection by remember { mutableStateOf(CompanionPrefs.getAffectionScore(prefs)) }
+    var affection by remember(emotionVersion) { mutableStateOf(CompanionPrefs.getAffectionScore(prefs)) }
     var emotionEnabled by remember { mutableStateOf(CompanionPrefs.isEmotionEnabled(prefs)) }
     var showMoodDashboard by remember { mutableStateOf(false) }
 
-    val currentMoodSubtitle = remember { CompanionStatus.currentMoodSubtitle(context) }
+    val currentMoodSubtitle = remember(emotionVersion) { CompanionStatus.currentMoodSubtitle(context) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(

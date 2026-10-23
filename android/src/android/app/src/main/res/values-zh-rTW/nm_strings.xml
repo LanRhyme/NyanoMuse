@@ -1189,6 +1189,9 @@
     <string name="nm_companion_mood_caring">溫柔關切</string>
     <string name="nm_companion_mood_touched">感動依戀</string>
     <string name="nm_companion_mood_excited">興奮雀躍</string>
+    <string name="nm_companion_mood_sulk_jealous">生悶氣</string>
+    <string name="nm_companion_mood_cracked_hurt">委屈難過</string>
+    <string name="nm_companion_mood_hyper">興奮上頭</string>
 
     <string name="nm_companion_desc_happy">開心晃尾巴</string>
     <string name="nm_companion_desc_shy">被誇得害羞啦</string>

@@ -90,8 +90,8 @@ class CompanionMoodStoreTest {
         val snapshot = CompanionMoodStore.judgeMessage(
             prefs = prefs,
             userText = "老大夸你：真棒，太喜欢小猫了！",
-            turnsToday = 1,
-            errorsToday = 0,
+            sessionTurns = 1,
+            sessionErrors = 0,
             now = 2000L
         )
 
@@ -107,12 +107,91 @@ class CompanionMoodStoreTest {
     }
 
     @Test
+    fun testSarcasticPraiseTriggersSulkNotProud() {
+        val snapshot = CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "你可真厉害啊，连这个都不会",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = 1000L
+        )
+        val proud = snapshot.scores[CompanionMoodStore.Mood.PROUD] ?: 0f
+        val sulk = snapshot.scores[CompanionMoodStore.Mood.SULK] ?: 0f
+        val hurt = snapshot.scores[CompanionMoodStore.Mood.HURT] ?: 0f
+
+        assertTrue("PROUD should decrease on sarcastic praise", proud < CompanionMoodStore.Mood.PROUD.baseline)
+        assertTrue("SULK should increase on sarcastic praise", sulk > CompanionMoodStore.Mood.SULK.baseline)
+        assertTrue("HURT should increase on sarcastic praise", hurt > CompanionMoodStore.Mood.HURT.baseline)
+    }
+
+    @Test
+    fun testSleepyMessageBoostsTiredAndCalm() {
+        val snapshot = CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "好困了，准备睡觉啦晚安",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = 1000L
+        )
+        val tired = snapshot.scores[CompanionMoodStore.Mood.TIRED] ?: 0f
+        val calm = snapshot.scores[CompanionMoodStore.Mood.CALM] ?: 0f
+        val hyper = snapshot.scores[CompanionMoodStore.Mood.HYPER] ?: 0f
+
+        assertTrue("TIRED should increase on sleep message", tired > CompanionMoodStore.Mood.TIRED.baseline)
+        assertTrue("CALM should increase on sleep message", calm > CompanionMoodStore.Mood.CALM.baseline)
+        assertTrue("HYPER should decrease on sleep message", hyper < CompanionMoodStore.Mood.HYPER.baseline)
+    }
+
+    @Test
+    fun testCircadianOffsetLateNightVsDay() {
+        // 2 AM UTC
+        val calNight = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+            set(2026, java.util.Calendar.OCTOBER, 23, 2, 30, 0)
+        }
+        val nightOffsets = CompanionMoodStore.circadianOffset(
+            now = calNight.timeInMillis,
+            timeZone = java.util.TimeZone.getTimeZone("UTC"),
+            lastRealUserTime = 0L // idle late at night
+        )
+        assertTrue("TIRED offset should be strong at 2 AM", (nightOffsets[CompanionMoodStore.Mood.TIRED] ?: 0f) >= 6.0f)
+        assertTrue("CALM offset should be positive at 2 AM", (nightOffsets[CompanionMoodStore.Mood.CALM] ?: 0f) > 0f)
+        assertTrue("HYPER offset should be suppressed at 2 AM", (nightOffsets[CompanionMoodStore.Mood.HYPER] ?: 0f) < 0f)
+
+        // 2 PM UTC
+        val calDay = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+            set(2026, java.util.Calendar.OCTOBER, 23, 14, 0, 0)
+        }
+        val dayOffsets = CompanionMoodStore.circadianOffset(
+            now = calDay.timeInMillis,
+            timeZone = java.util.TimeZone.getTimeZone("UTC"),
+            lastRealUserTime = 0L
+        )
+        assertEquals(0f, dayOffsets[CompanionMoodStore.Mood.TIRED] ?: 0f, 0.01f)
+    }
+
+    @Test
+    fun testCheckPeriodicDecayInterval() {
+        val baseTime = 1000_000L
+        // 1st call: initializes last periodic timestamp, returns null
+        val r1 = CompanionMoodStore.checkPeriodicDecay(prefs, now = baseTime)
+        org.junit.Assert.assertNull(r1)
+
+        // 2nd call: only 1 hour later, returns null
+        val r2 = CompanionMoodStore.checkPeriodicDecay(prefs, now = baseTime + 3600_000L)
+        org.junit.Assert.assertNull(r2)
+
+        // 3rd call: 3.5 hours later, triggers periodic decay
+        val r3 = CompanionMoodStore.checkPeriodicDecay(prefs, now = baseTime + 3500_000L * 4)
+        assertNotNull(r3)
+    }
+
+    @Test
     fun testCrackedMessageBoostsCrackedAndSuppressesAnnoyed() {
         val snapshot = CompanionMoodStore.judgeMessage(
             prefs = prefs,
             userText = "破防了，彻底委屈难过",
-            turnsToday = 1,
-            errorsToday = 0,
+            sessionTurns = 1,
+            sessionErrors = 0,
             now = 1000L
         )
 

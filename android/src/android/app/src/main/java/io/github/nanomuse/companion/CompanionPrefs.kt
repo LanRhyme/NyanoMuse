@@ -366,24 +366,9 @@ object CompanionPrefs {
             "vivid" -> 1.4f
             else -> 1.0f
         }
-        val lastTimestamp = getMoodTimestamp(prefs)
-        val elapsedMs = if (lastTimestamp > 0L) (now - lastTimestamp).coerceAtLeast(0L) else 0L
-
-        // Continuous time-decay of prior stored bias before accumulating new impulse
-        val storedBiasP = getDynamicBiasP(prefs)
-        val storedBiasA = getDynamicBiasA(prefs)
-        val decayedBiasP = CompanionEmotion.decayOne(storedBiasP, elapsedMs)
-        val decayedBiasA = CompanionEmotion.decayOne(storedBiasA, elapsedMs)
-
-        // Accumulate new impulse on top of properly decayed bias with saturation bounds [-1.0, 1.0]
-        val nextBiasP = (decayedBiasP + impulse.dP * multiplier).coerceIn(-1.0f, 1.0f)
-        val nextBiasA = (decayedBiasA + impulse.dA * multiplier).coerceIn(-1.0f, 1.0f)
-
         addAffectionScore(prefs, impulse.dAffection * multiplier)
 
         prefs.edit()
-            .putFloat(KEY_DYNAMIC_BIAS_P, nextBiasP)
-            .putFloat(KEY_DYNAMIC_BIAS_A, nextBiasA)
             .putLong(KEY_MOOD_TIMESTAMP, now)
             .putString(KEY_LAST_DIALOGUE_ACT, act.name)
             .apply()

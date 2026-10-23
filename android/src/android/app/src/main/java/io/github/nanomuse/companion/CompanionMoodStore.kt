@@ -102,16 +102,16 @@ object CompanionMoodStore {
         val fromId: String,
         val toId: String,
         val lastUserSnippet: String,
-        val turnsToday: Int,
-        val errorsToday: Int,
+        val sessionTurns: Int,
+        val sessionErrors: Int,
     ) {
         fun toJson(): String = JSONObject().apply {
             put("at", at)
             put("from", fromId)
             put("to", toId)
             put("snippet", lastUserSnippet)
-            put("turns", turnsToday)
-            put("errors", errorsToday)
+            put("turns", sessionTurns)
+            put("errors", sessionErrors)
         }.toString()
 
         companion object {
@@ -124,8 +124,8 @@ object CompanionMoodStore {
                         fromId = obj.optString("from"),
                         toId = obj.optString("to"),
                         lastUserSnippet = obj.optString("snippet"),
-                        turnsToday = obj.optInt("turns"),
-                        errorsToday = obj.optInt("errors"),
+                        sessionTurns = obj.optInt("turns"),
+                        sessionErrors = obj.optInt("errors"),
                     )
                 }.getOrNull()
             }
@@ -142,16 +142,16 @@ object CompanionMoodStore {
     )
 
     fun getScores(prefs: SharedPreferences): Map<Mood, Float> {
-        val raw = prefs.getString(PREFS_KEY_SCORES, null) ?: return Mood.values().associateWith { it.baseline }
+        val raw = prefs.getString(PREFS_KEY_SCORES, null) ?: return Mood.entries.associateWith { it.baseline }
         val result = HashMap<Mood, Float>()
         runCatching {
             val obj = JSONObject(raw)
-            for (m in Mood.values()) {
+            for (m in Mood.entries) {
                 val score = obj.optDouble(m.id, m.baseline.toDouble()).toFloat()
                 result[m] = score.coerceIn(0f, 100f)
             }
         }
-        for (m in Mood.values()) {
+        for (m in Mood.entries) {
             if (!result.containsKey(m)) result[m] = m.baseline
         }
         return result
@@ -165,8 +165,59 @@ object CompanionMoodStore {
         prefs.edit().putString(PREFS_KEY_SCORES, obj.toString()).apply()
     }
 
-    fun currentSnapshot(prefs: SharedPreferences): MoodSnapshot {
-        val scores = getScores(prefs)
+    /**
+     * Circadian routine baseline offsets: adds organic day/night rhythm to the 33-mood baseline.
+     * Late night (23:00~06:00) boosts TIRED and suppresses HYPER/EXCITED.
+     * Active ongoing interaction relaxes deep fatigue so the assistant doesn't stubbornly sleep while pair programming.
+     */
+    fun circadianOffset(
+        now: Long = System.currentTimeMillis(),
+        timeZone: java.util.TimeZone = java.util.TimeZone.getDefault(),
+        lastRealUserTime: Long = 0L,
+    ): Map<Mood, Float> {
+        val cal = java.util.Calendar.getInstance(timeZone).apply { timeInMillis = now }
+        val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+        val idleMs = if (lastRealUserTime > 0L) maxOf(0L, now - lastRealUserTime) else Long.MAX_VALUE
+        val isActivelyEngaged = idleMs < 30 * 60_000L
+
+        val offsets = mutableMapOf<Mood, Float>()
+        when (hour) {
+            // Late night (23:00 ~ 05:59): Sleepy/Tired. Active interaction moderates fatigue.
+            in 23..24, in 0..5 -> {
+                val tiredBoost = if (isActivelyEngaged) 2.5f else 7.0f
+                offsets[Mood.TIRED] = tiredBoost
+                offsets[Mood.CALM] = 3.0f
+                offsets[Mood.HYPER] = -8.0f
+                offsets[Mood.EXCITED] = -6.0f
+            }
+            // Early morning (06:00 ~ 09:59): Fresh morning energy
+            in 6..9 -> {
+                offsets[Mood.HAPPY] = 4.0f
+                offsets[Mood.CALM] = 3.0f
+                offsets[Mood.TIRED] = -4.0f
+            }
+            // Evening wind-down (21:30 ~ 22:59)
+            in 21..22 -> {
+                offsets[Mood.TIRED] = 3.0f
+                offsets[Mood.CALM] = 2.0f
+                offsets[Mood.HYPER] = -4.0f
+            }
+        }
+        return offsets
+    }
+
+    fun currentSnapshot(
+        prefs: SharedPreferences,
+        now: Long = System.currentTimeMillis(),
+        timeZone: java.util.TimeZone = java.util.TimeZone.getDefault(),
+    ): MoodSnapshot {
+        val rawScores = getScores(prefs)
+        val lastUserTime = CompanionPrefs.getLastRealUserMessageTime(prefs)
+        val offsets = circadianOffset(now, timeZone, lastUserTime)
+        val scores = rawScores.mapValues { (m, v) ->
+            (v + (offsets[m] ?: 0f)).coerceIn(0f, 100f)
+        }
+
         val sorted = scores.entries.sortedByDescending { it.value }
         val highest = sorted.firstOrNull()?.key ?: Mood.CALM
         val highestScore = sorted.firstOrNull()?.value ?: Mood.CALM.baseline
@@ -184,7 +235,7 @@ object CompanionMoodStore {
         val displayTitle = if (secondary.isEmpty()) {
             primary.displayName
         } else {
-            "${primary.displayName}掺着${secondary.joinToString("、") { it.displayName }}"
+            "${primary.displayName} · 略带${secondary.joinToString("、") { it.displayName }}"
         }
 
         val lastSwitchAt = prefs.getLong(PREFS_KEY_LAST_SWITCH_AT, 0L)
@@ -206,22 +257,22 @@ object CompanionMoodStore {
     fun judgeMessage(
         context: Context,
         userText: String,
-        turnsToday: Int = 0,
-        errorsToday: Int = 0,
+        sessionTurns: Int = 0,
+        sessionErrors: Int = 0,
         now: Long = System.currentTimeMillis(),
     ): MoodSnapshot = judgeMessage(
         prefs = CompanionPrefs.prefs(context),
         userText = userText,
-        turnsToday = turnsToday,
-        errorsToday = errorsToday,
+        sessionTurns = sessionTurns,
+        sessionErrors = sessionErrors,
         now = now,
     )
 
     fun judgeMessage(
         prefs: SharedPreferences,
         userText: String,
-        turnsToday: Int = 0,
-        errorsToday: Int = 0,
+        sessionTurns: Int = 0,
+        sessionErrors: Int = 0,
         now: Long = System.currentTimeMillis(),
     ): MoodSnapshot {
         val scores = getScores(prefs).toMutableMap()
@@ -232,8 +283,14 @@ object CompanionMoodStore {
             scores[mood] = (old + delta).coerceIn(0f, 100f)
         }
 
-        // 1. Positive praise (真诚的夸奖: proud/happy/touched/spoiled up, sulk/hurt/annoyed down)
-        if (text.contains("厉害") || text.contains("棒") || text.contains("真行") ||
+        // 1. Sarcasm pre-check: prevent cynical phrasing from granting praise boost
+        val isSarcastic = CompanionEmotion.detectSarcasm(text)
+        if (isSarcastic) {
+            add(Mood.SULK, 2.5f)
+            add(Mood.HURT, 1.5f)
+            add(Mood.HAPPY, -2.0f)
+            add(Mood.PROUD, -2.5f)
+        } else if (text.contains("厉害") || text.contains("棒") || text.contains("真行") ||
             text.contains("可爱") || text.contains("多亏你") || text.contains("做得好") ||
             text.contains("靠谱") || text.contains("喜欢你") || text.contains("乖") ||
             text.contains("夸你") || text.contains("夸奖")
@@ -332,7 +389,21 @@ object CompanionMoodStore {
             add(Mood.CURIOUS, 1.5f)
         }
 
-        // 10. Message length dynamics: very long implies focus, very short implies tired
+        // 10. Night greeting / Sleepiness (晚安/困了/去睡了)
+        if (text.contains("晚安") || text.contains("睡觉了") || text.contains("去睡了") ||
+            text.contains("准备睡") || text.contains("好困") || text.contains("困了") ||
+            text.contains("梦里见") || text.contains("安安") || text.contains("歇了") ||
+            text.contains("休息了") || text.contains("睡觉去") || text.contains("good night") ||
+            text.contains("sleepy")
+        ) {
+            add(Mood.TIRED, 4.0f)
+            add(Mood.CALM, 2.5f)
+            add(Mood.HYPER, -4.0f)
+            add(Mood.EXCITED, -3.0f)
+            add(Mood.LOVE, 1.5f)
+        }
+
+        // 11. Message length dynamics: very long implies focus, very short implies tired
         if (text.length >= 60) {
             add(Mood.FOCUSED, 1.0f)
         } else if (text.length <= 4) {
@@ -361,8 +432,8 @@ object CompanionMoodStore {
                     fromId = oldPrimary.id,
                     toId = newHighest.id,
                     lastUserSnippet = snippet,
-                    turnsToday = turnsToday,
-                    errorsToday = errorsToday,
+                    sessionTurns = sessionTurns,
+                    sessionErrors = sessionErrors,
                 )
                 prefs.edit()
                     .putString(PREFS_KEY_PRIMARY, newHighest.id)
@@ -404,9 +475,9 @@ object CompanionMoodStore {
                     at = now,
                     fromId = oldPrimary.id,
                     toId = leaderMood.id,
-                    lastUserSnippet = "Manual adjustment",
-                    turnsToday = 0,
-                    errorsToday = 0,
+                    lastUserSnippet = "手动调整基准",
+                    sessionTurns = 0,
+                    sessionErrors = 0,
                 )
                 prefs.edit()
                     .putString(PREFS_KEY_PRIMARY, leaderMood.id)
@@ -433,7 +504,31 @@ object CompanionMoodStore {
     }
 
     /**
+     * Checks whether >= 3 hours elapsed since last periodic relaxation and runs decay if needed.
+     */
+    fun checkPeriodicDecay(
+        prefs: SharedPreferences,
+        now: Long = System.currentTimeMillis()
+    ): MoodSnapshot? {
+        val lastPeriodic = prefs.getLong(PREFS_KEY_LAST_PERIODIC_AT, 0L)
+        if (lastPeriodic == 0L) {
+            prefs.edit().putLong(PREFS_KEY_LAST_PERIODIC_AT, now).apply()
+            return null
+        }
+        if (now - lastPeriodic >= 3 * 3600_000L) {
+            return periodicDecay(prefs, now = now)
+        }
+        return null
+    }
+
+    fun checkPeriodicDecay(
+        context: Context,
+        now: Long = System.currentTimeMillis()
+    ): MoodSnapshot? = checkPeriodicDecay(CompanionPrefs.prefs(context), now)
+
+    /**
      * Periodic baseline relaxation and session fatigue check (called every 3..6 hours or during maintenance).
+     * Deterministic flutter derived from mood ID hash and 3-hour period window ensures reproducible tests while maintaining organic feel.
      */
     fun periodicDecay(
         prefs: SharedPreferences,
@@ -442,12 +537,14 @@ object CompanionMoodStore {
         now: Long = System.currentTimeMillis(),
     ): MoodSnapshot {
         val scores = getScores(prefs).toMutableMap()
-        val random = Random(now)
+        val periodIndex = now / (3 * 3600_000L)
 
-        for (m in Mood.values()) {
+        for (m in Mood.entries) {
             val curr = scores[m] ?: m.baseline
-            // Decays 25% toward baseline + +-2 random flutter
-            val delta = (m.baseline - curr) * 0.25f + (random.nextFloat() * 4f - 2f)
+            // Deterministic slight flutter [-1.5f, 1.5f]
+            val flutterSeed = (m.id.hashCode() xor periodIndex.hashCode()).toInt()
+            val flutter = (((Math.abs(flutterSeed) % 200) / 100f) - 1.0f) * 1.5f
+            val delta = (m.baseline - curr) * 0.25f + flutter
             scores[m] = (curr + delta).coerceIn(0f, 100f)
         }
 
@@ -483,7 +580,8 @@ object CompanionMoodStore {
             }
             snapshot.lastSwitchFacts?.let { facts ->
                 val timeStr = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(facts.at))
-                appendLine("最近心情变化：$timeStr 前后因「${facts.lastUserSnippet}」由 ${Mood.fromId(facts.fromId).displayName} 转向 ${Mood.fromId(facts.toId).displayName}（仅为同时发生的事实，切忌生硬归因）。")
+                val turnInfo = if (facts.sessionTurns > 0) "，当前会话第 ${facts.sessionTurns} 回合" else ""
+                appendLine("最近心情变化：$timeStr 前后因「${facts.lastUserSnippet}」由 ${Mood.fromId(facts.fromId).displayName} 转向 ${Mood.fromId(facts.toId).displayName}（$turnInfo 仅为伴随事实，切忌生硬归因）。")
             }
             appendLine()
             appendLine("### 双出口表达规范：")

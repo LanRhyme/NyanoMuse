@@ -1178,6 +1178,9 @@
     <string name="nm_companion_mood_caring">关切倾听</string>
     <string name="nm_companion_mood_touched">感动贴贴</string>
     <string name="nm_companion_mood_excited">兴奋雀跃</string>
+    <string name="nm_companion_mood_sulk_jealous">生闷气</string>
+    <string name="nm_companion_mood_cracked_hurt">委屈难过</string>
+    <string name="nm_companion_mood_hyper">兴奋上头</string>
 
     <string name="nm_companion_desc_happy">开心得尾巴直晃</string>
     <string name="nm_companion_desc_shy">被夸得害羞啦</string>

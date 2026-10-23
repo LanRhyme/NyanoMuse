@@ -42,6 +42,9 @@ class CompanionAlarmReceiver : BroadcastReceiver() {
         val prefs = CompanionPrefs.prefs(context)
         val now = System.currentTimeMillis()
 
+        // 0. Periodic baseline relaxation (every 3-6 hours)
+        CompanionMoodStore.checkPeriodicDecay(prefs, now)
+
         // 1. Fast check if proactive is enabled and allowed by cooldown / quiet hours / daily limit
         if (!CompanionPrefs.canTriggerProactive(prefs, now)) {
             return

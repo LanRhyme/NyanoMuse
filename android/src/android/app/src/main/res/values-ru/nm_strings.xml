@@ -1231,6 +1231,9 @@
     <string name="nm_companion_mood_caring">Warm &amp; Caring</string>
     <string name="nm_companion_mood_touched">Touched &amp; Cuddly</string>
     <string name="nm_companion_mood_excited">Excited &amp; Joyful</string>
+    <string name="nm_companion_mood_sulk_jealous">Дуется и ревнует</string>
+    <string name="nm_companion_mood_cracked_hurt">Обиженный и расстроенный</string>
+    <string name="nm_companion_mood_hyper">В кураже и на взводе</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

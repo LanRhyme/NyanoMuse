@@ -220,18 +220,36 @@ object CompanionEmotion {
      * Sarcasm filters catch common cynical phrasing; unresolved ambiguity safely defaults to neutral CASUAL_CHAT.
      * An optional secondary lightweight LLM classifier can be introduced as future enhancement.
      */
+    val SARCASM_PATTERNS = listOf(
+        "呵呵", "真棒呢", "可真行", "你可真行", "可真厉害", "你可真厉害", "真厉害啊", "真行啊",
+        "行吧", "你开心就好", "开心就好", "是啊你", "真不愧是你", "我可谢谢你了", "谢谢你啊",
+        "对对对", "算你厉害", "阴阳怪气", "就这", "那可太棒了呢", "sarcasm", "whatever"
+    )
+
+    /**
+     * Pure function to detect cynicism and sarcasm in user utterances.
+     */
+    fun detectSarcasm(userText: String): Boolean {
+        val stripped = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(userText)
+        val clean = stripped.trim().lowercase()
+        if (clean.isBlank()) return false
+        if (SARCASM_PATTERNS.any { clean.contains(it) }) return true
+        val secondaryIrony = clean.contains("行吧") || clean.contains("就好") ||
+            (clean.startsWith("谢谢") && clean.endsWith("啊"))
+        return secondaryIrony
+    }
+
+    /**
+     * Appraise the user's conversational intent into a structured DialogueAct.
+     * Pure and deterministic: examines strictly userText, protecting against self-referential loops.
+     */
     fun appraiseUserTurn(userText: String): DialogueAct {
         val stripped = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(userText)
         val clean = stripped.trim().lowercase()
         if (clean.isBlank()) return DialogueAct.CASUAL_CHAT
 
-        // 1. Sarcasm / Irony pre-check: common cynical phrases in Chinese and English
-        val sarcasmPatterns = listOf(
-            "呵呵", "真棒呢", "可真行", "你可真行", "行吧", "你开心就好", "开心就好",
-            "是啊你", "真不愧是你", "我可谢谢你了", "谢谢你啊", "对对对", "算你厉害", "阴阳怪气",
-            "就这", "那可太棒了呢", "sarcasm", "whatever"
-        )
-        if (sarcasmPatterns.any { clean.contains(it) }) return DialogueAct.CASUAL_CHAT
+        // 1. Sarcasm / Irony pre-check
+        if (detectSarcasm(clean)) return DialogueAct.CASUAL_CHAT
 
         // 2. Playful tease / cuddling (摸头/蹭蹭/贴贴)
         val teasePatterns = listOf(

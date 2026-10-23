@@ -6478,11 +6478,12 @@ class ChatViewModel(
                 val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(cleanedText)
                 val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
                 io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(ep, impulse, act)
+                io.github.nanomuse.companion.CompanionMoodStore.checkPeriodicDecay(context)
                 io.github.nanomuse.companion.CompanionMoodStore.judgeMessage(
                     context = context,
                     userText = cleanedText,
-                    turnsToday = _messages.value.count { it.role == "user" },
-                    errorsToday = _messages.value.count { it.error != null }
+                    sessionTurns = _messages.value.count { it.role == "user" },
+                    sessionErrors = _messages.value.count { it.error != null }
                 )
             }
             // Note: ChatScreen's `lastUserAppendMs` (the trailing-row
@@ -7067,11 +7068,12 @@ class ChatViewModel(
                 val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(cleanedText)
                 val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
                 io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(emotionPrefs, impulse, act)
+                io.github.nanomuse.companion.CompanionMoodStore.checkPeriodicDecay(context)
                 io.github.nanomuse.companion.CompanionMoodStore.judgeMessage(
                     context = context,
                     userText = cleanedText,
-                    turnsToday = _messages.value.count { it.role == "user" },
-                    errorsToday = _messages.value.count { it.error != null }
+                    sessionTurns = _messages.value.count { it.role == "user" },
+                    sessionErrors = _messages.value.count { it.error != null }
                 )
             }
         }

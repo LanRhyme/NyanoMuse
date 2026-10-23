@@ -199,6 +199,7 @@ fun MoodDashboardSheet(
                 MuseCard(inset = 0.dp) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(facts.at))
+                        val turnInfo = if (facts.sessionTurns > 0) " · 第 ${facts.sessionTurns} 轮" else ""
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -210,7 +211,7 @@ fun MoodDashboardSheet(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = timeStr,
+                                text = "$timeStr$turnInfo",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.outline
                             )
