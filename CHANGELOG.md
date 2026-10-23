@@ -82,6 +82,9 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Companion prompt golden self-checks, confusables guide, and empathy boundary reinforcement**
+  The dual-outlet companion prompt instructions inject three golden self-check heuristics (relevance across contexts, zero presumption of unstated facts, substance over mere posturing), disambiguation rules for five easily confused emotion pairs (annoyed vs sulk, numb vs checkedout, anxious vs burnout, cracked vs conflict, excited vs hyper), empathetic boundaries on future promises and feelings, and immediate role surrender during genuine distress
+
 - **Companion LLM emotion feedback loop with client-calibrated deltas and dual-track deduplication**
   The companion model can emit qualitative emotion feedback tags `<nm:mood feel="id" reason="..."/>` at turn completion; client-calibrated step tables govern numerical increments to eliminate model self-positivity bias; previous instant heuristic deltas are reverted before applying qualitative feedback to prevent double-counting; mutual suppression caps total dampening per turn; model reasons are isolated to the dashboard without looping back into prompts; tags are stripped at single authoritative persistence boundaries and desktop remote bubbles
 
