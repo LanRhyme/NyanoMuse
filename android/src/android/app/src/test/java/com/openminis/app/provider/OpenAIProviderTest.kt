@@ -451,4 +451,119 @@ class OpenAIProviderTest {
         assertEquals("xhigh", provider.clampEffort("xhigh", null))
         assertEquals("xhigh", provider.clampEffort("xhigh", emptyList()))
     }
+
+    @Test
+    fun `sanitizeToolCallAdjacency injects placeholder for interrupted orphan tool call`() {
+        val messages = org.json.JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "assistant")
+                put("tool_calls", org.json.JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("id", "call_abc123")
+                        put("type", "function")
+                        put("function", JSONObject().apply {
+                            put("name", "image_generate")
+                            put("arguments", "{}")
+                        })
+                    })
+                })
+            })
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", "怎么回事？")
+            })
+        }
+
+        val sanitized = provider.sanitizeToolCallAdjacency(messages)
+        assertEquals(3, sanitized.length())
+
+        val msg0 = sanitized.getJSONObject(0)
+        assertEquals("assistant", msg0.getString("role"))
+
+        val msg1 = sanitized.getJSONObject(1)
+        assertEquals("tool", msg1.getString("role"))
+        assertEquals("call_abc123", msg1.getString("tool_call_id"))
+        assertTrue(msg1.getString("content").contains("unavailable"))
+
+        val msg2 = sanitized.getJSONObject(2)
+        assertEquals("user", msg2.getString("role"))
+        assertEquals("怎么回事？", msg2.getString("content"))
+    }
+
+    @Test
+    fun `sanitizeToolCallAdjacency reorders out of order tool replies to immediately follow assistant`() {
+        val messages = org.json.JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "assistant")
+                put("tool_calls", org.json.JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("id", "call_1")
+                        put("type", "function")
+                        put("function", JSONObject().apply {
+                            put("name", "shell")
+                            put("arguments", "{}")
+                        })
+                    })
+                    put(JSONObject().apply {
+                        put("id", "call_2")
+                        put("type", "function")
+                        put("function", JSONObject().apply {
+                            put("name", "files")
+                            put("arguments", "{}")
+                        })
+                    })
+                })
+            })
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", "interrupted or queued user text")
+            })
+            put(JSONObject().apply {
+                put("role", "tool")
+                put("tool_call_id", "call_1")
+                put("content", "result 1")
+            })
+            put(JSONObject().apply {
+                put("role", "tool")
+                put("tool_call_id", "call_2")
+                put("content", "result 2")
+            })
+        }
+
+        val sanitized = provider.sanitizeToolCallAdjacency(messages)
+        assertEquals(4, sanitized.length())
+
+        assertEquals("assistant", sanitized.getJSONObject(0).getString("role"))
+        assertEquals("tool", sanitized.getJSONObject(1).getString("role"))
+        assertEquals("call_1", sanitized.getJSONObject(1).getString("tool_call_id"))
+        assertEquals("result 1", sanitized.getJSONObject(1).getString("content"))
+
+        assertEquals("tool", sanitized.getJSONObject(2).getString("role"))
+        assertEquals("call_2", sanitized.getJSONObject(2).getString("tool_call_id"))
+        assertEquals("result 2", sanitized.getJSONObject(2).getString("content"))
+
+        assertEquals("user", sanitized.getJSONObject(3).getString("role"))
+        assertEquals("interrupted or queued user text", sanitized.getJSONObject(3).getString("content"))
+    }
+
+    @Test
+    fun `sanitizeToolCallAdjacency drops unreferenced orphan tool replies`() {
+        val messages = org.json.JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "tool")
+                put("tool_call_id", "call_stale_ghost")
+                put("content", "ghost output")
+            })
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", "hello")
+            })
+        }
+
+        val sanitized = provider.sanitizeToolCallAdjacency(messages)
+        assertEquals(1, sanitized.length())
+        assertEquals("user", sanitized.getJSONObject(0).getString("role"))
+        assertEquals("hello", sanitized.getJSONObject(0).getString("content"))
+    }
 }
+

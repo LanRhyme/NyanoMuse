@@ -2301,7 +2301,8 @@ class OpenAIProvider private constructor(
         // "Duplicate value for tool_call_id ... in message[N]" whenever
         // any id repeats across the full messages array.
         globallyDedupeToolCallIds(messagesArray)
-        body.put("messages", messagesArray)
+        val sanitizedMessages = sanitizeToolCallAdjacency(messagesArray)
+        body.put("messages", sanitizedMessages)
 
         // [T-android-model-use-passthrough-mode GH#72] Merge user-supplied extra
         // body fields verbatim (no OpenAI→native conversion — callers own the
@@ -2382,6 +2383,80 @@ class OpenAIProvider private constructor(
         if (renamedCount > 0) {
             android.util.Log.w("OpenAIProvider", "[dedupe-tool-call-id] renamed $renamedCount duplicate tool_call_id(s) across messages — likely DB-loaded history or cross-provider switch")
         }
+    }
+
+    /**
+     * OpenAI Chat Completions requires every `tool_calls` entry on an assistant
+     * message to be immediately followed by a matching `role:"tool"` reply for
+     * each `tool_call_id`. The agent layer pairs tool_use/tool_result by id but
+     * doesn't enforce ordering, so cross-provider history (Anthropic/Gemini →
+     * OpenAI-compat fallback), tool interruptions, or queued user prompts inserted mid-turn can leave
+     * the flattened array with a tool_calls block whose tool replies appear
+     * later or are missing — DeepSeek/OpenAI reject it with 400 "insufficient tool messages
+     * following tool_calls message".
+     *
+     * Two-pass repair (mirrors iOS OpenAIAgentProvider.swift:sanitizeToolCallAdjacency):
+     * (1) collect every role:tool entry by id (skipping it from the body),
+     * (2) re-emit, splicing the matching tool replies right after each assistant.tool_calls
+     * and injecting error placeholders for any still missing. Replies that no assistant turn claims are dropped.
+     */
+    internal fun sanitizeToolCallAdjacency(messagesArray: JSONArray): JSONArray {
+        // Collect all role:"tool" messages by their tool_call_id.
+        // If there are duplicate tool results for the same id, keep the first.
+        val availableToolReplies = LinkedHashMap<String, JSONObject>()
+        for (i in 0 until messagesArray.length()) {
+            val msg = messagesArray.optJSONObject(i) ?: continue
+            if (msg.optString("role") == "tool") {
+                val id = msg.optString("tool_call_id", "")
+                if (id.isNotEmpty() && !availableToolReplies.containsKey(id)) {
+                    availableToolReplies[id] = msg
+                }
+            }
+        }
+
+        // Set of tool_call_ids that were claimed and spliced right after their assistant.
+        val consumedToolCallIds = HashSet<String>()
+        val out = JSONArray()
+
+        for (i in 0 until messagesArray.length()) {
+            val msg = messagesArray.optJSONObject(i) ?: continue
+            val role = msg.optString("role")
+            when (role) {
+                "assistant" -> {
+                    out.put(msg)
+                    val toolCalls = msg.optJSONArray("tool_calls")
+                    if (toolCalls != null && toolCalls.length() > 0) {
+                        for (j in 0 until toolCalls.length()) {
+                            val call = toolCalls.optJSONObject(j) ?: continue
+                            val id = call.optString("id", "")
+                            if (id.isEmpty()) continue
+                            consumedToolCallIds.add(id)
+                            val reply = availableToolReplies.remove(id)
+                            if (reply != null) {
+                                out.put(reply)
+                            } else {
+                                val toolName = call.optJSONObject("function")?.optString("name") ?: "unknown"
+                                android.util.Log.w("OpenAIProvider", "[sanitize] injecting placeholder tool reply for orphan tool_call id=$id name=$toolName")
+                                out.put(JSONObject().apply {
+                                    put("role", "tool")
+                                    put("tool_call_id", id)
+                                    put("content", "Tool execution result is unavailable (history was truncated or interrupted).")
+                                })
+                            }
+                        }
+                    }
+                }
+                "tool" -> {
+                    // Spliced right after its claiming assistant message in the "assistant" branch;
+                    // unreferenced orphan tool replies not claimed by any assistant are dropped so OpenAI/DeepSeek API does not reject with 400.
+                }
+                else -> {
+                    out.put(msg)
+                }
+            }
+        }
+
+        return out
     }
 
     /**

@@ -65,6 +65,17 @@ class ToolResultImageSerializationTest {
     private fun historyWithToolResultImage(mime: String = "image/jpeg") = listOf(
         LLMMessage(LLMMessage.Role.USER, "look at the chart"),
         LLMMessage(
+            role = LLMMessage.Role.ASSISTANT,
+            content = "",
+            contentParts = listOf(
+                AgentContentPart.ToolUse(
+                    id = "call_abc123",
+                    name = "read_image",
+                    input = JSONObject(),
+                ),
+            ),
+        ),
+        LLMMessage(
             role = LLMMessage.Role.USER,
             content = "",
             contentParts = listOf(
@@ -211,6 +222,17 @@ class ToolResultImageSerializationTest {
     fun `a tool result with no image is unchanged`() {
         val history = listOf(
             LLMMessage(LLMMessage.Role.USER, "run it"),
+            LLMMessage(
+                role = LLMMessage.Role.ASSISTANT,
+                content = "",
+                contentParts = listOf(
+                    AgentContentPart.ToolUse(
+                        id = "call_plain",
+                        name = "shell_execute",
+                        input = JSONObject(),
+                    ),
+                ),
+            ),
             LLMMessage(
                 role = LLMMessage.Role.USER,
                 content = "",
