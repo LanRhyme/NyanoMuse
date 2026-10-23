@@ -39,6 +39,7 @@ object CompanionStatus {
         val leaderScore = snapshot.scores[snapshot.primary] ?: snapshot.primary.baseline
         return CompanionEmotion.MoodState(
             primaryMood = primaryMood,
+            primaryDetail = snapshot.primary,
             valence = ((leaderScore - 50f) / 50f).coerceIn(-1f, 1f),
             arousal = (leaderScore / 100f).coerceIn(0f, 1f),
             affection = accumulatedAffection,

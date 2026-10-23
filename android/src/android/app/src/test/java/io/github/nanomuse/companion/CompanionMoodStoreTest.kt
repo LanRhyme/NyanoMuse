@@ -50,6 +50,22 @@ class CompanionMoodStoreTest {
 
     private lateinit var prefs: MockPrefs
 
+    /**
+     * A fixed local wall-clock time in the noon hour.
+     *
+     * `circadianOffset` only shifts the baselines for 23:00-05:59, 06:00-09:59 and
+     * 21:00-22:59, and `currentSnapshot` folds that shift into every score it hands
+     * back. A test that compares a score against its raw baseline therefore passes by
+     * day and fails at night; pinning the clock to an offset-free hour keeps the
+     * assertion about the thing it actually means to check.
+     */
+    private fun noon(): Long = java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, 12)
+        set(java.util.Calendar.MINUTE, 30)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
     @Before
     fun setup() {
         prefs = MockPrefs()
@@ -57,7 +73,7 @@ class CompanionMoodStoreTest {
 
     @Test
     fun testInitialSnapshotHas33MoodsAndCalmLeader() {
-        val snapshot = CompanionMoodStore.currentSnapshot(prefs)
+        val snapshot = CompanionMoodStore.currentSnapshot(prefs, now = noon())
         assertEquals(33, CompanionMoodStore.Mood.entries.size)
         assertEquals(33, snapshot.scores.size)
         assertEquals(CompanionMoodStore.Mood.CALM, snapshot.primary)
@@ -222,19 +238,22 @@ class CompanionMoodStoreTest {
 
     @Test
     fun testDebounceMarginPreventsSpuriousSwitch() {
-        // Current leader is CALM (baseline 45)
-        // We set HAPPY to 47. Gap is only 2 (< margin 5), so CALM must remain leader
+        // Current leader is CALM (baseline 32). We set HAPPY to 34: the lead is 2,
+        // under MARGIN (3), so CALM must remain leader — a lukewarm signal is not
+        // a change of heart. (These figures track MARGIN/CALM.baseline; the point of
+        // the test is that a small lead never steals the mood.)
         val snapshot = CompanionMoodStore.applyAdjustment(
             prefs,
-            mapOf(CompanionMoodStore.Mood.HAPPY to 17.0f), // 30 + 17 = 47 vs CALM 45
+            mapOf(CompanionMoodStore.Mood.HAPPY to 4.0f), // 30 + 4 = 34 vs CALM 32
             now = 1000L
         )
         assertEquals(CompanionMoodStore.Mood.CALM, snapshot.primary)
 
-        // Now boost HAPPY to 65 (gap = 20 > margin 5 and strong leap >= 15)
+        // A lead past BIG_LEAD overrides the hold, so this switch lands at once
+        // instead of waiting out MIN_HOLD_MS.
         val snapshot2 = CompanionMoodStore.applyAdjustment(
             prefs,
-            mapOf(CompanionMoodStore.Mood.HAPPY to 18.0f), // 47 + 18 = 65
+            mapOf(CompanionMoodStore.Mood.HAPPY to 31.0f), // 34 + 31 = 65 vs CALM 32
             now = 2000L
         )
         assertEquals(CompanionMoodStore.Mood.HAPPY, snapshot2.primary)
@@ -252,7 +271,7 @@ class CompanionMoodStoreTest {
             ),
             now = 1000L * 60 * 30 // 30 minutes in
         )
-        val snapshot = CompanionMoodStore.currentSnapshot(prefs)
+        val snapshot = CompanionMoodStore.currentSnapshot(prefs, now = noon())
         assertEquals(CompanionMoodStore.Mood.HAPPY, snapshot.primary)
         assertTrue("EXCITED should be secondary aroma", snapshot.secondary.contains(CompanionMoodStore.Mood.EXCITED))
         assertTrue("Display title should indicate hybrid blend", snapshot.displayTitle.contains("开心"))
@@ -266,7 +285,7 @@ class CompanionMoodStoreTest {
             mapOf(CompanionMoodStore.Mood.HYPER to 76.0f), // 14 + 76 = 90
             now = 1000L
         )
-        val initialHyper = CompanionMoodStore.currentSnapshot(prefs).scores[CompanionMoodStore.Mood.HYPER] ?: 0f
+        val initialHyper = CompanionMoodStore.currentSnapshot(prefs, now = noon()).scores[CompanionMoodStore.Mood.HYPER] ?: 0f
         assertEquals(90.0f, initialHyper, 0.1f)
 
         // 4 hours later, check periodic decay
@@ -292,7 +311,7 @@ class CompanionMoodStoreTest {
             ),
             now = 1000L
         )
-        val resetSnapshot = CompanionMoodStore.resetToBaseline(prefs)
+        val resetSnapshot = CompanionMoodStore.resetToBaseline(prefs, now = noon())
         assertEquals(CompanionMoodStore.Mood.CALM, resetSnapshot.primary)
         for (m in CompanionMoodStore.Mood.entries) {
             assertEquals(m.baseline, resetSnapshot.scores[m] ?: 0f, 0.01f)

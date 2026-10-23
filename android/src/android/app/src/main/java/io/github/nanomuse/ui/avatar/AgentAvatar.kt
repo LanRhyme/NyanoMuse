@@ -61,6 +61,67 @@ private const val HAPPY_AFTERGLOW_MS = 3_000L
 private const val ERROR_AFTERGLOW_MS = 4_000L
 
 /**
+ * How the body carries one companion mood, in units a person can actually see.
+ *
+ * The family alone is too coarse to show on a face: 平静, 专注, 疲惫, 消沉, 麻木 and 摆烂
+ * all map to SLEEPY, and the family-level constants moved the picture by 1.5% and 1.5dp,
+ * which reads as no movement at all. These per-mood numbers are several times larger, so
+ * the six faces of that family stop looking identical.
+ *
+ * [breathMs] is the period of the slow in-and-out; longer reads as calmer or wearier.
+ * [bobDp] is how far the body sinks (positive) or rises (negative) as it breathes.
+ * [tiltDeg] is the resting lean, applied as a sway around that angle.
+ * [scale] multiplies the whole figure, so a mood can sit taller or be drawn in.
+ */
+internal data class CompanionPosture(
+    val breathMs: Int = 2600,
+    val bobDp: Float = 0f,
+    val tiltDeg: Float = 0f,
+    val scale: Float = 1f,
+    /** Extra settle on arrival, in dp, so a change of mood is visible even at rest. */
+    val entryDropDp: Float = 0f,
+)
+
+/**
+ * The posture for [mood], preferring the concrete mood over its family.
+ *
+ * Inside SLEEPY the members are told apart on purpose: 专注 sits up straight and breathes
+ * evenly, 平静 is the neutral rest, 疲惫 sinks and slows, 消沉 tips forward and barely
+ * lifts, 麻木 is flat and shallow, 摆烂 slumps the most and stays there.
+ */
+internal fun companionPosture(
+    family: io.github.nanomuse.companion.CompanionEmotion.PrimaryMood?,
+    detail: io.github.nanomuse.companion.CompanionMoodStore.Mood? = null,
+): CompanionPosture {
+    val M = io.github.nanomuse.companion.CompanionMoodStore.Mood
+    detail?.let { m ->
+        when (m) {
+            io.github.nanomuse.companion.CompanionMoodStore.Mood.FOCUSED -> return CompanionPosture(breathMs = 2200, bobDp = -1.0f, scale = 1.035f)
+            io.github.nanomuse.companion.CompanionMoodStore.Mood.CALM -> return CompanionPosture(breathMs = 3000, bobDp = 0.6f)
+            io.github.nanomuse.companion.CompanionMoodStore.Mood.TIRED -> return CompanionPosture(breathMs = 3800, bobDp = 3.4f, tiltDeg = 2.5f, scale = 0.975f, entryDropDp = 3f)
+            io.github.nanomuse.companion.CompanionMoodStore.Mood.GLOOMY -> return CompanionPosture(breathMs = 4200, bobDp = 3.0f, tiltDeg = 5.5f, scale = 0.965f, entryDropDp = 3f)
+            io.github.nanomuse.companion.CompanionMoodStore.Mood.NUMB -> return CompanionPosture(breathMs = 3400, bobDp = 1.2f, scale = 0.985f)
+            io.github.nanomuse.companion.CompanionMoodStore.Mood.CHECKEDOUT -> return CompanionPosture(breathMs = 4600, bobDp = 4.2f, tiltDeg = 4f, scale = 0.955f, entryDropDp = 4f)
+            else -> Unit
+        }
+    }
+    return when (family) {
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> CompanionPosture(breathMs = 900, bobDp = -3.5f, tiltDeg = 6f, scale = 1.06f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> CompanionPosture(breathMs = 1200, bobDp = -2.5f, scale = 1.045f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> CompanionPosture(breathMs = 2000, bobDp = -1.5f, scale = 1.03f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> CompanionPosture(breathMs = 2500, scale = 1.028f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> CompanionPosture(breathMs = 2400, tiltDeg = 3.5f, scale = 1.02f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> CompanionPosture(breathMs = 2800, tiltDeg = 2f, scale = 1.025f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> CompanionPosture(breathMs = 2400, bobDp = -1.8f, tiltDeg = 5f, scale = 1.025f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.LONGING -> CompanionPosture(breathMs = 2900, scale = 1.02f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> CompanionPosture(breathMs = 2200, tiltDeg = -3f, scale = 0.99f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> CompanionPosture(breathMs = 1800, bobDp = 2f, scale = 0.94f, entryDropDp = 3f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> CompanionPosture(breathMs = 3600, bobDp = 1.5f)
+        null -> CompanionPosture()
+    }
+}
+
+/**
  * The mood of the chat header, derived from the session's own streaming flag and the app-wide
  * "it needs you" gates. Nothing here is new state: waiting comes from the permission and config
  * confirmation queues, working from [isStreaming], and the short smile / wince after a turn ends
@@ -131,6 +192,7 @@ fun AgentAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
     companionMood: io.github.nanomuse.companion.CompanionEmotion.PrimaryMood? = null,
+    companionDetail: io.github.nanomuse.companion.CompanionMoodStore.Mood? = null,
     contentDescription: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -143,17 +205,11 @@ fun AgentAvatar(
     val density = LocalDensity.current
     val motion = rememberInfiniteTransition(label = "avatarMotion")
 
-    val breathDuration = when {
-        mood == AgentMood.WORKING -> 700
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> 900
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> 1200
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> 1800
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> 2000
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> 2200
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> 3600
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 2800
-        else -> 2600
-    }
+    // One posture drives breath, sink, lean and size together, so the six moods that share
+    // the SLEEPY face still read as six different moods.
+    val posture = remember(companionMood, companionDetail) { companionPosture(companionMood, companionDetail) }
+
+    val breathDuration = if (mood == AgentMood.WORKING) 700 else posture.breathMs
     val breath by motion.animateFloat(
         initialValue = 0f, targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -200,8 +256,17 @@ fun AgentAvatar(
     val companionPop = remember { Animatable(1f) }
     val companionTilt = remember { Animatable(0f) }
     val companionBob = remember { Animatable(0f) }
-    LaunchedEffect(companionMood) {
+    // Keyed on the concrete mood as well: 平静 -> 疲惫 happens inside SLEEPY, so a family-only
+    // key would leave the face unchanged and skip the burst entirely.
+    LaunchedEffect(companionMood, companionDetail) {
         if (companionMood == null) return@LaunchedEffect
+        // A settle for every mood, including the ones inside a shared family. It is what makes
+        // a change visible while the face is otherwise still.
+        if (posture.entryDropDp > 0f) {
+            companionBob.snapTo(with(density) { (-2f).dp.toPx() })
+            companionBob.animateTo(with(density) { posture.entryDropDp.dp.toPx() }, tween(320, easing = FastOutSlowInEasing))
+            companionBob.animateTo(0f, tween(520, easing = FastOutSlowInEasing))
+        }
         when (companionMood) {
             io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> {
                 // High frequency hyper hops
@@ -292,47 +357,20 @@ fun AgentAvatar(
         }
     }
 
-    val continuousScale = when (companionMood) {
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> 1f + 0.050f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> 1f + 0.040f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> 1f + 0.030f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> 1f + 0.028f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> 1f + 0.022f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 1f + 0.025f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> 1f + 0.015f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> 1f + 0.025f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.LONGING -> 1f + 0.020f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> 1f + 0.015f * breath
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> 0.96f + 0.015f * breath
-        null -> 1f + 0.018f * breath
-    }
+    // The breath rides on top of the mood's own size, so a tired face is smaller even at the
+    // still point of the breath and the eye can tell it from a focused one.
+    val continuousScale = posture.scale + 0.02f * breath
     val scale = when {
         mood == AgentMood.WORKING -> 1f + 0.045f * breath
         mood == AgentMood.HAPPY -> pop.value
         else -> companionPop.value * continuousScale
     }
-    val bobPx = companionBob.value + when {
-        mood == AgentMood.WORKING -> with(density) { (-2.5).dp.toPx() } * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> with(density) { (-3.5).dp.toPx() } * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> with(density) { (-2.5).dp.toPx() } * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> with(density) { (-1.5).dp.toPx() } * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> with(density) { (-1.8).dp.toPx() } * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> with(density) { (1.5).dp.toPx() } * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> with(density) { (2.0).dp.toPx() } * breath
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> with(density) { (0.8).dp.toPx() } * breath
-        else -> 0f
-    }
+    val bobPx = companionBob.value + with(density) { posture.bobDp.dp.toPx() } * breath
     val shakePx = with(density) { 3.dp.toPx() } * shake.value
     val rotation = companionTilt.value + when {
         mood == AgentMood.WAITING -> 4f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> 6.0f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> 3.5f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> 5.0f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> 2.5f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 2.0f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> -3.0f + 1.2f * tilt
-        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> 1.5f * tilt
-        else -> 0f
+        // Sway around the mood's own resting angle rather than around zero.
+        else -> posture.tiltDeg + posture.tiltDeg * 0.25f * tilt
     }
 
     val base = modifier
@@ -424,6 +462,7 @@ fun AgentAvatarDisc(
     discSize: Dp,
     modifier: Modifier = Modifier,
     companionMood: io.github.nanomuse.companion.CompanionEmotion.PrimaryMood? = null,
+    companionDetail: io.github.nanomuse.companion.CompanionMoodStore.Mood? = null,
     contentDescription: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -438,6 +477,7 @@ fun AgentAvatarDisc(
             mood = mood,
             size = discSize,
             companionMood = companionMood,
+            companionDetail = companionDetail,
             contentDescription = contentDescription,
             onClick = onClick,
         )

@@ -57,6 +57,14 @@ object CompanionEmotion {
 
     data class MoodState(
         val primaryMood: PrimaryMood,
+        /**
+         * The concrete mood behind [primaryMood], when known.
+         *
+         * A family is a coarse bucket: 平静, 专注, 疲惫, 消沉, 麻木 and 摆烂 all wear the
+         * SLEEPY face, so a face driven by the family alone cannot tell them apart. The
+         * avatar uses this to give the family's members distinct postures.
+         */
+        val primaryDetail: CompanionMoodStore.Mood? = null,
         /** Pleasure / Valence: [-1.0, 1.0], from gloomy/lonely to cheerful/happy */
         val valence: Float,
         /** Arousal: [0.0, 1.0], from sleepy/calm to alert/energetic */

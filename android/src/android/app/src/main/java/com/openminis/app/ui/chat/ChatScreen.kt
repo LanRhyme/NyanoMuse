@@ -3468,6 +3468,9 @@ fun ChatScreen(
                     io.github.nanomuse.ui.avatar.AgentAvatar(
                         mood = nmMood,
                         companionMood = compMood,
+                        // nanoMuse: the concrete mood, not just its family, so the six
+                        // moods that share the SLEEPY face can be told apart.
+                        companionDetail = compState.primaryDetail,
                         size = avatarDp,
                         contentDescription = stringResource(R.string.nm_avatar_content_description),
                         onClick = { io.github.nanomuse.ui.header.openAgentProfile(context) },

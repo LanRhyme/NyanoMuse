@@ -12,7 +12,7 @@ import java.util.Random
  * - 0..100 continuous score values decaying toward individual baselines
  * - Micro-adjustments per user message (+-0.5..3.0) with mutual suppression
  * - 3..6 hour periodic baseline settling with session activity fatigue/focus modifiers
- * - Switch debouncing (margin >= 5.0, hold >= 15 min) and top-3 blend states (gap < 8.0)
+ * - Switch debouncing (margin >= 3.0, hold >= 5 min, a lead of 8.0 or more switches at once) and top-3 blend states (gap < 8.0)
  * - Objective switch facts logging (no causal speculation)
  */
 object CompanionMoodStore {
@@ -23,8 +23,23 @@ object CompanionMoodStore {
     private const val PREFS_KEY_LAST_SWITCH_FACTS = "companion_mood_last_switch_facts"
     private const val PREFS_KEY_LAST_PERIODIC_AT = "companion_mood_last_periodic_at"
 
-    const val MARGIN = 5.0f
-    const val MIN_HOLD_MS = 15 * 60_000L // 15 minutes
+    /**
+     * The lead a challenger needs over the worn mood before it may take over.
+     *
+     * Sized against one strong turn: a heartfelt praise is worth +2.5, so a lead of 3 is
+     * about one warm message. It used to be 5, which no challenger could ever reach —
+     * the face sat on 平静 for whole conversations.
+     */
+    const val MARGIN = 3.0f
+    /** How long a mood is kept once taken, so a fast exchange cannot thrash it. */
+    const val MIN_HOLD_MS = 5 * 60_000L // 5 minutes
+    /**
+     * A lead this wide is a real change of heart, not drift: take it over at once
+     * instead of waiting out [MIN_HOLD_MS].
+     */
+    const val BIG_LEAD = 8.0f
+    /** How much of a turn's weight is left when the model names the mood it already wears. */
+    const val ECHO_DAMP = 0.3f
     const val BLEND_GAP = 8.0f
     const val BLEND_MAX = 3
 
@@ -53,7 +68,10 @@ object CompanionMoodStore {
         val behaviorTendency: String,
     ) {
         // --- 基础情绪 11 种 ---
-        CALM("calm", "平静", 45f, Layer.BASE, AvatarFamily.SLEEPY, "平稳少起伏，常态节奏"),
+        // 平静 sits just above the other resting moods on purpose: at 45 it led 开心 and
+        // 专注 by 15 points, a gap no amount of warm conversation could close, so the face
+        // never left it. 32 keeps it the default while staying within reach of a good turn.
+        CALM("calm", "平静", 32f, Layer.BASE, AvatarFamily.SLEEPY, "平稳少起伏，常态节奏"),
         HAPPY("happy", "开心", 30f, Layer.BASE, AvatarFamily.HAPPY, "语气轻快俏皮，接梗顺畅"),
         CURIOUS("curious", "好奇", 28f, Layer.BASE, AvatarFamily.CURIOUS, "探寻细节，更愿意多追问一步"),
         FOCUSED("focused", "专注", 30f, Layer.BASE, AvatarFamily.SLEEPY, "少寒暄，直给结论和步骤"),
@@ -177,6 +195,19 @@ object CompanionMoodStore {
     }
 
     /**
+     * How much of a turn's weight reaches the scores: the *Emotion intensity* setting.
+     *
+     * Applied to every mood delta, not only to affection — the setting used to scale
+     * affection alone, so picking *vivid* changed nothing a person could see on the face.
+     */
+    fun intensityMultiplier(prefs: SharedPreferences): Float =
+        when (CompanionPrefs.getEmotionIntensity(prefs)) {
+            "subtle" -> 0.5f
+            "vivid" -> 1.4f
+            else -> 1.0f
+        }
+
+    /**
      * Circadian routine baseline offsets: adds organic day/night rhythm to the 33-mood baseline.
      * Late night (23:00~06:00) boosts TIRED and suppresses HYPER/EXCITED.
      * Active ongoing interaction relaxes deep fatigue so the assistant doesn't stubbornly sleep while pair programming.
@@ -286,11 +317,13 @@ object CompanionMoodStore {
         val scores = getScores(prefs).toMutableMap()
         val text = userText.trim().lowercase()
         val instantDeltas = mutableMapOf<Mood, Float>()
+        val multiplier = intensityMultiplier(prefs)
 
         fun add(mood: Mood, delta: Float) {
+            val scaled = delta * multiplier
             val old = scores[mood] ?: mood.baseline
-            scores[mood] = (old + delta).coerceIn(0f, 100f)
-            instantDeltas[mood] = (instantDeltas[mood] ?: 0f) + delta
+            scores[mood] = (old + scaled).coerceIn(0f, 100f)
+            instantDeltas[mood] = (instantDeltas[mood] ?: 0f) + scaled
         }
 
         // 1. Sarcasm pre-check: prevent cynical phrasing from granting praise boost
@@ -433,7 +466,7 @@ object CompanionMoodStore {
         var finalPrimary = oldPrimary
         if (newHighest != oldPrimary) {
             val marginMet = (newHighestScore - oldScore) >= MARGIN
-            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (newHighestScore - oldScore) >= 15.0f
+            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (newHighestScore - oldScore) >= BIG_LEAD
             if (marginMet && holdMet) {
                 finalPrimary = newHighest
                 val snippet = userText.trim().take(30)
@@ -454,12 +487,6 @@ object CompanionMoodStore {
             }
         }
 
-        val intensity = CompanionPrefs.getEmotionIntensity(prefs)
-        val multiplier = when (intensity) {
-            "subtle" -> 0.5f
-            "vivid" -> 1.4f
-            else -> 1.0f
-        }
         val dAffection = when {
             isSarcastic -> -0.01f
             text.contains("都怪你") || text.contains("就怪你") -> -0.01f
@@ -573,8 +600,17 @@ object CompanionMoodStore {
         }
         clearLastInstantDelta(prefs)
 
-        // 2. Apply calibrated delta from FEEDBACK_DELTA
-        val boost = FEEDBACK_DELTA[mood] ?: 2.0f
+        // 2. Apply the calibrated delta from FEEDBACK_DELTA.
+        //
+        // Echo guard: the prompt addendum tells the model which mood it is wearing, and a
+        // willing-but-unimaginative model answers with that very mood every turn. Undamped,
+        // each echo added another +1.5..2.5 on top of the revert above, so the worn mood
+        // inflated and no challenger could ever catch it: the face looked stuck however the
+        // conversation went. Naming the mood one already wears is not news, so it moves the
+        // score only slightly, while naming a different one still carries full weight.
+        val worn = Mood.fromId(prefs.getString(PREFS_KEY_PRIMARY, Mood.CALM.id))
+        val echoDamp = if (mood == worn) ECHO_DAMP else 1.0f
+        val boost = (FEEDBACK_DELTA[mood] ?: 2.0f) * echoDamp * intensityMultiplier(prefs)
         val oldScore = scores[mood] ?: mood.baseline
         scores[mood] = (oldScore + boost).coerceIn(0f, 100f)
 
@@ -611,14 +647,14 @@ object CompanionMoodStore {
         val leaderMood = leaderEntry?.key ?: Mood.CALM
         val leaderScore = leaderEntry?.value ?: Mood.CALM.baseline
 
-        val oldPrimaryId = prefs.getString(PREFS_KEY_PRIMARY, Mood.CALM.id)
-        val oldPrimary = Mood.fromId(oldPrimaryId)
+        val oldPrimary = worn
+        val oldPrimaryId = oldPrimary.id
         val oldPrimaryScore = scores[oldPrimary] ?: oldPrimary.baseline
         val lastSwitch = prefs.getLong(PREFS_KEY_LAST_SWITCH_AT, 0L)
 
         if (leaderMood != oldPrimary) {
             val marginMet = (leaderScore - oldPrimaryScore) >= MARGIN
-            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (leaderScore - oldPrimaryScore) >= 15.0f
+            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (leaderScore - oldPrimaryScore) >= BIG_LEAD
             if (marginMet && holdMet) {
                 val previousSnippet = SwitchFacts.fromJson(prefs.getString(PREFS_KEY_LAST_SWITCH_FACTS, null))?.lastUserSnippet ?: ""
                 val facts = SwitchFacts(
@@ -663,7 +699,7 @@ object CompanionMoodStore {
 
         if (leaderMood != oldPrimary) {
             val marginMet = (leaderScore - oldScore) >= MARGIN
-            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (leaderScore - oldScore) >= 15.0f
+            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (leaderScore - oldScore) >= BIG_LEAD
             if (marginMet && holdMet) {
                 val facts = SwitchFacts(
                     at = now,
@@ -682,19 +718,19 @@ object CompanionMoodStore {
         }
         saveScores(prefs, scores)
         CompanionStatus.notifyEmotionChanged()
-        return currentSnapshot(prefs)
+        return currentSnapshot(prefs, now = now)
     }
 
-    fun resetToBaseline(prefs: SharedPreferences): MoodSnapshot {
+    fun resetToBaseline(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): MoodSnapshot {
         val scores = Mood.entries.associateWith { it.baseline }.toMutableMap()
         saveScores(prefs, scores)
         prefs.edit()
             .putString(PREFS_KEY_PRIMARY, Mood.CALM.id)
-            .putLong(PREFS_KEY_LAST_SWITCH_AT, System.currentTimeMillis())
+            .putLong(PREFS_KEY_LAST_SWITCH_AT, now)
             .remove(PREFS_KEY_LAST_SWITCH_FACTS)
             .apply()
         CompanionStatus.notifyEmotionChanged()
-        return currentSnapshot(prefs)
+        return currentSnapshot(prefs, now = now)
     }
 
     /**
@@ -793,8 +829,9 @@ object CompanionMoodStore {
             appendLine("   - 别替对方决定该怎么感觉：听到坏消息别轻浮接一句「不过没关系」，察觉到了说一句，说完接着干活，别变说教。")
             appendLine("   - 遇到自伤、求救、极度绝望等真实痛苦时，立刻收起情绪表演与角色打趣，以真诚负责的态度建议寻求专业帮助，角色必须给真人让路。")
             appendLine("5. 真实情感反哺（伴侣心智闭环）：")
-            appendLine("   - 若对话引发了你内心的真实情感触动，欢迎在正文回复最后一行输出隐藏情绪标签（系统会自动吸收该标签并对用户隐形）：")
+            appendLine("   - 每一轮正文回复的最后一行，都必须输出一个隐藏情绪标签，标出这一轮之后你最接近的心境（系统会自动吸收该标签并对用户隐形）：")
             appendLine("     `<nm:mood feel=\"心境ID\" reason=\"触发短因\"/>`")
+            appendLine("   - 选这一轮真正变了的那一个，不是复读上一轮的心境。只有在对话确实没什么起伏时才写 calm，别把它当默认值。")
             appendLine("   - 易混辨析：烦躁是火往外发(炸)，生闷气是火收回去(闭门/随便你)；麻木是真没感觉，摆烂是有感觉但不想动；焦虑是怕出事，内耗是想太多；破防是绷不住想哭(压掉烦躁/生闷气)；兴奋是往外冲，上头是陷进去停不下来。")
             appendLine("   - 心境ID严格支持（小写）：")
             appendLine("     基础: calm, happy, curious, focused, excited, tired, annoyed, down, fear, disgust, surprise")
