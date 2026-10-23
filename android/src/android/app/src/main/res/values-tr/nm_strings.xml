@@ -1226,6 +1226,22 @@
     <string name="nm_companion_mood_sulk_jealous">Somurtkan ve kıskanç</string>
     <string name="nm_companion_mood_cracked_hurt">Kırgın ve üzgün</string>
     <string name="nm_companion_mood_hyper">Aşırı heyecanlı ve takıntılı</string>
+    <string name="nm_companion_dashboard_title">Duygu Pusulası</string>
+    <string name="nm_companion_dashboard_subtitle">33 ayrı duyguyu dinamik algılama</string>
+    <string name="nm_companion_reset_baseline">Temel değerlere sıfırla</string>
+    <string name="nm_companion_dominant_mood">Baskın Duygu Durumu</string>
+    <string name="nm_companion_tendency_fmt">İfade eğilimi: %1$s</string>
+    <string name="nm_companion_blend_fmt">Birlikte var olan: %1$s</string>
+    <string name="nm_companion_facts_title">Duygu Geçiş Kaydı</string>
+    <string name="nm_companion_facts_trans_fmt">%1$s durumundan %2$s durumuna geçti</string>
+    <string name="nm_companion_facts_snippet_fmt">Etkileşim: \"%1$s\"</string>
+    <string name="nm_companion_facts_turn_fmt">%1$d. Tur</string>
+    <string name="nm_companion_layer_all">Tümü (%1$d)</string>
+    <string name="nm_companion_layer_base">Temel (%1$d)</string>
+    <string name="nm_companion_layer_composite">Bileşik (%1$d)</string>
+    <string name="nm_companion_layer_modern">Modern (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · hafifçe %2$s</string>
+    <string name="nm_companion_settings_compass_title">Duygu Pusulası (33 duygu)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

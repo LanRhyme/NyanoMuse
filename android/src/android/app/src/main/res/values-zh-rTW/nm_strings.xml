@@ -1192,6 +1192,22 @@
     <string name="nm_companion_mood_sulk_jealous">生悶氣</string>
     <string name="nm_companion_mood_cracked_hurt">委屈難過</string>
     <string name="nm_companion_mood_hyper">興奮上頭</string>
+    <string name="nm_companion_dashboard_title">小喵心境羅盤</string>
+    <string name="nm_companion_dashboard_subtitle">基於 dsh-mood 33 種細膩心境動態感知</string>
+    <string name="nm_companion_reset_baseline">重設基線分值</string>
+    <string name="nm_companion_dominant_mood">當前主導心境</string>
+    <string name="nm_companion_tendency_fmt">表達傾向：%1$s</string>
+    <string name="nm_companion_blend_fmt">混合共存：%1$s</string>
+    <string name="nm_companion_facts_title">心境轉移事實記錄</string>
+    <string name="nm_companion_facts_trans_fmt">由「%1$s」轉向「%2$s」</string>
+    <string name="nm_companion_facts_snippet_fmt">互動事實：「%1$s」</string>
+    <string name="nm_companion_facts_turn_fmt">第 %1$d 輪</string>
+    <string name="nm_companion_layer_all">全部 (%1$d)</string>
+    <string name="nm_companion_layer_base">基礎 (%1$d)</string>
+    <string name="nm_companion_layer_composite">複合 (%1$d)</string>
+    <string name="nm_companion_layer_modern">當代 (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · 略帶%2$s</string>
+    <string name="nm_companion_settings_compass_title">心境羅盤 (33 種心境分佈)</string>
 
     <string name="nm_companion_desc_happy">開心晃尾巴</string>
     <string name="nm_companion_desc_shy">被誇得害羞啦</string>

@@ -1226,6 +1226,22 @@
     <string name="nm_companion_mood_sulk_jealous">Enfadado y celoso</string>
     <string name="nm_companion_mood_cracked_hurt">Dolido y afligido</string>
     <string name="nm_companion_mood_hyper">Hiperactivo y obsesionado</string>
+    <string name="nm_companion_dashboard_title">Brújula emocional</string>
+    <string name="nm_companion_dashboard_subtitle">Percepción de 33 estados de ánimo matizados</string>
+    <string name="nm_companion_reset_baseline">Restablecer valores base</string>
+    <string name="nm_companion_dominant_mood">Estado dominante</string>
+    <string name="nm_companion_tendency_fmt">Expresión: %1$s</string>
+    <string name="nm_companion_blend_fmt">Coexistiendo: %1$s</string>
+    <string name="nm_companion_facts_title">Registro de transiciones</string>
+    <string name="nm_companion_facts_trans_fmt">Cambió de %1$s a %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Interacción: «%1$s»</string>
+    <string name="nm_companion_facts_turn_fmt">Turno %1$d</string>
+    <string name="nm_companion_layer_all">Todos (%1$d)</string>
+    <string name="nm_companion_layer_base">Base (%1$d)</string>
+    <string name="nm_companion_layer_composite">Compuesto (%1$d)</string>
+    <string name="nm_companion_layer_modern">Moderno (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · con toques de %2$s</string>
+    <string name="nm_companion_settings_compass_title">Brújula emocional (33 estados)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

@@ -1226,6 +1226,22 @@
     <string name="nm_companion_mood_sulk_jealous">Nagtatampo at nagseselos</string>
     <string name="nm_companion_mood_cracked_hurt">Nasasaktan at nalulungkot</string>
     <string name="nm_companion_mood_hyper">Sobrang sabik at tutok</string>
+    <string name="nm_companion_dashboard_title">Kumpas ng Damdamin</string>
+    <string name="nm_companion_dashboard_subtitle">Pang-unawa sa 33 banayad na damdamin</string>
+    <string name="nm_companion_reset_baseline">I-reset sa baseline</string>
+    <string name="nm_companion_dominant_mood">Pangunahing Damdamin</string>
+    <string name="nm_companion_tendency_fmt">Pagpapahayag: %1$s</string>
+    <string name="nm_companion_blend_fmt">Kasabay: %1$s</string>
+    <string name="nm_companion_facts_title">Talaan ng Pagbabago</string>
+    <string name="nm_companion_facts_trans_fmt">Lumipat mula %1$s patungong %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Interaksyon: \"%1$s\"</string>
+    <string name="nm_companion_facts_turn_fmt">Turn %1$d</string>
+    <string name="nm_companion_layer_all">Lahat (%1$d)</string>
+    <string name="nm_companion_layer_base">Base (%1$d)</string>
+    <string name="nm_companion_layer_composite">Tambalan (%1$d)</string>
+    <string name="nm_companion_layer_modern">Moderno (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · may kaunting %2$s</string>
+    <string name="nm_companion_settings_compass_title">Kumpas ng Damdamin (33 damdamin)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

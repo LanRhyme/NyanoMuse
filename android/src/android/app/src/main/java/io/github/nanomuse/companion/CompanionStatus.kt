@@ -62,7 +62,12 @@ object CompanionStatus {
     fun currentMoodSubtitle(context: Context): String {
         val prefs = CompanionPrefs.prefs(context)
         val snapshot = CompanionMoodStore.currentSnapshot(prefs)
-        return snapshot.displayTitle
+        return if (snapshot.secondary.isNotEmpty()) {
+            val secondaries = snapshot.secondary.joinToString("、") { it.displayName }
+            context.getString(R.string.nm_companion_mood_hybrid_fmt, snapshot.primary.displayName, secondaries)
+        } else {
+            snapshot.primary.displayName
+        }
     }
 
     fun currentMoodDescription(context: Context, moodState: CompanionEmotion.MoodState): String {
@@ -80,10 +85,11 @@ object CompanionStatus {
         val now = System.currentTimeMillis()
         val moodTime = CompanionPrefs.getMoodTimestamp(prefs)
         val elapsedMin = if (moodTime > 0L) (now - moodTime) / 60_000L else 0L
-        val act = CompanionPrefs.getLastDialogueAct(prefs)?.name ?: "NONE"
+        val facts = CompanionMoodStore.currentSnapshot(prefs).lastSwitchFacts
+        val lastSnippet = facts?.lastUserSnippet?.take(15) ?: "NONE"
         val intensity = CompanionPrefs.getEmotionIntensity(prefs)
         return "PAD: [P=${String.format(java.util.Locale.US, "%+.2f", moodState.valence)}, A=${String.format(java.util.Locale.US, "%.2f", moodState.arousal)}, D=${String.format(java.util.Locale.US, "%.2f", moodState.affection)}]\n" +
-               "Mood: ${moodState.primaryMood.name} | Last Act: $act (${elapsedMin}m ago)\n" +
+               "Mood: ${moodState.primaryMood.name} | Last Fact: $lastSnippet (${elapsedMin}m ago)\n" +
                "Affection: ${String.format(java.util.Locale.US, "%.2f", moodState.affection)} / 1.00 | Intensity: $intensity"
     }
 }

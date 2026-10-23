@@ -306,7 +306,7 @@ fun CompanionSettingsSheet(
 
                     MuseRowDivider()
                     io.github.nanomuse.ui.muse.MuseRow(
-                        title = "心境罗盘 (33 种心境分布)",
+                        title = stringResource(R.string.nm_companion_settings_compass_title),
                         value = currentMoodSubtitle,
                         onClick = { showMoodDashboard = true }
                     )

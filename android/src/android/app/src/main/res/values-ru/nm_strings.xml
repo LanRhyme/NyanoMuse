@@ -1234,6 +1234,22 @@
     <string name="nm_companion_mood_sulk_jealous">Дуется и ревнует</string>
     <string name="nm_companion_mood_cracked_hurt">Обиженный и расстроенный</string>
     <string name="nm_companion_mood_hyper">В кураже и на взводе</string>
+    <string name="nm_companion_dashboard_title">Компас настроения</string>
+    <string name="nm_companion_dashboard_subtitle">Восприятие 33 тонких оттенков настроения</string>
+    <string name="nm_companion_reset_baseline">Сбросить к базовым значениям</string>
+    <string name="nm_companion_dominant_mood">Доминирующее настроение</string>
+    <string name="nm_companion_tendency_fmt">Выражение: %1$s</string>
+    <string name="nm_companion_blend_fmt">Сосуществующие: %1$s</string>
+    <string name="nm_companion_facts_title">История смены настроений</string>
+    <string name="nm_companion_facts_trans_fmt">Переход от %1$s к %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Фрагмент: «%1$s»</string>
+    <string name="nm_companion_facts_turn_fmt">Ход %1$d</string>
+    <string name="nm_companion_layer_all">Все (%1$d)</string>
+    <string name="nm_companion_layer_base">Базовые (%1$d)</string>
+    <string name="nm_companion_layer_composite">Составные (%1$d)</string>
+    <string name="nm_companion_layer_modern">Современные (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · с оттенком %2$s</string>
+    <string name="nm_companion_settings_compass_title">Компас настроения (33 настроения)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

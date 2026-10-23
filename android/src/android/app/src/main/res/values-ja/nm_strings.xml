@@ -1222,6 +1222,22 @@
     <string name="nm_companion_mood_sulk_jealous">すねてる</string>
     <string name="nm_companion_mood_cracked_hurt">しょんぼり</string>
     <string name="nm_companion_mood_hyper">ハイテンション</string>
+    <string name="nm_companion_dashboard_title">気分コンパス</string>
+    <string name="nm_companion_dashboard_subtitle">33種類の繊細な感情動態を感知</string>
+    <string name="nm_companion_reset_baseline">ベースラインをリセット</string>
+    <string name="nm_companion_dominant_mood">現在の主導気分</string>
+    <string name="nm_companion_tendency_fmt">表現傾向：%1$s</string>
+    <string name="nm_companion_blend_fmt">共存：%1$s</string>
+    <string name="nm_companion_facts_title">気分変化の記録</string>
+    <string name="nm_companion_facts_trans_fmt">「%1$s」から「%2$s」へ移行</string>
+    <string name="nm_companion_facts_snippet_fmt">きっかけ：「%1$s」</string>
+    <string name="nm_companion_facts_turn_fmt">第%1$dターン</string>
+    <string name="nm_companion_layer_all">すべて (%1$d)</string>
+    <string name="nm_companion_layer_base">基本 (%1$d)</string>
+    <string name="nm_companion_layer_composite">複合 (%1$d)</string>
+    <string name="nm_companion_layer_modern">現代 (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · ほんのり%2$s</string>
+    <string name="nm_companion_settings_compass_title">気分コンパス (33種の感情)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

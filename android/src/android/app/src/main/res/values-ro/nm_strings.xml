@@ -1230,6 +1230,22 @@
     <string name="nm_companion_mood_sulk_jealous">Îmbufnat și gelos</string>
     <string name="nm_companion_mood_cracked_hurt">Rănit și întristat</string>
     <string name="nm_companion_mood_hyper">Hiperactiv și entuziasmat</string>
+    <string name="nm_companion_dashboard_title">Busola stărilor</string>
+    <string name="nm_companion_dashboard_subtitle">Percepția a 33 de stări nuanțate</string>
+    <string name="nm_companion_reset_baseline">Resetare la linia de bază</string>
+    <string name="nm_companion_dominant_mood">Stare dominantă</string>
+    <string name="nm_companion_tendency_fmt">Expresie: %1$s</string>
+    <string name="nm_companion_blend_fmt">Coexistente: %1$s</string>
+    <string name="nm_companion_facts_title">Istoric tranziții</string>
+    <string name="nm_companion_facts_trans_fmt">Trecut de la %1$s la %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Interacțiune: „%1$s”</string>
+    <string name="nm_companion_facts_turn_fmt">Runda %1$d</string>
+    <string name="nm_companion_layer_all">Toate (%1$d)</string>
+    <string name="nm_companion_layer_base">De bază (%1$d)</string>
+    <string name="nm_companion_layer_composite">Compuse (%1$d)</string>
+    <string name="nm_companion_layer_modern">Moderne (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · cu o tentă de %2$s</string>
+    <string name="nm_companion_settings_compass_title">Busola stărilor (33 de stări)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

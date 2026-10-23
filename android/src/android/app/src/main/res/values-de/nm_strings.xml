@@ -1226,6 +1226,22 @@
     <string name="nm_companion_mood_sulk_jealous">Schmollend &amp; beleidigt</string>
     <string name="nm_companion_mood_cracked_hurt">Gekränkt &amp; traurig</string>
     <string name="nm_companion_mood_hyper">Überdreht &amp; enthusiastisch</string>
+    <string name="nm_companion_dashboard_title">Stimmungskompass</string>
+    <string name="nm_companion_dashboard_subtitle">Wahrnehmung von 33 nuancierten Stimmungen</string>
+    <string name="nm_companion_reset_baseline">Auf Basiswerte zurücksetzen</string>
+    <string name="nm_companion_dominant_mood">Vorherrschende Stimmung</string>
+    <string name="nm_companion_tendency_fmt">Ausdruck: %1$s</string>
+    <string name="nm_companion_blend_fmt">Koexistierend: %1$s</string>
+    <string name="nm_companion_facts_title">Veränderungsverlauf</string>
+    <string name="nm_companion_facts_trans_fmt">Gewechselt von %1$s zu %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Interaktion: „%1$s“</string>
+    <string name="nm_companion_facts_turn_fmt">Runde %1$d</string>
+    <string name="nm_companion_layer_all">Alle (%1$d)</string>
+    <string name="nm_companion_layer_base">Basis (%1$d)</string>
+    <string name="nm_companion_layer_composite">Zusammengesetzt (%1$d)</string>
+    <string name="nm_companion_layer_modern">Modern (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · leicht %2$s</string>
+    <string name="nm_companion_settings_compass_title">Stimmungskompass (33 Stimmungen)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

@@ -221,8 +221,8 @@ object CompanionEmotion {
      * An optional secondary lightweight LLM classifier can be introduced as future enhancement.
      */
     val SARCASM_PATTERNS = listOf(
-        "呵呵", "真棒呢", "可真行", "你可真行", "可真厉害", "你可真厉害", "真厉害啊", "真行啊",
-        "行吧", "你开心就好", "开心就好", "是啊你", "真不愧是你", "我可谢谢你了", "谢谢你啊",
+        "呵呵", "真棒呢", "可真行", "你可真行", "可真厉害", "你可真厉害",
+        "行吧", "你开心就好", "开心就好", "是啊你", "真不愧是你", "我可谢谢你了",
         "对对对", "算你厉害", "阴阳怪气", "就这", "那可太棒了呢", "sarcasm", "whatever"
     )
 
@@ -233,10 +233,7 @@ object CompanionEmotion {
         val stripped = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(userText)
         val clean = stripped.trim().lowercase()
         if (clean.isBlank()) return false
-        if (SARCASM_PATTERNS.any { clean.contains(it) }) return true
-        val secondaryIrony = clean.contains("行吧") || clean.contains("就好") ||
-            (clean.startsWith("谢谢") && clean.endsWith("啊"))
-        return secondaryIrony
+        return SARCASM_PATTERNS.any { clean.contains(it) }
     }
 
     /**
@@ -312,69 +309,6 @@ object CompanionEmotion {
             DialogueAct.QUESTION_CURIOUS -> EmotionImpulse(dP = 0.10f, dA = 0.20f, dAffection = 0.005f, primaryMood = PrimaryMood.CURIOUS)
             DialogueAct.CASUAL_CHAT -> EmotionImpulse(dP = 0.10f, dA = 0.08f, dAffection = 0.005f, primaryMood = PrimaryMood.HAPPY)
         }
-    }
-
-    /**
-     * Compute single-dimension exponential decay with asymmetric half-life.
-     * Positive half-life = 15m; Negative half-life = 5m (quick self-recovery from negative emotion).
-     */
-    fun decayOne(bias: Float, elapsedMs: Long): Float {
-        if (bias == 0f || elapsedMs <= 0L) return bias
-        val halfLifeMs = if (bias >= 0f) 15 * 60_000L else 5 * 60_000L
-        return (bias * Math.pow(0.5, elapsedMs.toDouble() / halfLifeMs.toDouble())).toFloat()
-    }
-
-    /**
-     * Pure function: asymmetric emotional decay combining circadian base with dynamic bias.
-     * Dimensions decay independently so positive arousal is not prematurely curtailed by negative valence.
-     */
-    fun blendWithAsymmetricDecay(
-        baseState: MoodState,
-        biasP: Float,
-        biasA: Float,
-        elapsedMs: Long,
-        lastAct: DialogueAct? = null,
-    ): MoodState {
-        if (elapsedMs <= 0L && biasP == 0f && biasA == 0f) return baseState
-
-        val effBiasP = decayOne(biasP, elapsedMs)
-        val effBiasA = decayOne(biasA, elapsedMs)
-
-        val effValence = (baseState.valence + effBiasP).coerceIn(-1.0f, 1.0f)
-        val effArousal = (baseState.arousal + effBiasA).coerceIn(0.0f, 1.0f)
-
-        // Compute decay ratios for each dimension independently so Arousal isn't cut short by negative Valence half-life
-        val ratioP = if (biasP != 0f && elapsedMs > 0L) {
-            val hl = if (biasP >= 0f) 15 * 60_000L else 5 * 60_000L
-            Math.pow(0.5, elapsedMs.toDouble() / hl.toDouble()).toFloat()
-        } else if (biasP != 0f) 1.0f else 0.0f
-
-        val ratioA = if (biasA != 0f && elapsedMs > 0L) {
-            val hl = if (biasA >= 0f) 15 * 60_000L else 5 * 60_000L
-            Math.pow(0.5, elapsedMs.toDouble() / hl.toDouble()).toFloat()
-        } else if (biasA != 0f) 1.0f else 0.0f
-
-        val activeRatio = maxOf(ratioP, ratioA)
-
-        // When decay ratio is still active (> 0.25), target the dynamic mood from DialogueAct
-        val effMood = if (activeRatio > 0.25f && lastAct != null) {
-            when (lastAct) {
-                DialogueAct.PRAISE -> PrimaryMood.SHY
-                DialogueAct.PLAYFUL_TEASE -> PrimaryMood.TOUCHED
-                DialogueAct.VENTING -> PrimaryMood.CARING
-                DialogueAct.GREETING_NIGHT -> PrimaryMood.SLEEPY
-                DialogueAct.QUESTION_CURIOUS -> PrimaryMood.CURIOUS
-                DialogueAct.CASUAL_CHAT -> PrimaryMood.HAPPY
-            }
-        } else {
-            baseState.primaryMood
-        }
-
-        return baseState.copy(
-            primaryMood = effMood,
-            valence = effValence,
-            arousal = effArousal,
-        )
     }
 
     /**

@@ -107,6 +107,27 @@ class CompanionMoodStoreTest {
     }
 
     @Test
+    fun testSincerePraiseDoesNotTriggerSulk() {
+        val snapshot = CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "你真厉害啊，帮了大忙！",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = 1000L
+        )
+        val proud = snapshot.scores[CompanionMoodStore.Mood.PROUD] ?: 0f
+        val happy = snapshot.scores[CompanionMoodStore.Mood.HAPPY] ?: 0f
+        val sulk = snapshot.scores[CompanionMoodStore.Mood.SULK] ?: 0f
+
+        assertTrue("PROUD should increase on sincere praise", proud > CompanionMoodStore.Mood.PROUD.baseline)
+        assertTrue("HAPPY should increase on sincere praise", happy > CompanionMoodStore.Mood.HAPPY.baseline)
+        assertTrue("SULK should not increase on sincere praise", sulk <= CompanionMoodStore.Mood.SULK.baseline)
+
+        val affection = CompanionPrefs.getAffectionScore(prefs)
+        assertTrue("Affection should increase on praise turn", affection > CompanionPrefs.DEFAULT_AFFECTION_SCORE)
+    }
+
+    @Test
     fun testSarcasticPraiseTriggersSulkNotProud() {
         val snapshot = CompanionMoodStore.judgeMessage(
             prefs = prefs,
@@ -293,6 +314,6 @@ class CompanionMoodStoreTest {
         val prompt = DistressGuard.safetyOverridePrompt()
         assertTrue(prompt.contains("CRISIS_SAFETY_OVERRIDE"))
         assertTrue(prompt.contains("严禁表演娇嗔"))
-        assertTrue(prompt.contains("400-161-9995"))
+        assertTrue(prompt.contains("心理援助热线"))
     }
 }

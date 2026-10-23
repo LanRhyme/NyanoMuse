@@ -1227,6 +1227,22 @@
     <string name="nm_companion_mood_sulk_jealous">Boudeur et jaloux</string>
     <string name="nm_companion_mood_cracked_hurt">Blessé et peiné</string>
     <string name="nm_companion_mood_hyper">Survolté et captivé</string>
+    <string name="nm_companion_dashboard_title">Boussole des humeurs</string>
+    <string name="nm_companion_dashboard_subtitle">Perception de 33 nuances d\'humeur</string>
+    <string name="nm_companion_reset_baseline">Réinitialiser les valeurs de base</string>
+    <string name="nm_companion_dominant_mood">Humeur dominante</string>
+    <string name="nm_companion_tendency_fmt">Expression : %1$s</string>
+    <string name="nm_companion_blend_fmt">Coexistant : %1$s</string>
+    <string name="nm_companion_facts_title">Historique des transitions</string>
+    <string name="nm_companion_facts_trans_fmt">Passé de %1$s à %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Interaction : « %1$s »</string>
+    <string name="nm_companion_facts_turn_fmt">Tour %1$d</string>
+    <string name="nm_companion_layer_all">Tous (%1$d)</string>
+    <string name="nm_companion_layer_base">Base (%1$d)</string>
+    <string name="nm_companion_layer_composite">Composite (%1$d)</string>
+    <string name="nm_companion_layer_modern">Moderne (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · teinté de %2$s</string>
+    <string name="nm_companion_settings_compass_title">Boussole des humeurs (33 humeurs)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

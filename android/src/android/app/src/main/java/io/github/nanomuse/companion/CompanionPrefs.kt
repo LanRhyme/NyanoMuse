@@ -35,10 +35,7 @@ object CompanionPrefs {
     const val KEY_LAST_MORNING_GREETING_DATE = "companion_last_morning_greeting_date"
 
     // Dynamic emotion & affective computing keys
-    const val KEY_DYNAMIC_BIAS_P = "companion_dynamic_bias_p"
-    const val KEY_DYNAMIC_BIAS_A = "companion_dynamic_bias_a"
     const val KEY_MOOD_TIMESTAMP = "companion_mood_timestamp"
-    const val KEY_LAST_DIALOGUE_ACT = "companion_last_dialogue_act"
     const val KEY_EMOTION_INTENSITY = "companion_emotion_intensity"
     const val KEY_AFFECTION_SCORE = "companion_affection_score"
     const val KEY_EMOTION_ENABLED = "companion_emotion_enabled"
@@ -340,40 +337,8 @@ object CompanionPrefs {
         CompanionStatus.notifyEmotionChanged()
     }
 
-    fun getDynamicBiasP(prefs: SharedPreferences): Float =
-        prefs.getFloat(KEY_DYNAMIC_BIAS_P, 0f)
-
-    fun getDynamicBiasA(prefs: SharedPreferences): Float =
-        prefs.getFloat(KEY_DYNAMIC_BIAS_A, 0f)
-
     fun getMoodTimestamp(prefs: SharedPreferences): Long =
         prefs.getLong(KEY_MOOD_TIMESTAMP, 0L)
-
-    fun getLastDialogueAct(prefs: SharedPreferences): CompanionEmotion.DialogueAct? {
-        val raw = prefs.getString(KEY_LAST_DIALOGUE_ACT, null) ?: return null
-        return runCatching { CompanionEmotion.DialogueAct.valueOf(raw) }.getOrNull()
-    }
-
-    fun recordEmotionImpulse(
-        prefs: SharedPreferences,
-        impulse: CompanionEmotion.EmotionImpulse,
-        act: CompanionEmotion.DialogueAct,
-        now: Long = System.currentTimeMillis()
-    ) {
-        val intensity = getEmotionIntensity(prefs)
-        val multiplier = when (intensity) {
-            "subtle" -> 0.5f
-            "vivid" -> 1.4f
-            else -> 1.0f
-        }
-        addAffectionScore(prefs, impulse.dAffection * multiplier)
-
-        prefs.edit()
-            .putLong(KEY_MOOD_TIMESTAMP, now)
-            .putString(KEY_LAST_DIALOGUE_ACT, act.name)
-            .apply()
-        CompanionStatus.notifyEmotionChanged()
-    }
 
     fun getUserAddress(context: Context): String {
         val p = prefs(context)

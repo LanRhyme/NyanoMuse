@@ -1181,6 +1181,22 @@
     <string name="nm_companion_mood_sulk_jealous">生闷气</string>
     <string name="nm_companion_mood_cracked_hurt">委屈难过</string>
     <string name="nm_companion_mood_hyper">兴奋上头</string>
+    <string name="nm_companion_dashboard_title">小喵心境罗盘</string>
+    <string name="nm_companion_dashboard_subtitle">基于 dsh-mood 33 种细腻心境动态感知</string>
+    <string name="nm_companion_reset_baseline">重置基线分值</string>
+    <string name="nm_companion_dominant_mood">当前主导心境</string>
+    <string name="nm_companion_tendency_fmt">表达倾向：%1$s</string>
+    <string name="nm_companion_blend_fmt">混合共存：%1$s</string>
+    <string name="nm_companion_facts_title">心境转移事实记录</string>
+    <string name="nm_companion_facts_trans_fmt">由「%1$s」转向「%2$s」</string>
+    <string name="nm_companion_facts_snippet_fmt">互动事实：「%1$s」</string>
+    <string name="nm_companion_facts_turn_fmt">第 %1$d 轮</string>
+    <string name="nm_companion_layer_all">全部 (%1$d)</string>
+    <string name="nm_companion_layer_base">基础 (%1$d)</string>
+    <string name="nm_companion_layer_composite">复合 (%1$d)</string>
+    <string name="nm_companion_layer_modern">当代 (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · 略带%2$s</string>
+    <string name="nm_companion_settings_compass_title">心境罗盘 (33 种心境分布)</string>
 
     <string name="nm_companion_desc_happy">开心得尾巴直晃</string>
     <string name="nm_companion_desc_shy">被夸得害羞啦</string>

@@ -1227,6 +1227,22 @@
     <string name="nm_companion_mood_sulk_jealous">Amuado e com ciúmes</string>
     <string name="nm_companion_mood_cracked_hurt">Magoado e sentido</string>
     <string name="nm_companion_mood_hyper">Hiperativo e empolgado</string>
+    <string name="nm_companion_dashboard_title">Bússola de humor</string>
+    <string name="nm_companion_dashboard_subtitle">Percepção de 33 humores sutis</string>
+    <string name="nm_companion_reset_baseline">Redefinir para linha de base</string>
+    <string name="nm_companion_dominant_mood">Humor dominante</string>
+    <string name="nm_companion_tendency_fmt">Expressão: %1$s</string>
+    <string name="nm_companion_blend_fmt">Coexistindo: %1$s</string>
+    <string name="nm_companion_facts_title">Registro de transição</string>
+    <string name="nm_companion_facts_trans_fmt">Mudou de %1$s para %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Interação: \"%1$s\"</string>
+    <string name="nm_companion_facts_turn_fmt">Rodada %1$d</string>
+    <string name="nm_companion_layer_all">Todos (%1$d)</string>
+    <string name="nm_companion_layer_base">Básico (%1$d)</string>
+    <string name="nm_companion_layer_composite">Composto (%1$d)</string>
+    <string name="nm_companion_layer_modern">Moderno (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · com toques de %2$s</string>
+    <string name="nm_companion_settings_compass_title">Bússola de humor (33 humores)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

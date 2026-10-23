@@ -92,7 +92,7 @@ object CompanionMoodStore {
         HYPER("hyper", "上头", 14f, Layer.MODERN, AvatarFamily.HYPER, "注意力被吸住，话多停不下来极度来劲");
 
         companion object {
-            private val byId = values().associateBy { it.id }
+            private val byId = entries.associateBy { it.id }
             fun fromId(id: String?): Mood = id?.let { byId[it] } ?: CALM
         }
     }
@@ -219,17 +219,14 @@ object CompanionMoodStore {
         }
 
         val sorted = scores.entries.sortedByDescending { it.value }
-        val highest = sorted.firstOrNull()?.key ?: Mood.CALM
-        val highestScore = sorted.firstOrNull()?.value ?: Mood.CALM.baseline
-
         val savedPrimary = Mood.fromId(prefs.getString(PREFS_KEY_PRIMARY, null))
-        val primary = if (scores[savedPrimary] ?: 0f >= highestScore - MARGIN) savedPrimary else highest
+        val primary = savedPrimary
 
-        // Secondary blended moods: score within BLEND_GAP of the leader
+        // Secondary blended moods: score within BLEND_GAP of the leader (or boosted above by circadian)
         val leaderScore = scores[primary] ?: primary.baseline
         val secondary = sorted
             .map { it.key }
-            .filter { it != primary && (leaderScore - (scores[it] ?: 0f)) < BLEND_GAP }
+            .filter { it != primary && Math.abs(leaderScore - (scores[it] ?: 0f)) < BLEND_GAP }
             .take(BLEND_MAX - 1)
 
         val displayTitle = if (secondary.isEmpty()) {
@@ -443,6 +440,25 @@ object CompanionMoodStore {
                 AppLogger.info(TAG, "Mood switched: ${oldPrimary.displayName} -> ${newHighest.displayName} (score: $newHighestScore vs $oldScore)")
             }
         }
+
+        val intensity = CompanionPrefs.getEmotionIntensity(prefs)
+        val multiplier = when (intensity) {
+            "subtle" -> 0.5f
+            "vivid" -> 1.4f
+            else -> 1.0f
+        }
+        val dAffection = when {
+            isSarcastic -> -0.01f
+            text.contains("都怪你") || text.contains("就怪你") -> -0.01f
+            text.contains("随便你") || text.contains("算了") -> 0.0f
+            text.contains("厉害") || text.contains("棒") || text.contains("可爱") || text.contains("喜欢你") -> 0.05f
+            text.contains("摸摸") || text.contains("揉揉") || text.contains("抱抱") || text.contains("贴贴") -> 0.04f
+            text.contains("好累") || text.contains("难过") || text.contains("破防") -> 0.03f
+            text.contains("晚安") || text.contains("睡觉") -> 0.02f
+            else -> 0.01f
+        }
+        CompanionPrefs.addAffectionScore(prefs, dAffection * multiplier)
+        prefs.edit().putLong(CompanionPrefs.KEY_MOOD_TIMESTAMP, now).apply()
 
         saveScores(prefs, scores)
         CompanionStatus.notifyEmotionChanged()

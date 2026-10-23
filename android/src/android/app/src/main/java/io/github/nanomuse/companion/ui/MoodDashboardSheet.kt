@@ -41,10 +41,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.openminis.app.R
 import io.github.nanomuse.companion.CompanionMoodStore
 import io.github.nanomuse.companion.CompanionPrefs
 import io.github.nanomuse.companion.CompanionStatus
@@ -68,14 +70,12 @@ fun MoodDashboardSheet(
     }
 
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
-    val categories = remember {
-        listOf(
-            "全部 (33)" to null,
-            "基础 (11)" to CompanionMoodStore.Layer.BASE,
-            "复合 (18)" to CompanionMoodStore.Layer.COMPOSITE,
-            "当代 (4)" to CompanionMoodStore.Layer.MODERN
-        )
-    }
+    val categories = listOf(
+        stringResource(R.string.nm_companion_layer_all, 33) to null,
+        stringResource(R.string.nm_companion_layer_base, 11) to CompanionMoodStore.Layer.BASE,
+        stringResource(R.string.nm_companion_layer_composite, 18) to CompanionMoodStore.Layer.COMPOSITE,
+        stringResource(R.string.nm_companion_layer_modern, 4) to CompanionMoodStore.Layer.MODERN
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -97,13 +97,13 @@ fun MoodDashboardSheet(
             ) {
                 Column {
                     Text(
-                        text = "小喵心境罗盘",
+                        text = stringResource(R.string.nm_companion_dashboard_title),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "基于 dsh-mood 33 种细腻心境动态感知",
+                        text = stringResource(R.string.nm_companion_dashboard_subtitle),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -117,7 +117,7 @@ fun MoodDashboardSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "重置基线分值",
+                        contentDescription = stringResource(R.string.nm_companion_reset_baseline),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -142,7 +142,7 @@ fun MoodDashboardSheet(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "当前主导心境",
+                                text = stringResource(R.string.nm_companion_dominant_mood),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary
@@ -167,7 +167,7 @@ fun MoodDashboardSheet(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "表达倾向：${snapshot.primary.behaviorTendency}",
+                        text = stringResource(R.string.nm_companion_tendency_fmt, snapshot.primary.behaviorTendency),
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp
@@ -183,8 +183,11 @@ fun MoodDashboardSheet(
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 .padding(8.dp)
                         ) {
+                            val blendContent = snapshot.secondary.joinToString("、") {
+                                "${it.displayName} (${String.format(Locale.getDefault(), "%.1f", snapshot.scores[it] ?: it.baseline)})"
+                            }
                             Text(
-                                text = "混合共存：${snapshot.secondary.joinToString("、") { "${it.displayName} (${String.format(Locale.getDefault(), "%.1f", snapshot.scores[it] ?: it.baseline)})" }}",
+                                text = stringResource(R.string.nm_companion_blend_fmt, blendContent),
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -199,13 +202,13 @@ fun MoodDashboardSheet(
                 MuseCard(inset = 0.dp) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(facts.at))
-                        val turnInfo = if (facts.sessionTurns > 0) " · 第 ${facts.sessionTurns} 轮" else ""
+                        val turnInfo = if (facts.sessionTurns > 0) " · " + stringResource(R.string.nm_companion_facts_turn_fmt, facts.sessionTurns) else ""
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "心境转移事实记录",
+                                text = stringResource(R.string.nm_companion_facts_title),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -218,7 +221,11 @@ fun MoodDashboardSheet(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "由「${CompanionMoodStore.Mood.fromId(facts.fromId).displayName}」转向「${CompanionMoodStore.Mood.fromId(facts.toId).displayName}」",
+                            text = stringResource(
+                                R.string.nm_companion_facts_trans_fmt,
+                                CompanionMoodStore.Mood.fromId(facts.fromId).displayName,
+                                CompanionMoodStore.Mood.fromId(facts.toId).displayName
+                            ),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
@@ -226,7 +233,7 @@ fun MoodDashboardSheet(
                         if (facts.lastUserSnippet.isNotBlank()) {
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "互动事实：「${facts.lastUserSnippet}」（伴随事实呈现，切忌生硬机械因果归因）",
+                                text = stringResource(R.string.nm_companion_facts_snippet_fmt, facts.lastUserSnippet),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.outline,
                                 maxLines = 2,

@@ -1222,6 +1222,22 @@
     <string name="nm_companion_mood_sulk_jealous">삐짐</string>
     <string name="nm_companion_mood_cracked_hurt">서운함</string>
     <string name="nm_companion_mood_hyper">과열 &amp; 흥분</string>
+    <string name="nm_companion_dashboard_title">기분 나침반</string>
+    <string name="nm_companion_dashboard_subtitle">33가지 섬세한 기분 변화 감지</string>
+    <string name="nm_companion_reset_baseline">기본값으로 재설정</string>
+    <string name="nm_companion_dominant_mood">현재 주도 기분</string>
+    <string name="nm_companion_tendency_fmt">표현 성향: %1$s</string>
+    <string name="nm_companion_blend_fmt">공존: %1$s</string>
+    <string name="nm_companion_facts_title">기분 변화 기록</string>
+    <string name="nm_companion_facts_trans_fmt">「%1$s」에서 「%2$s」(으)로 전환</string>
+    <string name="nm_companion_facts_snippet_fmt">상호작용: \"%1$s\"</string>
+    <string name="nm_companion_facts_turn_fmt">%1$d번째 턴</string>
+    <string name="nm_companion_layer_all">전체 (%1$d)</string>
+    <string name="nm_companion_layer_base">기본 (%1$d)</string>
+    <string name="nm_companion_layer_composite">복합 (%1$d)</string>
+    <string name="nm_companion_layer_modern">현대 (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · 살짝 %2$s</string>
+    <string name="nm_companion_settings_compass_title">기분 나침반 (33가지 감정)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

@@ -82,6 +82,9 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Companion 33-mood layered state machine, circadian rhythm offsets, sarcasm perception and localized dashboard**
+  A layered 33-mood architecture categorizes emotions into base, composite and modern tiers with debounced primary election and secondary hybrid blending (`CompanionMoodStore`); wall-clock circadian offsets model natural diurnal rhythms while damping fatigue during active chats; deterministic periodic decay gradually pulls heightened moods back toward baseline; sarcasm detection protects against cynical praise while preserving sincere compliments; crisis safety prompts guide toward professional hotlines without hardcoded numbers; mood compass dashboard, capsule telemetry and settings sheets fully localized across seventeen languages
+
 - **Message list adaptive pagination and silent history preloading.** UI windowing presents latest 60 messages initially and auto-prefetches 40 earlier messages when scrolling near top, maintaining full underlying agent history and database intact while showing micro progress indicator during history load and subtle all-loaded indicator on completion
 
 - **Pure balance capsule display, progressive markdown prewarming, and zero-jank long chat scrolling.** DeepSeek capsule displays pure balance avoiding redundant today spend text while opening Token Usage on tap; message list employs two-tier progressive background prewarming for entire conversation history, O(1) baseline comparison in ChatBubbleAdaptiveLayout eliminating secondary intrinsic measure passes, and throttled cold-parse diagnostics for fluid 120fps scrolling in long conversations

@@ -1222,6 +1222,22 @@
     <string name="nm_companion_mood_sulk_jealous">งอนและหึง</string>
     <string name="nm_companion_mood_cracked_hurt">น้อยใจและเสียใจ</string>
     <string name="nm_companion_mood_hyper">ตื่นเต้นขั้นสุด</string>
+    <string name="nm_companion_dashboard_title">เข็มทิศอารมณ์</string>
+    <string name="nm_companion_dashboard_subtitle">การรับรู้อารมณ์ละเอียดอ่อน 33 รูปแบบ</string>
+    <string name="nm_companion_reset_baseline">รีเซ็ตเป็นค่าเริ่มต้น</string>
+    <string name="nm_companion_dominant_mood">อารมณ์หลักในปัจจุบัน</string>
+    <string name="nm_companion_tendency_fmt">แนวทางการแสดงออก: %1$s</string>
+    <string name="nm_companion_blend_fmt">อารมณ์ร่วม: %1$s</string>
+    <string name="nm_companion_facts_title">บันทึกการเปลี่ยนอารมณ์</string>
+    <string name="nm_companion_facts_trans_fmt">เปลี่ยนจาก %1$s เป็น %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">ปฏิสัมพันธ์: \"%1$s\"</string>
+    <string name="nm_companion_facts_turn_fmt">รอบที่ %1$d</string>
+    <string name="nm_companion_layer_all">ทั้งหมด (%1$d)</string>
+    <string name="nm_companion_layer_base">พื้นฐาน (%1$d)</string>
+    <string name="nm_companion_layer_composite">ผสม (%1$d)</string>
+    <string name="nm_companion_layer_modern">ร่วมสมัย (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · ปน %2$s เล็กน้อย</string>
+    <string name="nm_companion_settings_compass_title">เข็มทิศอารมณ์ (33 รูปแบบ)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

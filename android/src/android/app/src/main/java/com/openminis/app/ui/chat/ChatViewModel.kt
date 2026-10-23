@@ -6475,9 +6475,6 @@ class ChatViewModel(
             ) {
                 val cleanedText = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(userText)
                 io.github.nanomuse.companion.DistressGuard.checkAndRecord(context, cleanedText)
-                val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(cleanedText)
-                val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
-                io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(ep, impulse, act)
                 io.github.nanomuse.companion.CompanionMoodStore.checkPeriodicDecay(context)
                 io.github.nanomuse.companion.CompanionMoodStore.judgeMessage(
                     context = context,
@@ -7065,9 +7062,6 @@ class ChatViewModel(
             ) {
                 val cleanedText = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(trimmed)
                 io.github.nanomuse.companion.DistressGuard.checkAndRecord(context, cleanedText)
-                val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(cleanedText)
-                val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
-                io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(emotionPrefs, impulse, act)
                 io.github.nanomuse.companion.CompanionMoodStore.checkPeriodicDecay(context)
                 io.github.nanomuse.companion.CompanionMoodStore.judgeMessage(
                     context = context,

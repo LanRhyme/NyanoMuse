@@ -1186,6 +1186,22 @@
     <string name="nm_companion_mood_sulk_jealous">Pouting &amp; Sulking</string>
     <string name="nm_companion_mood_cracked_hurt">Aggrieved &amp; Hurt</string>
     <string name="nm_companion_mood_hyper">Hyper &amp; Obsessed</string>
+    <string name="nm_companion_dashboard_title">Mood Compass</string>
+    <string name="nm_companion_dashboard_subtitle">Perceiving 33 nuanced companion moods</string>
+    <string name="nm_companion_reset_baseline">Reset to baseline</string>
+    <string name="nm_companion_dominant_mood">Dominant Mood</string>
+    <string name="nm_companion_tendency_fmt">Expression: %1$s</string>
+    <string name="nm_companion_blend_fmt">Coexisting: %1$s</string>
+    <string name="nm_companion_facts_title">Transition Record</string>
+    <string name="nm_companion_facts_trans_fmt">Shifted from %1$s to %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Interaction: \"%1$s\"</string>
+    <string name="nm_companion_facts_turn_fmt">Turn %1$d</string>
+    <string name="nm_companion_layer_all">All (%1$d)</string>
+    <string name="nm_companion_layer_base">Base (%1$d)</string>
+    <string name="nm_companion_layer_composite">Composite (%1$d)</string>
+    <string name="nm_companion_layer_modern">Modern (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · with a touch of %2$s</string>
+    <string name="nm_companion_settings_compass_title">Mood Compass (33 moods)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

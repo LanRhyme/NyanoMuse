@@ -1222,6 +1222,22 @@
     <string name="nm_companion_mood_sulk_jealous">Merajuk dan cemburu</string>
     <string name="nm_companion_mood_cracked_hurt">Terguris dan sedih</string>
     <string name="nm_companion_mood_hyper">Teruja dan taksub</string>
+    <string name="nm_companion_dashboard_title">Kompas Mood</string>
+    <string name="nm_companion_dashboard_subtitle">Memahami 33 nuansa emosi</string>
+    <string name="nm_companion_reset_baseline">Set semula ke garis dasar</string>
+    <string name="nm_companion_dominant_mood">Mood Utama</string>
+    <string name="nm_companion_tendency_fmt">Ekspresi: %1$s</string>
+    <string name="nm_companion_blend_fmt">Berdampingan: %1$s</string>
+    <string name="nm_companion_facts_title">Rekod Peralihan</string>
+    <string name="nm_companion_facts_trans_fmt">Beralih dari %1$s ke %2$s</string>
+    <string name="nm_companion_facts_snippet_fmt">Interaksi: \"%1$s\"</string>
+    <string name="nm_companion_facts_turn_fmt">Pusingan %1$d</string>
+    <string name="nm_companion_layer_all">Semua (%1$d)</string>
+    <string name="nm_companion_layer_base">Asas (%1$d)</string>
+    <string name="nm_companion_layer_composite">Komposit (%1$d)</string>
+    <string name="nm_companion_layer_modern">Moden (%1$d)</string>
+    <string name="nm_companion_mood_hybrid_fmt">%1$s · sedikit %2$s</string>
+    <string name="nm_companion_settings_compass_title">Kompas Mood (33 emosi)</string>
 
     <string name="nm_companion_desc_happy">Wagging tail happily</string>
     <string name="nm_companion_desc_shy">Shy after being praised</string>

@@ -291,67 +291,6 @@ class CompanionEmotionTest {
     }
 
     @Test
-    fun testSingleDimensionDecayOneMathematics() {
-        // Positive half-life = 15m (900,000 ms)
-        val posBias = 0.50f
-        val posDecayed15m = CompanionEmotion.decayOne(posBias, 15 * 60_000L)
-        assertEquals(0.25f, posDecayed15m, 0.005f)
-
-        // Negative half-life = 5m (300,000 ms)
-        val negBias = -0.40f
-        val negDecayed5m = CompanionEmotion.decayOne(negBias, 5 * 60_000L)
-        assertEquals(-0.20f, negDecayed5m, 0.005f)
-
-        // 0 ms elapsed -> unchanged
-        assertEquals(posBias, CompanionEmotion.decayOne(posBias, 0L), 0.0001f)
-
-        // 24 hours elapsed -> decayed to near zero
-        assertEquals(0.0f, CompanionEmotion.decayOne(posBias, 24 * 3600_000L), 0.0001f)
-    }
-
-    @Test
-    fun testBlendWithAsymmetricDecayPreservesCaringArousal() {
-        val base = CompanionEmotion.MoodState(
-            primaryMood = CompanionEmotion.PrimaryMood.HAPPY,
-            valence = 0.60f,
-            arousal = 0.50f,
-            affection = 0.70f,
-            proactiveScore = 0.20f,
-            scenario = CompanionEmotion.Scenario.CALM_COMPANION,
-            framingInstruction = ""
-        )
-
-        // User vented: negative valence bias (-0.15), positive arousal bias (+0.20)
-        val biasP = -0.15f
-        val biasA = 0.20f
-
-        // At 5 minutes:
-        // Negative valence has passed 1 full half-life (5m) -> biasP is roughly halved (-0.075)
-        // Positive arousal has only passed 1/3 of its half-life (15m) -> biasA is roughly 0.20 * (0.5^(5/15)) ~= 0.158
-        val blended5m = CompanionEmotion.blendWithAsymmetricDecay(
-            baseState = base,
-            biasP = biasP,
-            biasA = biasA,
-            elapsedMs = 5 * 60_000L,
-            lastAct = CompanionEmotion.DialogueAct.VENTING
-        )
-
-        assertEquals(CompanionEmotion.PrimaryMood.CARING, blended5m.primaryMood)
-        assertEquals(base.valence - 0.075f, blended5m.valence, 0.015f)
-        assertTrue(blended5m.arousal > base.arousal + 0.14f)
-
-        // At 30 minutes: both decayed, returns to base mood
-        val blended30m = CompanionEmotion.blendWithAsymmetricDecay(
-            baseState = base,
-            biasP = biasP,
-            biasA = biasA,
-            elapsedMs = 30 * 60_000L,
-            lastAct = CompanionEmotion.DialogueAct.VENTING
-        )
-        assertEquals(CompanionEmotion.PrimaryMood.HAPPY, blended30m.primaryMood)
-    }
-
-    @Test
     fun testPromptAddendumFormattingAndBoundaries() {
         val state = CompanionEmotion.MoodState(
             primaryMood = CompanionEmotion.PrimaryMood.SHY,
