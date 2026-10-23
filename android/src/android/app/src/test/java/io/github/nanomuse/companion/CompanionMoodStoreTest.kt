@@ -436,4 +436,29 @@ class CompanionMoodStoreTest {
         )
         assertNotNull(snapSwitched)
     }
+
+    @Test
+    fun testPromptAddendumQualityAndConstraints() {
+        val prompt = CompanionMoodStore.promptAddendum(prefs, "老大")
+        // Length check (< 2000 chars)
+        assertTrue("Prompt length should be compact (< 2000 chars), was: ${prompt.length}", prompt.length < 2000)
+
+        // Three golden self-checks
+        assertTrue("Must include self-check 1", prompt.contains("换个人、换个场合还成立吗？"))
+        assertTrue("Must include self-check 2", prompt.contains("有没有替对方编他没说过的事？"))
+        assertTrue("Must include self-check 3", prompt.contains("有没有拿姿态当内容？"))
+
+        // Confusables disambiguation
+        assertTrue("Must include confusables guide", prompt.contains("易混辨析：烦躁是火往外发(炸)"))
+
+        // Distress safety guard override
+        assertTrue("Must include distress safety override", prompt.contains("角色必须给真人让路"))
+
+        // Intimacy & empathy bounds
+        assertTrue("Must include future promise bound", prompt.contains("做不到的未来：不轻率否定，也不轻率保证"))
+        assertTrue("Must include empathy feeling bound", prompt.contains("别替对方决定该怎么感觉"))
+
+        // Feedback tag protocol
+        assertTrue("Must include tag protocol", prompt.contains("<nm:mood feel=\"心境ID\" reason=\"触发短因\"/>"))
+    }
 }
