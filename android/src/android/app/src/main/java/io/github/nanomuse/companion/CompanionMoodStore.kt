@@ -559,11 +559,17 @@ object CompanionMoodStore {
 
         val scores = getScores(prefs).toMutableMap()
 
-        // 1. Revert previous turn's instant delta to eliminate double-counting
+        // 1. Revert previous turn's instant delta to eliminate double-counting.
+        // Exception: Retain partial client-side sarcasm detection (sulk) if model claimed HAPPY/PROUD,
+        // since LLMs notoriously miss subtle sarcasm while client-side pattern matching detected it.
         val instantDelta = getLastInstantDelta(prefs)
         for ((m, d) in instantDelta) {
             val curr = scores[m] ?: m.baseline
             scores[m] = (curr - d).coerceIn(0f, 100f)
+        }
+        val sarcasmSulk = instantDelta[Mood.SULK] ?: 0f
+        if (sarcasmSulk >= 2.0f && (mood == Mood.HAPPY || mood == Mood.PROUD)) {
+            scores[Mood.SULK] = ((scores[Mood.SULK] ?: Mood.SULK.baseline) + (sarcasmSulk * 0.5f)).coerceIn(0f, 100f)
         }
         clearLastInstantDelta(prefs)
 
@@ -572,8 +578,9 @@ object CompanionMoodStore {
         val oldScore = scores[mood] ?: mood.baseline
         scores[mood] = (oldScore + boost).coerceIn(0f, 100f)
 
-        // 3. Mutual suppression with cap <= 2.0f
-        val suppressCap = 2.0f
+        // 3. Mutual suppression with safety cap (max configured suppression is 1.5f,
+        // suppressCap guarantees any branch never suppresses an opposing mood by more than 1.5f)
+        val suppressCap = 1.5f
         fun suppress(m: Mood, d: Float) {
             val curr = scores[m] ?: m.baseline
             scores[m] = (curr - d.coerceAtMost(suppressCap)).coerceIn(0f, 100f)

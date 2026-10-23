@@ -438,6 +438,28 @@ class CompanionMoodStoreTest {
     }
 
     @Test
+    fun testApplyFeedbackRetainsSarcasmSulkOnHappyProud() {
+        // Setup initial sulk instant delta of 2.5f (client detected sarcasm)
+        CompanionMoodStore.saveInstantDelta(prefs, mapOf(CompanionMoodStore.Mood.SULK to 2.5f))
+        CompanionMoodStore.applyAdjustment(prefs, mapOf(CompanionMoodStore.Mood.SULK to 2.5f), now = 1000L)
+
+        // Assistant model claims HAPPY (missed the sarcasm)
+        val snap = CompanionMoodStore.applyFeedback(
+            prefs = prefs,
+            feelRaw = "happy",
+            reasonRaw = "以为对方在夸自己",
+            now = 2000L
+        )
+        assertNotNull(snap)
+        val scores = CompanionMoodStore.getScores(prefs)
+        val sulkScore = scores[CompanionMoodStore.Mood.SULK] ?: 0f
+
+        // Baseline (8.0) - instantDelta (2.5) + retained sarcasm (2.5 * 0.5 = 1.25) - suppress from HAPPY (1.2) = 8.05f
+        // Stored scores round to 1 decimal place: 8.05 rounds to 8.1f
+        assertEquals(8.1f, sulkScore, 0.05f)
+    }
+
+    @Test
     fun testPromptAddendumQualityAndConstraints() {
         val prompt = CompanionMoodStore.promptAddendum(prefs, "老大")
         // Length check (< 2000 chars)

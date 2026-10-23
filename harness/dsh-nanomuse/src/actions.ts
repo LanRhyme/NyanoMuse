@@ -336,7 +336,7 @@ export async function imageGenerate(args: Args, env: NodeJS.ProcessEnv = process
   }
   const aspectRatio = typeof args.aspect_ratio === 'string' ? args.aspect_ratio.trim() : '1:1'
   let imageName = typeof args.image_name === 'string' ? args.image_name.trim() : ''
-  if (!imageName) {
+  if (!imageName || !/^[A-Za-z0-9_-]{1,64}$/.test(imageName)) {
     const slug = prompt.slice(0, 30).toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'generated_image'
     imageName = `${slug}_${Date.now()}`
   }

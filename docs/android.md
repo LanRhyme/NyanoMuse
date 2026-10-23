@@ -142,6 +142,10 @@ canvas, and a second fade appears at the top edge while you read older messages.
 
 In the main companion chat (`isMain`), the model receives volatile real-time system prompt addenda that never persist into storage or cross-turn transcripts:
 - `[Companion Heart & Disposition]`: 33-mood layered emotional state machine with circadian rhythm offsets, primary debouncing, secondary hybrid blending, periodic baseline decay, sarcasm perception, distress safety guardrails and dual-track LLM emotion feedback loop (`<nm:mood/>`)
+- Prompt architecture and guardrails:
+  - Three golden self-checks: context generality test, non-hallucination of unstated facts, substance over excessive performance gestures
+  - Empathy and safety boundaries: refuse to dictate the user's emotions, surrender persona for real human safety upon detecting self-harm or acute distress
+  - Emotion feedback tag protocol: model concludes turns with `<nm:mood feel="id" reason="..."/>` using one of 33 canonical lowercase IDs mapped to client-calibrated deltas
 - `[Messaging Flow Format]`: guidance on conversational rhythm, prompting short multi-bubble bursts via `<nm:bubble/>` tags instead of dense essays
 - User prompts include volatile real-time perception tags `[yyyy-MM-dd HH:mm:ss Weekday]` stripped automatically during context compaction
 - Cross-device sync transcripts and LLM history replay sanitize `<nm:bubble/>` to double newlines and strip `<nm:mood/>` tags to prevent delimiter leak across sessions and desktop

@@ -679,7 +679,18 @@ internal fun buildFlatChatItems(
     }
 
     for (idx in fromIndex until messages.size) {
-        val message = messages[idx]
+        val rawMessage = messages[idx]
+        val message = if (rawMessage.role == "assistant") {
+            val cleanContent = if (io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(rawMessage.content)) {
+                io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(rawMessage.content)
+            } else rawMessage.content
+            val cleanBlocks = rawMessage.toolBlocks.map { b ->
+                if (b.kind == "text" && io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(b.content)) {
+                    b.copy(content = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(b.content))
+                } else b
+            }
+            rawMessage.copy(content = cleanContent, toolBlocks = cleanBlocks)
+        } else rawMessage
         // [T-android-perf-logging] Per-100-message progress breadcrumb.
         // `out.size` is the running row count, so a sudden jump between two
         // progress lines localizes the heavy batch. Only fires on the

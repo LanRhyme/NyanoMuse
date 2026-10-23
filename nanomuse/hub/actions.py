@@ -283,14 +283,21 @@ def image_generate(args: dict[str, Any]) -> dict[str, Any]:
     if not prompt:
         raise ActionError("empty_prompt", "prompt must not be empty")
     aspect_ratio = str(args.get("aspect_ratio") or "1:1").strip()
-    image_name = str(args.get("image_name") or "generated_image").strip()
+
+    raw_name = str(args.get("image_name") or "").strip()
+    import re
+    if raw_name and re.match(r"^[A-Za-z0-9_-]{1,64}$", raw_name):
+        image_name = raw_name
+    else:
+        slug = re.sub(r"[^a-z0-9_]+", "_", prompt[:30].lower()).strip("_") or "generated_image"
+        image_name = f"{slug}_{int(time.time() * 1000)}"
 
     agy_cli = shutil.which("agy")
     if not agy_cli:
         raise ActionError("agy_not_found", "Antigravity CLI (agy) is not installed on this computer")
 
-    escaped_prompt = prompt.replace("'", "\\'")
-    task_desc = f"Call generate_image tool with Prompt='{escaped_prompt}' and ImageName='{image_name}' and AspectRatio='{aspect_ratio}'"
+    import json
+    task_desc = f"Call generate_image tool with Prompt={json.dumps(prompt)} and ImageName={json.dumps(image_name)} and AspectRatio={json.dumps(aspect_ratio)}"
     cmd = [
         agy_cli,
         "--output-format",
@@ -307,6 +314,7 @@ def image_generate(args: dict[str, Any]) -> dict[str, Any]:
     except Exception as exc:
         raise ActionError("execution_failed", str(exc))
 
+    # Note: agy sometimes exits with non-zero return code even after successfully generating an image, so proceed to parse stdout if available
     if proc.returncode != 0 and not proc.stdout:
         raise ActionError("execution_error", proc.stderr.strip() or "Antigravity CLI failed")
 

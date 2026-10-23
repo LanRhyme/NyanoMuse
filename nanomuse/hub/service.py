@@ -51,7 +51,17 @@ _RISK_WORDS = {"safe": "safe", "low": "low", "moderate": "moderate", "sensitive"
 # read-only looks at the coding agents' lists do not ask; a ``task`` runs in a side chat
 # under this computer's own Sentinel.
 GATED_ACTIONS = frozenset(
-    {"shell", "files", "file.get", "file.put", "open", "screen", "coding.send", "coding.stop"}
+    {
+        "shell",
+        "files",
+        "file.get",
+        "file.put",
+        "open",
+        "screen",
+        "coding.send",
+        "coding.stop",
+        "image.generate",
+    }
 )
 REMOTE_CONTROL_TOOL = "remote_control"
 

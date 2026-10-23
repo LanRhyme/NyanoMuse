@@ -9500,8 +9500,8 @@ class ChatViewModel(
                 // Companion emotion status: process assistant feedback and notify on completed exchange
                 val sid = realSessionId.ifEmpty { sessionId }
                 if (io.github.nanomuse.home.MainChat.isMain(context, sid)) {
-                    val feedback = io.github.nanomuse.chat.BubbleTimeFormatter.extractMoodFeedback(accumulatedText)
-                        ?: io.github.nanomuse.chat.BubbleTimeFormatter.extractMoodFeedback(turnText)
+                    val feedback = io.github.nanomuse.chat.BubbleTimeFormatter.extractMoodFeedback(turnText)
+                        ?: io.github.nanomuse.chat.BubbleTimeFormatter.extractMoodFeedback(accumulatedText)
                     if (feedback != null) {
                         io.github.nanomuse.companion.CompanionMoodStore.applyFeedback(
                             context = context,
