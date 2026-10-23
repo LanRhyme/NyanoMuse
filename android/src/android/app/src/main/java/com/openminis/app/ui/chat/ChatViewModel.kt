@@ -6474,9 +6474,16 @@ class ChatViewModel(
                 io.github.nanomuse.companion.CompanionPrefs.isEmotionEnabled(ep)
             ) {
                 val cleanedText = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(userText)
+                io.github.nanomuse.companion.DistressGuard.checkAndRecord(context, cleanedText)
                 val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(cleanedText)
                 val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
                 io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(ep, impulse, act)
+                io.github.nanomuse.companion.CompanionMoodStore.judgeMessage(
+                    context = context,
+                    userText = cleanedText,
+                    turnsToday = _messages.value.count { it.role == "user" },
+                    errorsToday = _messages.value.count { it.error != null }
+                )
             }
             // Note: ChatScreen's `lastUserAppendMs` (the trailing-row
             // ScrollPin send-grace window) is updated reactively by
@@ -7056,9 +7063,16 @@ class ChatViewModel(
                 io.github.nanomuse.companion.CompanionPrefs.isEmotionEnabled(emotionPrefs)
             ) {
                 val cleanedText = io.github.nanomuse.chat.BubbleTimeFormatter.stripUserPromptTimestamp(trimmed)
+                io.github.nanomuse.companion.DistressGuard.checkAndRecord(context, cleanedText)
                 val act = io.github.nanomuse.companion.CompanionEmotion.appraiseUserTurn(cleanedText)
                 val impulse = io.github.nanomuse.companion.CompanionEmotion.impulseForAct(act)
                 io.github.nanomuse.companion.CompanionPrefs.recordEmotionImpulse(emotionPrefs, impulse, act)
+                io.github.nanomuse.companion.CompanionMoodStore.judgeMessage(
+                    context = context,
+                    userText = cleanedText,
+                    turnsToday = _messages.value.count { it.role == "user" },
+                    errorsToday = _messages.value.count { it.error != null }
+                )
             }
         }
         // While streaming, enqueue instead of silently dropping (iOS: send vs enqueuePrompt).
@@ -11314,12 +11328,11 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         val emotionAddendum = if (io.github.nanomuse.home.MainChat.isMain(context, sessionKey) &&
             io.github.nanomuse.companion.CompanionPrefs.isEmotionEnabled(io.github.nanomuse.companion.CompanionPrefs.prefs(context))
         ) {
-            val ep = io.github.nanomuse.companion.CompanionPrefs.prefs(context)
-            io.github.nanomuse.companion.CompanionEmotion.promptAddendum(
-                address = io.github.nanomuse.companion.CompanionPrefs.getUserAddress(context),
-                state = io.github.nanomuse.companion.CompanionStatus.currentMood(context),
-                intensity = io.github.nanomuse.companion.CompanionPrefs.getEmotionIntensity(ep)
-            )
+            if (io.github.nanomuse.companion.DistressGuard.isDistressed(context)) {
+                io.github.nanomuse.companion.DistressGuard.safetyOverridePrompt()
+            } else {
+                io.github.nanomuse.companion.CompanionMoodStore.promptAddendum(context)
+            }
         } else {
             null
         }

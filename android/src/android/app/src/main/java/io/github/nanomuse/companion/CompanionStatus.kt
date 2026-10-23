@@ -21,56 +21,54 @@ object CompanionStatus {
 
     fun currentMood(context: Context): CompanionEmotion.MoodState {
         val prefs = CompanionPrefs.prefs(context)
-        val now = System.currentTimeMillis()
-        val realUserTime = CompanionPrefs.getLastRealUserMessageTime(prefs)
-        val lastTime = if (realUserTime > 0L) realUserTime else prefs.getLong(MainChat.KEY_LAST_ACTIVE_TIME, now)
-        val activeDays = CompanionPrefs.getCachedActiveDays(prefs, now) ?: 1
-        val baseState = CompanionEmotion.evaluate(
-            now = now,
-            lastUserMessageTime = lastTime,
-            activeDaysCount = activeDays,
-            quietHoursStart = CompanionPrefs.getQuietStartHour(prefs),
-            quietHoursEnd = CompanionPrefs.getQuietEndHour(prefs),
-            hasGreetedMorningToday = CompanionPrefs.hasGreetedMorningToday(prefs, now)
-        )
-
-        val biasP = CompanionPrefs.getDynamicBiasP(prefs)
-        val biasA = CompanionPrefs.getDynamicBiasA(prefs)
-        val moodTime = CompanionPrefs.getMoodTimestamp(prefs)
-        val lastAct = CompanionPrefs.getLastDialogueAct(prefs)
-        val elapsed = if (moodTime > 0L) maxOf(0L, now - moodTime) else 0L
-
-        val blended = CompanionEmotion.blendWithAsymmetricDecay(baseState, biasP, biasA, elapsed, lastAct)
+        val snapshot = CompanionMoodStore.currentSnapshot(prefs)
+        val primaryMood = when (snapshot.primary.family) {
+            CompanionMoodStore.AvatarFamily.HAPPY -> CompanionEmotion.PrimaryMood.HAPPY
+            CompanionMoodStore.AvatarFamily.CURIOUS -> CompanionEmotion.PrimaryMood.CURIOUS
+            CompanionMoodStore.AvatarFamily.LONGING -> CompanionEmotion.PrimaryMood.LONGING
+            CompanionMoodStore.AvatarFamily.SLEEPY -> CompanionEmotion.PrimaryMood.SLEEPY
+            CompanionMoodStore.AvatarFamily.SHY -> CompanionEmotion.PrimaryMood.SHY
+            CompanionMoodStore.AvatarFamily.CARING -> CompanionEmotion.PrimaryMood.CARING
+            CompanionMoodStore.AvatarFamily.TOUCHED -> CompanionEmotion.PrimaryMood.TOUCHED
+            CompanionMoodStore.AvatarFamily.EXCITED -> CompanionEmotion.PrimaryMood.EXCITED
+            CompanionMoodStore.AvatarFamily.SULK_JEALOUS -> CompanionEmotion.PrimaryMood.SULK_JEALOUS
+            CompanionMoodStore.AvatarFamily.CRACKED_HURT -> CompanionEmotion.PrimaryMood.CRACKED_HURT
+            CompanionMoodStore.AvatarFamily.HYPER -> CompanionEmotion.PrimaryMood.HYPER
+        }
         val accumulatedAffection = CompanionPrefs.getAffectionScore(prefs)
-        return blended.copy(affection = accumulatedAffection)
+        val leaderScore = snapshot.scores[snapshot.primary] ?: snapshot.primary.baseline
+        return CompanionEmotion.MoodState(
+            primaryMood = primaryMood,
+            valence = ((leaderScore - 50f) / 50f).coerceIn(-1f, 1f),
+            arousal = (leaderScore / 100f).coerceIn(0f, 1f),
+            affection = accumulatedAffection,
+            proactiveScore = when (snapshot.primary) {
+                CompanionMoodStore.Mood.HYPER, CompanionMoodStore.Mood.EXCITED -> 0.85f
+                CompanionMoodStore.Mood.LONELY, CompanionMoodStore.Mood.FLUTTER -> 0.80f
+                CompanionMoodStore.Mood.CURIOUS, CompanionMoodStore.Mood.COY -> 0.75f
+                CompanionMoodStore.Mood.TIRED, CompanionMoodStore.Mood.CHECKEDOUT, CompanionMoodStore.Mood.CALM -> 0.20f
+                else -> 0.50f
+            },
+            scenario = when (snapshot.primary) {
+                CompanionMoodStore.Mood.LONELY -> CompanionEmotion.Scenario.LONGING_MISS
+                CompanionMoodStore.Mood.CURIOUS -> CompanionEmotion.Scenario.CURIOUS_CHECKIN
+                CompanionMoodStore.Mood.TIRED -> CompanionEmotion.Scenario.EVENING_CARE
+                else -> CompanionEmotion.Scenario.FRESH_RESONANCE
+            },
+            framingInstruction = snapshot.primary.behaviorTendency
+        )
     }
 
     fun currentMoodSubtitle(context: Context): String {
-        val moodState = currentMood(context)
-        return when (moodState.primaryMood) {
-            CompanionEmotion.PrimaryMood.HAPPY -> context.getString(R.string.nm_companion_mood_happy)
-            CompanionEmotion.PrimaryMood.CURIOUS -> context.getString(R.string.nm_companion_mood_curious)
-            CompanionEmotion.PrimaryMood.LONGING -> context.getString(R.string.nm_companion_mood_longing)
-            CompanionEmotion.PrimaryMood.SLEEPY -> context.getString(R.string.nm_companion_mood_sleepy)
-            CompanionEmotion.PrimaryMood.SHY -> context.getString(R.string.nm_companion_mood_shy)
-            CompanionEmotion.PrimaryMood.CARING -> context.getString(R.string.nm_companion_mood_caring)
-            CompanionEmotion.PrimaryMood.TOUCHED -> context.getString(R.string.nm_companion_mood_touched)
-            CompanionEmotion.PrimaryMood.EXCITED -> context.getString(R.string.nm_companion_mood_excited)
-        }
+        val prefs = CompanionPrefs.prefs(context)
+        val snapshot = CompanionMoodStore.currentSnapshot(prefs)
+        return snapshot.displayTitle
     }
 
     fun currentMoodDescription(context: Context, moodState: CompanionEmotion.MoodState): String {
-        val address = CompanionPrefs.getUserAddress(context)
-        return when (moodState.primaryMood) {
-            CompanionEmotion.PrimaryMood.HAPPY -> context.getString(R.string.nm_companion_desc_happy)
-            CompanionEmotion.PrimaryMood.SHY -> context.getString(R.string.nm_companion_desc_shy)
-            CompanionEmotion.PrimaryMood.CARING -> context.getString(R.string.nm_companion_desc_caring, address)
-            CompanionEmotion.PrimaryMood.TOUCHED -> context.getString(R.string.nm_companion_desc_touched)
-            CompanionEmotion.PrimaryMood.EXCITED -> context.getString(R.string.nm_companion_desc_excited)
-            CompanionEmotion.PrimaryMood.CURIOUS -> context.getString(R.string.nm_companion_desc_curious)
-            CompanionEmotion.PrimaryMood.SLEEPY -> context.getString(R.string.nm_companion_desc_sleepy)
-            CompanionEmotion.PrimaryMood.LONGING -> context.getString(R.string.nm_companion_desc_longing)
-        }
+        val prefs = CompanionPrefs.prefs(context)
+        val snapshot = CompanionMoodStore.currentSnapshot(prefs)
+        return "${snapshot.displayTitle} · ${snapshot.primary.behaviorTendency}"
     }
 
     fun currentMoodDescription(context: Context): String =

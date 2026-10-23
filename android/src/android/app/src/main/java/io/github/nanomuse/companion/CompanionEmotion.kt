@@ -23,7 +23,10 @@ object CompanionEmotion {
         SHY,     // 害羞 / 脸红 / 被夸赞
         CARING,  // 关切 / 倾听 / 暖心安慰
         TOUCHED, // 感动 / 依恋 / 贴贴
-        EXCITED  // 兴奋 / 雀跃 / 激动
+        EXCITED, // 兴奋 / 雀跃 / 激动
+        SULK_JEALOUS, // 专属: 生闷气 / 吃醋
+        CRACKED_HURT, // 专属: 破防 / 委屈
+        HYPER    // 专属: 上头
     }
 
     enum class DialogueAct {
@@ -374,6 +377,9 @@ object CompanionEmotion {
             PrimaryMood.CURIOUS -> "充满好奇探究欲，耳朵竖起，认真关注"
             PrimaryMood.EXCITED -> "兴奋雀跃，尾巴快速轻摇"
             PrimaryMood.LONGING -> "思念${safeAddress}，软萌黏人"
+            PrimaryMood.SULK_JEALOUS -> "微带生闷气或小吃醋，嘴上说着随便，态度发冷发酸"
+            PrimaryMood.CRACKED_HURT -> "感到委屈或破防，眼眶微润，语气发软想哭"
+            PrimaryMood.HYPER -> "极度上头来劲，兴奋话多停不下来"
         }
         val toneGuidance = when (intensity) {
             "subtle" -> "Reflect this disposition subtly through warm tone and concise natural wording. Minimize repetitive action tags and kaomoji. Prioritize helpful assistance."

@@ -53,6 +53,7 @@ fun CompanionSettingsSheet(
     var intensity by remember { mutableStateOf(CompanionPrefs.getEmotionIntensity(prefs)) }
     var affection by remember { mutableStateOf(CompanionPrefs.getAffectionScore(prefs)) }
     var emotionEnabled by remember { mutableStateOf(CompanionPrefs.isEmotionEnabled(prefs)) }
+    var showMoodDashboard by remember { mutableStateOf(false) }
 
     val currentMoodSubtitle = remember { CompanionStatus.currentMoodSubtitle(context) }
 
@@ -301,6 +302,13 @@ fun CompanionSettingsSheet(
                     }
 
                     MuseRowDivider()
+                    io.github.nanomuse.ui.muse.MuseRow(
+                        title = "心境罗盘 (33 种心境分布)",
+                        value = currentMoodSubtitle,
+                        onClick = { showMoodDashboard = true }
+                    )
+
+                    MuseRowDivider()
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -339,5 +347,9 @@ fun CompanionSettingsSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showMoodDashboard) {
+        MoodDashboardSheet(onDismiss = { showMoodDashboard = false })
     }
 }

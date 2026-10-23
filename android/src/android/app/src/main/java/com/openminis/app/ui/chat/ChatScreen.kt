@@ -1006,6 +1006,7 @@ fun ChatScreen(
     // sheet body (rendered later in the layout tree) share the same
     // backing state without needing fragile scope wiring.
     var showMoveSheet by remember { mutableStateOf(false) }
+    var showMoodDashboardSheet by remember { mutableStateOf(false) }
     var showClearChatDialog by remember { mutableStateOf(false) }
     // [T-android-delete-from-here] Id of the message a pending "Delete From
     // Here" would cut at, or null when no confirmation is open. Holding the
@@ -3479,7 +3480,7 @@ fun ChatScreen(
                             modifier = Modifier
                                 .clip(CircleShape)
                                 .combinedClickable(
-                                    onClick = { io.github.nanomuse.ui.header.openAgentProfile(context) },
+                                    onClick = { showMoodDashboardSheet = true },
                                     onLongClick = {
                                         android.widget.Toast.makeText(
                                             context,
@@ -7476,6 +7477,12 @@ fun ChatScreen(
             mcpRepository = mcpRepository,
             sessionId = sessionId,
             onDismiss = { showMcpsSheet = false },
+        )
+    }
+
+    if (showMoodDashboardSheet) {
+        io.github.nanomuse.companion.ui.MoodDashboardSheet(
+            onDismiss = { showMoodDashboardSheet = false }
         )
     }
 

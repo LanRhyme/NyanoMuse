@@ -145,8 +145,11 @@ fun AgentAvatar(
 
     val breathDuration = when {
         mood == AgentMood.WORKING -> 700
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> 900
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> 1200
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> 1800
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> 2000
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> 2200
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> 3600
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 2800
         else -> 2600
@@ -200,6 +203,15 @@ fun AgentAvatar(
     LaunchedEffect(companionMood) {
         if (companionMood == null) return@LaunchedEffect
         when (companionMood) {
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> {
+                // High frequency hyper hops
+                companionPop.snapTo(1f)
+                companionBob.snapTo(0f)
+                companionBob.animateTo(with(density) { (-6f).dp.toPx() }, spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                companionPop.animateTo(1.22f, spring(dampingRatio = Spring.DampingRatioHighBouncy))
+                companionBob.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                companionPop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
+            }
             io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> {
                 companionPop.snapTo(1f)
                 companionBob.snapTo(0f)
@@ -242,6 +254,23 @@ fun AgentAvatar(
                 companionBob.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
                 companionTilt.animateTo(0f, tween(400, easing = FastOutSlowInEasing))
             }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> {
+                // Sulking / jealous: turns head away with slight tremor
+                companionTilt.snapTo(0f)
+                companionTilt.animateTo(-10f, tween(260, easing = FastOutSlowInEasing))
+                companionTilt.animateTo(-7f, tween(180, easing = LinearEasing))
+                companionTilt.animateTo(-9f, tween(180, easing = LinearEasing))
+                companionTilt.animateTo(-5f, tween(400, easing = FastOutSlowInEasing))
+            }
+            io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> {
+                // Cracked / hurt / aggrieved: shrinks inward, head droops
+                companionPop.snapTo(1f)
+                companionBob.snapTo(0f)
+                companionPop.animateTo(0.91f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                companionBob.animateTo(with(density) { 4f.dp.toPx() }, tween(280, easing = FastOutSlowInEasing))
+                companionPop.animateTo(0.96f, tween(350, easing = FastOutSlowInEasing))
+                companionBob.animateTo(with(density) { 1.5f.dp.toPx() }, tween(400, easing = FastOutSlowInEasing))
+            }
             io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> {
                 // Sleepy slow nod down
                 companionBob.snapTo(0f)
@@ -264,6 +293,7 @@ fun AgentAvatar(
     }
 
     val continuousScale = when (companionMood) {
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> 1f + 0.050f * breath
         io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> 1f + 0.040f * breath
         io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> 1f + 0.030f * breath
         io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> 1f + 0.028f * breath
@@ -272,6 +302,8 @@ fun AgentAvatar(
         io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> 1f + 0.015f * breath
         io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> 1f + 0.025f * breath
         io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.LONGING -> 1f + 0.020f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> 1f + 0.015f * breath
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> 0.96f + 0.015f * breath
         null -> 1f + 0.018f * breath
     }
     val scale = when {
@@ -281,19 +313,25 @@ fun AgentAvatar(
     }
     val bobPx = companionBob.value + when {
         mood == AgentMood.WORKING -> with(density) { (-2.5).dp.toPx() } * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> with(density) { (-3.5).dp.toPx() } * breath
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> with(density) { (-2.5).dp.toPx() } * breath
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> with(density) { (-1.5).dp.toPx() } * breath
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> with(density) { (-1.8).dp.toPx() } * breath
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> with(density) { (1.5).dp.toPx() } * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> with(density) { (2.0).dp.toPx() } * breath
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> with(density) { (0.8).dp.toPx() } * breath
         else -> 0f
     }
     val shakePx = with(density) { 3.dp.toPx() } * shake.value
     val rotation = companionTilt.value + when {
         mood == AgentMood.WAITING -> 4f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> 6.0f * tilt
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> 3.5f * tilt
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> 5.0f * tilt
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> 2.5f * tilt
         companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> 2.0f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> -3.0f + 1.2f * tilt
+        companionMood == io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> 1.5f * tilt
         else -> 0f
     }
 
