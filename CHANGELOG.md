@@ -82,6 +82,9 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Companion LLM emotion feedback loop with client-calibrated deltas and dual-track deduplication**
+  The companion model can emit qualitative emotion feedback tags `<nm:mood feel="id" reason="..."/>` at turn completion; client-calibrated step tables govern numerical increments to eliminate model self-positivity bias; previous instant heuristic deltas are reverted before applying qualitative feedback to prevent double-counting; mutual suppression caps total dampening per turn; model reasons are isolated to the dashboard without looping back into prompts; tags are stripped at single authoritative persistence boundaries and desktop remote bubbles
+
 - **Companion 33-mood layered state machine, circadian rhythm offsets, sarcasm perception and localized dashboard**
   A layered 33-mood architecture categorizes emotions into base, composite and modern tiers with debounced primary election and secondary hybrid blending (`CompanionMoodStore`); wall-clock circadian offsets model natural diurnal rhythms while damping fatigue during active chats; deterministic periodic decay gradually pulls heightened moods back toward baseline; sarcasm detection protects against cynical praise while preserving sincere compliments; crisis safety prompts guide toward professional hotlines without hardcoded numbers; mood compass dashboard, capsule telemetry and settings sheets fully localized across seventeen languages
 

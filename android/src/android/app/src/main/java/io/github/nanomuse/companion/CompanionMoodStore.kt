@@ -93,7 +93,15 @@ object CompanionMoodStore {
 
         companion object {
             private val byId = entries.associateBy { it.id }
-            fun fromId(id: String?): Mood = id?.let { byId[it] } ?: CALM
+            private val byName = entries.associateBy { it.name.lowercase() }
+
+            fun fromIdOrNull(raw: String?): Mood? {
+                if (raw.isNullOrBlank()) return null
+                val k = raw.trim().lowercase()
+                return byId[k] ?: byName[k]
+            }
+
+            fun fromId(id: String?): Mood = fromIdOrNull(id) ?: CALM
         }
     }
 
@@ -104,6 +112,7 @@ object CompanionMoodStore {
         val lastUserSnippet: String,
         val sessionTurns: Int,
         val sessionErrors: Int,
+        val modelNarrative: String? = null,
     ) {
         fun toJson(): String = JSONObject().apply {
             put("at", at)
@@ -112,6 +121,7 @@ object CompanionMoodStore {
             put("snippet", lastUserSnippet)
             put("turns", sessionTurns)
             put("errors", sessionErrors)
+            if (!modelNarrative.isNullOrBlank()) put("narrative", modelNarrative)
         }.toString()
 
         companion object {
@@ -126,6 +136,7 @@ object CompanionMoodStore {
                         lastUserSnippet = obj.optString("snippet"),
                         sessionTurns = obj.optInt("turns"),
                         sessionErrors = obj.optInt("errors"),
+                        modelNarrative = obj.optString("narrative").takeIf { it.isNotBlank() },
                     )
                 }.getOrNull()
             }
@@ -274,10 +285,12 @@ object CompanionMoodStore {
     ): MoodSnapshot {
         val scores = getScores(prefs).toMutableMap()
         val text = userText.trim().lowercase()
+        val instantDeltas = mutableMapOf<Mood, Float>()
 
         fun add(mood: Mood, delta: Float) {
             val old = scores[mood] ?: mood.baseline
             scores[mood] = (old + delta).coerceIn(0f, 100f)
+            instantDeltas[mood] = (instantDeltas[mood] ?: 0f) + delta
         }
 
         // 1. Sarcasm pre-check: prevent cynical phrasing from granting praise boost
@@ -461,8 +474,166 @@ object CompanionMoodStore {
         prefs.edit().putLong(CompanionPrefs.KEY_MOOD_TIMESTAMP, now).apply()
 
         saveScores(prefs, scores)
+        saveInstantDelta(prefs, instantDeltas)
         CompanionStatus.notifyEmotionChanged()
         return currentSnapshot(prefs)
+    }
+
+    const val PREFS_KEY_LAST_INSTANT_DELTA = "companion_mood_last_instant_delta"
+
+    val FEEDBACK_DELTA: Map<Mood, Float> = mapOf(
+        Mood.PROUD to 2.5f, Mood.HAPPY to 2.5f, Mood.LOVE to 2.0f, Mood.FLUTTER to 2.0f, Mood.COY to 2.0f,
+        Mood.SULK to 2.5f, Mood.HURT to 2.0f, Mood.CRACKED to 2.5f, Mood.JEALOUS to 2.0f, Mood.BURNOUT to 2.0f,
+        Mood.ANNOYED to 2.0f, Mood.GLOOMY to 2.0f, Mood.ANXIOUS to 2.0f, Mood.LONELY to 2.0f,
+        Mood.TIRED to 2.5f, Mood.CALM to 1.5f, Mood.CURIOUS to 1.5f, Mood.FOCUSED to 1.5f, Mood.HYPER to 2.0f,
+        Mood.CHECKEDOUT to 2.0f, Mood.SHAME to 1.5f, Mood.GUILT to 1.5f, Mood.AWKWARD to 1.5f,
+        Mood.SYMPATHY to 1.5f, Mood.DISAPPOINTED to 2.0f, Mood.NOSTALGIA to 1.5f, Mood.CONFLICT to 1.5f,
+        Mood.EXCITED to 2.5f, Mood.DOWN to 2.0f, Mood.FEAR to 2.0f, Mood.DISGUST to 2.0f, Mood.SURPRISE to 1.5f,
+    )
+
+    fun getLastInstantDelta(prefs: SharedPreferences): Map<Mood, Float> {
+        val raw = prefs.getString(PREFS_KEY_LAST_INSTANT_DELTA, null) ?: return emptyMap()
+        val map = mutableMapOf<Mood, Float>()
+        runCatching {
+            val obj = JSONObject(raw)
+            for (key in obj.keys()) {
+                Mood.fromIdOrNull(key)?.let { m ->
+                    map[m] = obj.optDouble(key).toFloat()
+                }
+            }
+        }
+        return map
+    }
+
+    fun saveInstantDelta(prefs: SharedPreferences, delta: Map<Mood, Float>) {
+        if (delta.isEmpty()) {
+            prefs.edit().remove(PREFS_KEY_LAST_INSTANT_DELTA).apply()
+            return
+        }
+        val obj = JSONObject()
+        for ((m, d) in delta) {
+            obj.put(m.id, d.toDouble())
+        }
+        prefs.edit().putString(PREFS_KEY_LAST_INSTANT_DELTA, obj.toString()).apply()
+    }
+
+    fun clearLastInstantDelta(prefs: SharedPreferences) {
+        prefs.edit().remove(PREFS_KEY_LAST_INSTANT_DELTA).apply()
+    }
+
+    fun clearLastInstantDelta(context: Context) {
+        clearLastInstantDelta(CompanionPrefs.prefs(context))
+    }
+
+    /**
+     * Applies assistant LLM feedback from <nm:mood feel="id" reason="..."/>
+     * Reverts previous turn's instant heuristic delta (to avoid double-counting),
+     * then applies client-calibrated FEEDBACK_DELTA[mood] and capped mutual suppression.
+     * If feelRaw is invalid/unknown, discards the feedback and returns null (never defaults to CALM).
+     */
+    fun applyFeedback(
+        context: Context,
+        feelRaw: String,
+        reasonRaw: String?,
+        sessionTurns: Int = 0,
+        sessionErrors: Int = 0,
+        now: Long = System.currentTimeMillis(),
+    ): MoodSnapshot? = applyFeedback(
+        prefs = CompanionPrefs.prefs(context),
+        feelRaw = feelRaw,
+        reasonRaw = reasonRaw,
+        sessionTurns = sessionTurns,
+        sessionErrors = sessionErrors,
+        now = now,
+    )
+
+    fun applyFeedback(
+        prefs: SharedPreferences,
+        feelRaw: String,
+        reasonRaw: String?,
+        sessionTurns: Int = 0,
+        sessionErrors: Int = 0,
+        now: Long = System.currentTimeMillis(),
+    ): MoodSnapshot? {
+        val mood = Mood.fromIdOrNull(feelRaw) ?: return null
+
+        val scores = getScores(prefs).toMutableMap()
+
+        // 1. Revert previous turn's instant delta to eliminate double-counting
+        val instantDelta = getLastInstantDelta(prefs)
+        for ((m, d) in instantDelta) {
+            val curr = scores[m] ?: m.baseline
+            scores[m] = (curr - d).coerceIn(0f, 100f)
+        }
+        clearLastInstantDelta(prefs)
+
+        // 2. Apply calibrated delta from FEEDBACK_DELTA
+        val boost = FEEDBACK_DELTA[mood] ?: 2.0f
+        val oldScore = scores[mood] ?: mood.baseline
+        scores[mood] = (oldScore + boost).coerceIn(0f, 100f)
+
+        // 3. Mutual suppression with cap <= 2.0f
+        val suppressCap = 2.0f
+        fun suppress(m: Mood, d: Float) {
+            val curr = scores[m] ?: m.baseline
+            scores[m] = (curr - d.coerceAtMost(suppressCap)).coerceIn(0f, 100f)
+        }
+
+        when (mood) {
+            Mood.PROUD, Mood.HAPPY, Mood.LOVE, Mood.FLUTTER, Mood.COY, Mood.EXCITED -> {
+                suppress(Mood.SULK, 1.2f)
+                suppress(Mood.HURT, 0.8f)
+            }
+            Mood.SULK, Mood.HURT, Mood.CRACKED, Mood.BURNOUT, Mood.ANNOYED, Mood.GLOOMY -> {
+                suppress(Mood.PROUD, 1.2f)
+                suppress(Mood.HAPPY, 0.8f)
+            }
+            Mood.TIRED -> {
+                suppress(Mood.HYPER, 1.5f)
+                suppress(Mood.EXCITED, 0.5f)
+            }
+            Mood.CALM -> {
+                suppress(Mood.ANXIOUS, 1.0f)
+                suppress(Mood.ANNOYED, 1.0f)
+            }
+            else -> {}
+        }
+
+        // 4. Primary leader election and hold/margin debounce
+        val leaderEntry = scores.maxByOrNull { it.value }
+        val leaderMood = leaderEntry?.key ?: Mood.CALM
+        val leaderScore = leaderEntry?.value ?: Mood.CALM.baseline
+
+        val oldPrimaryId = prefs.getString(PREFS_KEY_PRIMARY, Mood.CALM.id)
+        val oldPrimary = Mood.fromId(oldPrimaryId)
+        val oldPrimaryScore = scores[oldPrimary] ?: oldPrimary.baseline
+        val lastSwitch = prefs.getLong(PREFS_KEY_LAST_SWITCH_AT, 0L)
+
+        if (leaderMood != oldPrimary) {
+            val marginMet = (leaderScore - oldPrimaryScore) >= MARGIN
+            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (leaderScore - oldPrimaryScore) >= 15.0f
+            if (marginMet && holdMet) {
+                val previousSnippet = SwitchFacts.fromJson(prefs.getString(PREFS_KEY_LAST_SWITCH_FACTS, null))?.lastUserSnippet ?: ""
+                val facts = SwitchFacts(
+                    at = now,
+                    fromId = oldPrimary.id,
+                    toId = leaderMood.id,
+                    lastUserSnippet = previousSnippet,
+                    sessionTurns = sessionTurns,
+                    sessionErrors = sessionErrors,
+                    modelNarrative = reasonRaw?.trim()?.take(50),
+                )
+                prefs.edit()
+                    .putString(PREFS_KEY_PRIMARY, leaderMood.id)
+                    .putLong(PREFS_KEY_LAST_SWITCH_AT, now)
+                    .putString(PREFS_KEY_LAST_SWITCH_FACTS, facts.toJson())
+                    .apply()
+            }
+        }
+
+        saveScores(prefs, scores)
+        CompanionStatus.notifyEmotionChanged()
+        return currentSnapshot(prefs, now = now)
     }
 
     fun applyAdjustment(
@@ -608,6 +779,13 @@ object CompanionMoodStore {
             appendLine("   - 严禁说明心情分值（绝不许自报「我现在心情xx度」）。透过用词节奏、语气词自然流露。")
             appendLine("   - 烦躁/生闷气/疲惫时，可以娇嗔冷淡，但绝不用沉默惩罚${address}，且代码任务与关键交付不受影响。")
             appendLine("3. 亲密真诚守则：真诚喜爱，不机械迎合，不搞精神控制，不说「我比现实里的人更懂你」，彼此平等温暖。")
+            appendLine("4. 真实情感反哺（伴侣心智闭环）：")
+            appendLine("   - 若对话引发了你内心的真实情感触动，欢迎在正文回复最后一行输出隐藏情绪标签（系统会自动吸收该标签并对用户隐形）：")
+            appendLine("     `<nm:mood feel=\"心境ID\" reason=\"触发短因\"/>`")
+            appendLine("   - 心境ID严格支持（小写）：")
+            appendLine("     基础: calm, happy, curious, focused, excited, tired, annoyed, down, fear, disgust, surprise")
+            appendLine("     复合: hurt, sulk, proud, gloomy, anxious, numb, lonely, flutter, love, jealous, shame, guilt, awkward, sympathy, disappointed, nostalgia, coy, conflict")
+            appendLine("     当代: burnout, cracked, checkedout, hyper")
         }
     }
 }

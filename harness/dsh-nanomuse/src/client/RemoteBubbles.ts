@@ -71,7 +71,7 @@ function bubble(t: Translate, row: RemoteRow): HTMLElement {
   root.setAttribute(KEY, nodeKey(row.id))
   root.setAttribute('data-nm-remote-mid', row.mid)
 
-  const rawText = row.text || ''
+  const rawText = (row.text || '').replace(/<\s*nm:mood\b[^>]*\/>/gi, '').trimEnd()
   if (row.role === 'assistant' && rawText.includes('<nm:bubble/>')) {
     const rawSegments = rawText.split('<nm:bubble/>').map((s) => s.trim()).filter(Boolean)
     const segments = rawSegments.length > 3

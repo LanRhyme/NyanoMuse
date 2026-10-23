@@ -240,6 +240,16 @@ fun MoodDashboardSheet(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
+                        if (!facts.modelNarrative.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "AI: \"${facts.modelNarrative}\"",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }

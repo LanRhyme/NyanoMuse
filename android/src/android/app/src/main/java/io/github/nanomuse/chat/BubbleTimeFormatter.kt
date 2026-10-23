@@ -39,6 +39,28 @@ object BubbleTimeFormatter {
     const val BUBBLE_CADENCE_DELAY_MS = 450L
     val USER_PROMPT_TIMESTAMP_REGEX = Regex("""\n*\[\d{4}-\d{2}-\d{2}[^\]]+\]$""")
 
+    val MOOD_TAG_REGEX = Regex("""<\s*nm:mood\b([^>]*)/>""", RegexOption.IGNORE_CASE)
+    private val ATTR_FEEL_REGEX = Regex("""\bfeel\s*=\s*"([^"]*)"""", RegexOption.IGNORE_CASE)
+    private val ATTR_REASON_REGEX = Regex("""\breason\s*=\s*"([^"]*)"""", RegexOption.IGNORE_CASE)
+
+    data class MoodFeedbackRaw(val feel: String, val reason: String?)
+
+    fun extractMoodFeedback(text: CharSequence): MoodFeedbackRaw? {
+        val match = MOOD_TAG_REGEX.findAll(text).lastOrNull() ?: return null
+        val attrs = match.groupValues.getOrNull(1) ?: return null
+        val feelMatch = ATTR_FEEL_REGEX.find(attrs) ?: return null
+        val feel = feelMatch.groupValues[1].trim()
+        if (feel.isEmpty()) return null
+        val reason = ATTR_REASON_REGEX.find(attrs)?.groupValues?.getOrNull(1)?.trim()
+        return MoodFeedbackRaw(feel = feel, reason = reason)
+    }
+
+    fun hasMoodTag(text: CharSequence): Boolean =
+        text.contains("<nm:mood", ignoreCase = true)
+
+    fun stripMoodTags(text: String): String =
+        text.replace(MOOD_TAG_REGEX, "").trimEnd()
+
     fun stripUserPromptTimestamp(text: String): String =
         text.replace(USER_PROMPT_TIMESTAMP_REGEX, "").trimEnd()
 

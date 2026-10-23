@@ -9372,10 +9372,14 @@ class ChatViewModel(
             val turnReasoningContent: String? = turnReasoningBlob
                 ?: turnThinking.toString().takeIf { it.isNotEmpty() }
 
-            val sanitizedTurnText = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(turnText)
+            val cleanMoodTurnText = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(turnText)
+            val sanitizedTurnText = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(cleanMoodTurnText)
             val sanitizedAssistantParts = assistantParts.map { part ->
-                if (part is AgentContentPart.Text && io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(part.text)) {
-                    AgentContentPart.Text(io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(part.text))
+                if (part is AgentContentPart.Text) {
+                    val clean = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
+                        io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text)
+                    )
+                    AgentContentPart.Text(clean)
                 } else part
             }
 
@@ -9409,9 +9413,22 @@ class ChatViewModel(
                 val blockMeta = allToolBlocks.filter { it.kind == "tool_use" }.associateBy { it.id }
                 persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta)
 
-                // Companion emotion status: notify on completed exchange to ensure fresh presentation
+                // Companion emotion status: process assistant feedback and notify on completed exchange
                 val sid = realSessionId.ifEmpty { sessionId }
                 if (io.github.nanomuse.home.MainChat.isMain(context, sid)) {
+                    val feedback = io.github.nanomuse.chat.BubbleTimeFormatter.extractMoodFeedback(accumulatedText)
+                        ?: io.github.nanomuse.chat.BubbleTimeFormatter.extractMoodFeedback(turnText)
+                    if (feedback != null) {
+                        io.github.nanomuse.companion.CompanionMoodStore.applyFeedback(
+                            context = context,
+                            feelRaw = feedback.feel,
+                            reasonRaw = feedback.reason,
+                            sessionTurns = _messages.value.count { it.role == "user" },
+                            sessionErrors = _messages.value.count { it.error != null },
+                        )
+                    } else {
+                        io.github.nanomuse.companion.CompanionMoodStore.clearLastInstantDelta(context)
+                    }
                     io.github.nanomuse.companion.CompanionStatus.notifyEmotionChanged()
                 }
                 // [T-error-persist-android] Empty-response hint: the model ended a
@@ -10931,7 +10948,12 @@ class ChatViewModel(
             val block = allToolBlocks[i]
             when (block.kind) {
                 "text" -> if (block.content.isNotEmpty()) {
-                    out.add(AgentContentPart.Text(block.content))
+                    val clean = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(
+                        io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(block.content)
+                    )
+                    if (clean.isNotEmpty()) {
+                        out.add(AgentContentPart.Text(clean))
+                    }
                 }
                 "tool_use" -> {
                     val name = block.toolName
@@ -11008,7 +11030,15 @@ class ChatViewModel(
         toolBlockMeta: Map<String, AssistantBlock> = emptyMap(),
     ): String? {
         if (parts.isEmpty()) return null
-        val partsJson = buildAssistantPartsJson(parts, toolBlockMeta)
+        val sanitizedParts = parts.map { part ->
+            if (part is AgentContentPart.Text) {
+                val clean = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
+                    io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text)
+                )
+                AgentContentPart.Text(clean)
+            } else part
+        }
+        val partsJson = buildAssistantPartsJson(sanitizedParts, toolBlockMeta)
         val tokenJson = usage?.let {
             """{"inputTokens":${it.inputTokens},"outputTokens":${it.outputTokens},"cacheCreationTokens":${it.cacheCreationInputTokens ?: 0},"cacheReadTokens":${it.cacheReadInputTokens ?: 0},"latestContextTokens":${it.latestContextTokens}}"""
         }
@@ -13394,12 +13424,20 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
             }
         }
 
-        if (r == LLMMessage.Role.ASSISTANT && io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(textContent)) {
-            textContent = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(textContent)
+        if (r == LLMMessage.Role.ASSISTANT) {
+            if (io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(textContent) || io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(textContent)) {
+                textContent = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
+                    io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(textContent)
+                )
+            }
             for (i in contentParts.indices) {
                 val part = contentParts[i]
-                if (part is AgentContentPart.Text && io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(part.text)) {
-                    contentParts[i] = AgentContentPart.Text(io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(part.text))
+                if (part is AgentContentPart.Text && (io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(part.text) || io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(part.text))) {
+                    contentParts[i] = AgentContentPart.Text(
+                        io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
+                            io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text)
+                        )
+                    )
                 }
             }
         }

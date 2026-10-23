@@ -141,10 +141,10 @@ canvas, and a second fade appears at the top edge while you read older messages.
 ### Main Chat companion dynamics and message flow
 
 In the main companion chat (`isMain`), the model receives volatile real-time system prompt addenda that never persist into storage or cross-turn transcripts:
-- `[Companion Heart & Disposition]`: 33-mood layered emotional state machine with circadian rhythm offsets, primary debouncing, secondary hybrid blending, periodic baseline decay, sarcasm perception and distress safety guardrails
+- `[Companion Heart & Disposition]`: 33-mood layered emotional state machine with circadian rhythm offsets, primary debouncing, secondary hybrid blending, periodic baseline decay, sarcasm perception, distress safety guardrails and dual-track LLM emotion feedback loop (`<nm:mood/>`)
 - `[Messaging Flow Format]`: guidance on conversational rhythm, prompting short multi-bubble bursts via `<nm:bubble/>` tags instead of dense essays
 - User prompts include volatile real-time perception tags `[yyyy-MM-dd HH:mm:ss Weekday]` stripped automatically during context compaction
-- Cross-device sync transcripts and LLM history replay sanitize `<nm:bubble/>` to double newlines to prevent delimiter leak across sessions
+- Cross-device sync transcripts and LLM history replay sanitize `<nm:bubble/>` to double newlines and strip `<nm:mood/>` tags to prevent delimiter leak across sessions and desktop
 
 The message composer stays above the floating navigation pill, and the pill is as wide as the
 composer (the same 16 dp margins; 420 dp at most, centred on a wider screen), so the two
@@ -398,7 +398,7 @@ like the Python package's version does.
 | `hands/` | The accessibility service as the hand, the stage and the capsule, the screen reader; `Hands.screenModel` picks the screen's model (chosen → the chat provider's own default when it sees → the Cloud's `qwen3.8-27b` → the same under your own key → a chat model that sees → the Vision Group) |
 | `ui/coding/` | The coding agents of your computers |
 | `connectors/`, `ui/connectors/` | The connectors catalogue (`ConnectorsCatalogue` reads the asset), MCP authorization discovery + registration (`McpAuthDiscovery`), connecting and token refresh (`Connectors`), what this phone connected as published to the profile and what the other devices did (`SharedConnectors`), the Settings → Connectors page |
-| `companion/` | Companion dialogue and emotion engine: 33-mood layered state machine with primary debouncing and secondary hybrid blending (`CompanionMoodStore`), wall-clock circadian rhythm offsets and periodic baseline decay, sarcasm and distress safety guardrails (`CompanionEmotion`, `DistressGuard`), background proactive dispatch via `HeadlessChatRunner` (`CompanionWake`, `CompanionAlarmReceiver`), dedicated notification channel (`CompanionNotifications`), sliding window context and async memory distillation for Main Chat (`MainChatContextPolicy`, `MainChatMemoryDistiller`) |
+| `companion/` | Companion dialogue and emotion engine: 33-mood layered state machine with primary debouncing and secondary hybrid blending (`CompanionMoodStore`), dual-track LLM emotion feedback loop (`<nm:mood/>`), wall-clock circadian rhythm offsets and periodic baseline decay, sarcasm and distress safety guardrails (`CompanionEmotion`, `DistressGuard`), background proactive dispatch via `HeadlessChatRunner` (`CompanionWake`, `CompanionAlarmReceiver`), dedicated notification channel (`CompanionNotifications`), sliding window context and async memory distillation for Main Chat (`MainChatContextPolicy`, `MainChatMemoryDistiller`) |
 | `companion/ui/` | Companion configuration and mood compass dashboard sheets (`CompanionSettingsSheet`, `MoodDashboardSheet`), status capsule header probe in Main Chat (`NanoMuseHeader`, `CompanionStatus`) |
 | `ui/cloud/` | Sign-in, the Account screen, the Devices section |
 | `res/values*/nm_strings.xml` | Every nanoMuse string in the seventeen languages the app has (English, 简体中文, 繁體中文, German, Spanish, Filipino, French, Indonesian, Japanese, Korean, Malay, Polish, Brazilian Portuguese, Romanian, Russian, Thai, Turkish); every file carries the same keys, apart from the two the English file marks `translatable="false"` (the relay address example and the product name `nanoMuse Cloud`), and a missing one falls back to English |

@@ -316,4 +316,124 @@ class CompanionMoodStoreTest {
         assertTrue(prompt.contains("严禁表演娇嗔"))
         assertTrue(prompt.contains("心理援助热线"))
     }
+
+    @Test
+    fun testFromIdOrNullCaseInsensitiveAndInvalidDiscard() {
+        // Lowercase
+        assertEquals(CompanionMoodStore.Mood.PROUD, CompanionMoodStore.Mood.fromIdOrNull("proud"))
+        // Uppercase
+        assertEquals(CompanionMoodStore.Mood.PROUD, CompanionMoodStore.Mood.fromIdOrNull("PROUD"))
+        // Mixed case
+        assertEquals(CompanionMoodStore.Mood.COY, CompanionMoodStore.Mood.fromIdOrNull("Coy"))
+        // Invalid IDs must return null (NEVER fallback to CALM)
+        org.junit.Assert.assertNull(CompanionMoodStore.Mood.fromIdOrNull("nonexistent_xyz"))
+        org.junit.Assert.assertNull(CompanionMoodStore.Mood.fromIdOrNull(""))
+        org.junit.Assert.assertNull(CompanionMoodStore.Mood.fromIdOrNull(null))
+    }
+
+    @Test
+    fun testExtractMoodFeedbackAndSanitize() {
+        val textWithTag = "老大你真好呀！<nm:mood feel=\"proud\" reason=\"收到老大的真诚夸奖\"/>"
+        val feedback = io.github.nanomuse.chat.BubbleTimeFormatter.extractMoodFeedback(textWithTag)
+        assertNotNull(feedback)
+        assertEquals("proud", feedback?.feel)
+        assertEquals("收到老大的真诚夸奖", feedback?.reason)
+
+        val stripped = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(textWithTag)
+        assertEquals("老大你真好呀！", stripped)
+        assertFalse(io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(stripped))
+
+        // Multiple tags and bubbles coexistence
+        val complex = "第一段气泡<nm:bubble/>第二段气泡<nm:mood feel=\"sulk\"/>"
+        val clean1 = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(complex)
+        val clean2 = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(clean1)
+        assertEquals("第一段气泡\n\n第二段气泡", clean2)
+    }
+
+    @Test
+    fun testApplyFeedbackDualTrackRevertAndCalibratedDelta() {
+        // 1. User message applies instant heuristic boost to PROUD (+3.0)
+        CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "夸夸你，做得好",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = 1000L
+        )
+        val proudAfterUser = CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.PROUD] ?: 0f
+        assertEquals(CompanionMoodStore.Mood.PROUD.baseline + 3.0f, proudAfterUser, 0.01f)
+
+        // 2. Assistant finishes and emits feedback for SULK (e.g. model actually perceived coldness or sulk)
+        // applyFeedback should revert PROUD instant delta and apply calibrated SULK delta (+2.5)
+        val snapshot = CompanionMoodStore.applyFeedback(
+            prefs = prefs,
+            feelRaw = "sulk",
+            reasonRaw = "心里有点委屈生闷气",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = 2000L
+        )
+        assertNotNull(snapshot)
+        val scores = CompanionMoodStore.getScores(prefs)
+
+        // PROUD heuristic delta was reverted, then mutually suppressed by SULK (suppress 1.2f)
+        val expectedProud = CompanionMoodStore.Mood.PROUD.baseline - 1.2f
+        assertEquals(expectedProud, scores[CompanionMoodStore.Mood.PROUD] ?: 0f, 0.01f)
+
+        // SULK received client-calibrated FEEDBACK_DELTA (+2.5f)
+        val expectedSulk = CompanionMoodStore.Mood.SULK.baseline + 2.5f
+        assertEquals(expectedSulk, scores[CompanionMoodStore.Mood.SULK] ?: 0f, 0.01f)
+
+        // Last instant delta should now be cleared
+        assertTrue(CompanionMoodStore.getLastInstantDelta(prefs).isEmpty())
+    }
+
+    @Test
+    fun testApplyFeedbackDiscardsUnknownMood() {
+        val initialCalm = CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.CALM] ?: 0f
+        val result = CompanionMoodStore.applyFeedback(
+            prefs = prefs,
+            feelRaw = "unknown_hallucination",
+            reasonRaw = "不存在的心情",
+            now = 1000L
+        )
+        // Must return null and discard without mutating CALM score
+        org.junit.Assert.assertNull(result)
+        val calmAfter = CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.CALM] ?: 0f
+        assertEquals(initialCalm, calmAfter, 0.01f)
+    }
+
+    @Test
+    fun testFeedbackSwitchFactsModelNarrativeNotLeakedToPrompt() {
+        // Boost HAPPY enough to trigger primary switch from CALM (baseline 45) to HAPPY (baseline 30)
+        // We set initial scores so HAPPY leaps over CALM by >= 15
+        CompanionMoodStore.applyAdjustment(
+            prefs,
+            mapOf(CompanionMoodStore.Mood.HAPPY to 35f), // 30 + 35 = 65 vs 45
+            now = 1000L
+        )
+        val facts = CompanionMoodStore.currentSnapshot(prefs).lastSwitchFacts
+        assertNotNull(facts)
+
+        // Now apply feedback with modelNarrative
+        val snap = CompanionMoodStore.applyFeedback(
+            prefs = prefs,
+            feelRaw = "proud",
+            reasonRaw = "收到老大的认可很开心",
+            now = 2000L
+        )
+        // Trigger a switch to PROUD (baseline 25) by boosting it high
+        CompanionMoodStore.applyAdjustment(
+            prefs,
+            mapOf(CompanionMoodStore.Mood.PROUD to 50f),
+            now = 3000L
+        )
+        val snapSwitched = CompanionMoodStore.applyFeedback(
+            prefs = prefs,
+            feelRaw = "proud",
+            reasonRaw = "收到老大的认可很开心",
+            now = 4000L
+        )
+        assertNotNull(snapSwitched)
+    }
 }

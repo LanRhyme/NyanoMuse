@@ -777,9 +777,14 @@ internal fun buildFlatChatItems(
                         } else null
                         val leading = pendingLeadingThinking
                         pendingLeadingThinking = null
-                        // nanoMuse: support multi-bubble messaging delimiter <nm:bubble/>
-                        val segments = if (io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(block.content)) {
-                            val raw = block.content.split(io.github.nanomuse.chat.BubbleTimeFormatter.BUBBLE_REGEX)
+                        // nanoMuse: support multi-bubble messaging delimiter <nm:bubble/> and mood tag stripping
+                        val cleanBlockContent = if (io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(block.content)) {
+                            io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(block.content)
+                        } else {
+                            block.content
+                        }
+                        val segments = if (io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(cleanBlockContent)) {
+                            val raw = cleanBlockContent.split(io.github.nanomuse.chat.BubbleTimeFormatter.BUBBLE_REGEX)
                             val capped = if (raw.size > 3) {
                                 listOf(raw[0], raw[1], raw.drop(2).joinToString("\n\n"))
                             } else raw
@@ -787,9 +792,9 @@ internal fun buildFlatChatItems(
                             val filtered = mapped.filterIndexed { i, s ->
                                 s.isNotEmpty() || (i == mapped.lastIndex && message.isStreaming && isLastText)
                             }
-                            if (filtered.isEmpty()) listOf(block.content) else filtered
+                            if (filtered.isEmpty()) listOf(cleanBlockContent) else filtered
                         } else {
-                            listOf(block.content)
+                            listOf(cleanBlockContent)
                         }
 
                         segments.forEachIndexed { segIdx, segText ->
@@ -815,15 +820,18 @@ internal fun buildFlatChatItems(
                 }
                 "thinking" -> {
                     if (showSteps && pendingToolBlocks.isEmpty()) {
+                        val cleanBlock = if (io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(block.content)) {
+                            block.copy(content = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(block.content))
+                        } else block
                         val hasSubsequentText = blocks.drop(index + 1)
                             .takeWhile { it.kind == "thinking" || it.kind == "text" }
                             .any { it.kind == "text" && it.content.isNotEmpty() }
                         if (hasSubsequentText) {
-                            pendingLeadingThinking = block
+                            pendingLeadingThinking = cleanBlock
                         } else {
                             out.add(dedupe(FlatChatItem.AssistantThinking( // nanoMuse: a step
                                 messageId = message.id,
-                                block = block,
+                                block = cleanBlock,
                                 isLast = block.id == lastThinkingId,
                                 messageIsStreaming = message.isStreaming,
                                 messageThinkingLevel = message.thinkingLevel,
