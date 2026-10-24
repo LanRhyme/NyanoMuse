@@ -168,7 +168,7 @@ class CompanionMoodStoreTest {
             userText = "好困了，准备睡觉啦晚安",
             sessionTurns = 1,
             sessionErrors = 0,
-            now = 1000L
+            now = noon()
         )
         val tired = snapshot.scores[CompanionMoodStore.Mood.TIRED] ?: 0f
         val calm = snapshot.scores[CompanionMoodStore.Mood.CALM] ?: 0f

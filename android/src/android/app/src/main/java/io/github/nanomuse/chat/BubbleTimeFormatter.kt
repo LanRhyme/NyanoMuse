@@ -39,27 +39,53 @@ object BubbleTimeFormatter {
     const val BUBBLE_CADENCE_DELAY_MS = 450L
     val USER_PROMPT_TIMESTAMP_REGEX = Regex("""\n*\[\d{4}-\d{2}-\d{2}[^\]]+\]$""")
 
-    val MOOD_TAG_REGEX = Regex("""<\s*nm:mood\b([^>]*)/>""", RegexOption.IGNORE_CASE)
-    private val ATTR_FEEL_REGEX = Regex("""\bfeel\s*=\s*"([^"]*)"""", RegexOption.IGNORE_CASE)
-    private val ATTR_REASON_REGEX = Regex("""\breason\s*=\s*"([^"]*)"""", RegexOption.IGNORE_CASE)
+    // nanoMuse: 三处放宽都来自真机实测。模型见过各种 XML、Markdown 写法，
+    // 只认 <nm:mood feel=".."/> 一种会静默丢掉整轮反馈：带上收尾标签、
+    // 用单引号、被包进反引号或代码块，任何一种都收不到。属性名和 id 都不会
+    // 跨行断开，所以标签内部允许折行；属性只在前一个字符不是字母时算数，
+    // 否则 <nm:mood feedback="x"/> 也会被当成 feel。
+    val MOOD_TAG_REGEX = Regex("""<\s*nm:mood\b([^>]*)>\s*(?:<\s*/\s*nm:mood\s*>)?""", RegexOption.IGNORE_CASE)
+    private val ATTR_FEEL_REGEX =
+        Regex("""(?:^|[^\w])feel\s*=\s*(?:"([^"]*)"|'([^']*)')""", RegexOption.IGNORE_CASE)
+    private val ATTR_REASON_REGEX =
+        Regex("""(?:^|[^\w])reason\s*=\s*(?:"([^"]*)"|'([^']*)')""", RegexOption.IGNORE_CASE)
+    // The wrappers a model reaches for around a hidden tag: a bare backtick pair
+    // around a single tag, or a fenced block that holds nothing else.
+    private val MOOD_FENCE_REGEX =
+        Regex("""```[a-zA-Z]*[ \t]*\n?[ \t]*(?:<\s*nm:mood\b[^>]*/\s*>)[ \t]*\n?```""", RegexOption.IGNORE_CASE)
+    private val MOOD_BARE_TICK_REGEX =
+        Regex("""`\s*(<\s*nm:mood\b[^>]*/\s*>)\s*`""", RegexOption.IGNORE_CASE)
 
     data class MoodFeedbackRaw(val feel: String, val reason: String?)
 
     fun extractMoodFeedback(text: CharSequence): MoodFeedbackRaw? {
         val match = MOOD_TAG_REGEX.findAll(text).lastOrNull() ?: return null
         val attrs = match.groupValues.getOrNull(1) ?: return null
-        val feelMatch = ATTR_FEEL_REGEX.find(attrs) ?: return null
-        val feel = feelMatch.groupValues[1].trim()
+        // Either quote style may be the one that matched; the other group is empty.
+        val feel = (ATTR_FEEL_REGEX.find(attrs)?.let { it.groupValues[1].ifEmpty { it.groupValues[2] } } ?: return null).trim()
         if (feel.isEmpty()) return null
-        val reason = ATTR_REASON_REGEX.find(attrs)?.groupValues?.getOrNull(1)?.trim()
+        val reason = ATTR_REASON_REGEX.find(attrs)
+            ?.let { it.groupValues[1].ifEmpty { it.groupValues[2] } }?.trim()
         return MoodFeedbackRaw(feel = feel, reason = reason)
     }
 
     fun hasMoodTag(text: CharSequence): Boolean =
         text.contains("<nm:mood", ignoreCase = true)
 
-    fun stripMoodTags(text: String): String =
-        text.replace(MOOD_TAG_REGEX, "").trimEnd()
+    fun stripMoodTags(text: String): String {
+        // Do not fight a Markdown code block: a fence around ordinary code has to
+        // survive untouched. A fence that holds nothing but the mood tag, and a
+        // plain backtick pair wrapped around one, are the tag's clothes and come off.
+        var out = text
+        var guard = 0
+        while (guard++ < 8) {
+            val next = MOOD_FENCE_REGEX.replace(out, "")
+                .let { MOOD_BARE_TICK_REGEX.replace(it, "$1") }
+            if (next == out) break
+            out = next
+        }
+        return out.replace(MOOD_TAG_REGEX, "").trimEnd()
+    }
 
     fun stripUserPromptTimestamp(text: String): String =
         text.replace(USER_PROMPT_TIMESTAMP_REGEX, "").trimEnd()

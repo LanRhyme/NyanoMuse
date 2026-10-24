@@ -11210,8 +11210,6 @@ class ChatViewModel(
         // Pre-T122 the prompt embedded `Current time: yyyy-MM-dd HH:mm` mid-base,
         // which guaranteed cache misses across minute boundaries — even a quick
         // follow-up could land on a different minute and pay full ingestion.
-        val today = java.time.LocalDate.now()
-        val dateStr = today.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
         val tzId = java.util.TimeZone.getDefault().id
         val lang = context.resources.configuration.locales[0].toLanguageTag()
 
@@ -11425,9 +11423,15 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         // nanoMuse: cache providers match a byte prefix. Keep the safety policy and Hands ladder
         // ahead of every memory/runtime/session fragment, then append volatile data deterministically.
         val sessionKey = realSessionId.ifEmpty { sessionId }
+        // nanoMuse: 此前只有日期，模型到深夜也不知道是深夜，tired / checkedout 这类
+        // 夜间心境永远落不下来。小时足够，分钟只会白打掉缓存前缀。星期几同样只占一行。
+        val nowAtBuild = java.time.LocalDateTime.now()
+        val clockStr = nowAtBuild.format(
+            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd EEE HH:00", java.util.Locale.US)
+        )
         val runtimeContext = """
             Runtime context:
-            - Current date: $dateStr ($tzId)
+            - Current time: $clockStr ($tzId)
             - Device language: $lang
             - minis-model-use models available: $modelUseCount
         """.trimIndent()

@@ -79,4 +79,56 @@ class BubbleTimeFormatterTest {
         val sanitized = BubbleTimeFormatter.sanitizeBubbleTags("A<nm:bubble/>B<nm:bubble />C")
         assertEquals("A\n\nB\n\nC", sanitized)
     }
+
+    // The shapes a model actually produces when it writes the hidden mood tag.
+    // Only the first was understood before; the rest silently dropped the whole
+    // turn's feedback, which is what left the dashboard frozen on the device.
+    @Test
+    fun `mood tag is read in every shape a model writes it`() {
+        val cases = listOf(
+            "晚安，早点睡。<nm:mood feel=\"tired\" reason=\"深夜\"/>",
+            "晚安，早点睡。<nm:mood feel=\"tired\" reason=\"深夜\" />",
+            "晚安，早点睡。<nm:mood feel=\"tired\" reason=\"深夜\"></nm:mood>",
+            "晚安，早点睡。`<nm:mood feel=\"tired\" reason=\"深夜\"/>`",
+            "晚安，早点睡。\n```\n<nm:mood feel=\"tired\" reason=\"深夜\"/>\n```",
+            "晚安，早点睡。\n<nm:mood feel='tired' reason='深夜'/>",
+            "晚安，早点睡。\n<nm:mood\n  feel=\"tired\"\n  reason=\"深夜\"/>",
+        )
+        for (raw in cases) {
+            val feedback = BubbleTimeFormatter.extractMoodFeedback(raw)
+            assertTrue("not read: $raw", feedback != null)
+            assertEquals("not read: $raw", "tired", feedback!!.feel)
+            assertEquals("not read: $raw", "深夜", feedback.reason)
+        }
+    }
+
+    @Test
+    fun `mood tag the model forgot to close is still read`() {
+        // A truncated final line: the closing slash never arrived.
+        val feedback = BubbleTimeFormatter.extractMoodFeedback("好呀。<nm:mood feel=\"happy\" reason=\"被夸\">")
+            ?: return
+        assertEquals("happy", feedback.feel)
+    }
+
+    @Test
+    fun `attribute named like feel is not mistaken for it`() {
+        // `feedback` ends in `feel`; matching it would read the wrong value.
+        val feedback = BubbleTimeFormatter.extractMoodFeedback("<nm:mood feedback=\"x\"/>")
+        assertTrue(feedback == null || feedback.feel != "x")
+    }
+
+    @Test
+    fun `stripping a mood tag removes its wrappers but leaves real code alone`() {
+        assertEquals(
+            "晚安，早点睡。",
+            BubbleTimeFormatter.stripMoodTags("晚安，早点睡。\n`<nm:mood feel=\"tired\"/>`")
+        )
+        assertEquals(
+            "晚安，早点睡。",
+            BubbleTimeFormatter.stripMoodTags("晚安，早点睡。\n```\n<nm:mood feel=\"tired\"/>\n```")
+        )
+        // An ordinary code block must come back untouched.
+        val code = "示例：\n```kotlin\nval x = 1\n```"
+        assertEquals(code, BubbleTimeFormatter.stripMoodTags(code))
+    }
 }
