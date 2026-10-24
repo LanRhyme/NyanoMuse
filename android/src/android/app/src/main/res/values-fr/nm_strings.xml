@@ -416,6 +416,9 @@
     <string name="nm_picker_more_models">Plus de modèles sur votre compte</string>
     <string name="nm_picker_more_models_note">Absents du menu, mais utilisables avec votre compte ; facturés comme le modèle du menu le plus proche. L’écran n’est lu avec l’un d’eux que si vous le choisissez.</string>
     <string name="nm_attach_commands">Commandes</string>
+    <string name="nm_attach_stickers">Autocollants</string>
+    <string name="nm_stickers_empty">Pas encore d\'autocollants</string>
+    <string name="nm_stickers_search">Rechercher des autocollants…</string>
     <string name="nm_composer_placeholder">Message</string>
 
     <!-- 0.1.9 · Portrait -->

@@ -412,6 +412,9 @@
     <string name="nm_picker_more_models">Lagi model pada akaun anda</string>
     <string name="nm_picker_more_models_note">Tiada dalam menu, tetapi boleh digunakan dengan akaun anda; dibilkan seperti model menu yang paling hampir. Skrin dibaca dengan salah satu daripada ini hanya apabila anda memilihnya.</string>
     <string name="nm_attach_commands">Perintah</string>
+    <string name="nm_attach_stickers">Pelekat</string>
+    <string name="nm_stickers_empty">Tiada pelekat lagi</string>
+    <string name="nm_stickers_search">Cari pelekat…</string>
     <string name="nm_composer_placeholder">Mesej</string>
 
     <!-- 0.1.9 · Portrait -->

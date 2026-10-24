@@ -412,6 +412,9 @@
     <string name="nm_picker_more_models">Model lain di akunmu</string>
     <string name="nm_picker_more_models_note">Tidak ada di menu, tetapi bisa dipakai dengan akunmu; ditagih seperti model terdekat di menu. Layar dibaca dengan salah satunya hanya saat kamu memilihnya.</string>
     <string name="nm_attach_commands">Perintah</string>
+    <string name="nm_attach_stickers">Stiker</string>
+    <string name="nm_stickers_empty">Belum ada stiker</string>
+    <string name="nm_stickers_search">Cari stiker…</string>
     <string name="nm_composer_placeholder">Pesan</string>
 
     <!-- 0.1.9 · Portrait -->

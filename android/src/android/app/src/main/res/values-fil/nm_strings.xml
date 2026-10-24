@@ -415,6 +415,9 @@
     <string name="nm_picker_more_models">Higit pang modelo sa account mo</string>
     <string name="nm_picker_more_models_note">Wala sa menu, pero magagamit sa account mo; sinisingil tulad ng pinakamalapit na modelo sa menu. Binabasa ang screen gamit ang isa sa mga ito kapag pinili mo lang ito.</string>
     <string name="nm_attach_commands">Mga command</string>
+    <string name="nm_attach_stickers">Mga Sticker</string>
+    <string name="nm_stickers_empty">Wala pang mga sticker</string>
+    <string name="nm_stickers_search">Maghanap ng mga sticker…</string>
     <string name="nm_composer_placeholder">Mensahe</string>
 
     <!-- 0.1.9 · Portrait -->

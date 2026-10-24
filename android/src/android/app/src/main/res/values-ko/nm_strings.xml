@@ -412,6 +412,9 @@
     <string name="nm_picker_more_models">내 계정의 다른 모델</string>
     <string name="nm_picker_more_models_note">메뉴에는 없지만 내 계정으로 쓸 수 있는 모델입니다. 메뉴에서 가장 가까운 모델과 같이 과금됩니다. 화면 읽기는 직접 고른 경우에만 이 모델로 합니다.</string>
     <string name="nm_attach_commands">명령</string>
+    <string name="nm_attach_stickers">스티커</string>
+    <string name="nm_stickers_empty">스티커 없음</string>
+    <string name="nm_stickers_search">스티커 검색…</string>
     <string name="nm_composer_placeholder">메시지</string>
 
     <!-- 0.1.9 · Portrait -->

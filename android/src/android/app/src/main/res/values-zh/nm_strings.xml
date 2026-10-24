@@ -408,6 +408,9 @@
     <string name="nm_picker_more_models">账号还能用的更多模型</string>
     <string name="nm_picker_more_models_note">不在菜单里，但你的账号可以用；按菜单里最接近的模型计费。看屏幕只有你自己选了才会用到它们。</string>
     <string name="nm_attach_commands">命令</string>
+    <string name="nm_attach_stickers">表情包</string>
+    <string name="nm_stickers_empty">暂无表情包</string>
+    <string name="nm_stickers_search">搜索表情包…</string>
     <string name="nm_composer_placeholder">消息</string>
 
     <!-- 0.1.9 · Portrait -->

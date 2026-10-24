@@ -141,6 +141,7 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Mood // nanoMuse
 import androidx.compose.material.icons.outlined.Tune // nanoMuse
 import androidx.compose.material.icons.outlined.Archive // nanoMuse
 import androidx.compose.material.icons.filled.Delete
@@ -997,6 +998,7 @@ fun ChatScreen(
     // AIChatView.showThinkingLevelSheet.
     var showThinkingLevelSheet by remember { mutableStateOf(false) }
     var showAttachMenu by remember { mutableStateOf(false) }
+    var showStickerPicker by remember { mutableStateOf(false) } // nanoMuse: user sticker picker
     var showChatMenu by remember { mutableStateOf(false) }
     var showSkillsSheet by remember { mutableStateOf(false) }
     // [T-mcp-integration-android] MCPs-in-Session sheet visibility.
@@ -6746,6 +6748,15 @@ fun ChatScreen(
                                         },
                                     )
                                 }
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.nm_attach_stickers)) },
+                                    leadingIcon = { Icon(Icons.Default.Mood, contentDescription = null) },
+                                    onClick = {
+                                        showAttachMenu = false
+                                        showStickerPicker = true
+                                        keyboardController?.hide()
+                                    },
+                                )
                                 // iOS parity: Take Photo / Choose Photos & Videos / Add File
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_attach_take_photo)) },
@@ -6790,6 +6801,21 @@ fun ChatScreen(
 
                         if (nmPill) {
                             nmTextField(Modifier.weight(1f)) // nanoMuse: the field between the buttons
+                            // nanoMuse: composer sticker picker button
+                            InputCircleButton(
+                                onClick = {
+                                    showStickerPicker = !showStickerPicker
+                                    if (showStickerPicker) keyboardController?.hide()
+                                },
+                                plain = true,
+                            ) {
+                                Icon(
+                                    Icons.Default.Mood,
+                                    contentDescription = stringResource(R.string.nm_attach_stickers),
+                                    tint = if (showStickerPicker) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
                         } else {
                         Spacer(modifier = Modifier.width(8.dp))
 
@@ -7501,6 +7527,22 @@ fun ChatScreen(
                         viewModel.confirmAndEnableEnhancedCache()
                         showEnhancedCacheDialog = false
                     },
+                )
+            }
+            // nanoMuse: user sticker picker sheet
+            if (showStickerPicker) {
+                io.github.nanomuse.ui.sticker.StickerPickerSheet(
+                    onDismiss = { showStickerPicker = false },
+                    onPickSticker = { sticker ->
+                        val file = java.io.File(sticker.filePath)
+                        if (file.exists()) {
+                            viewModel.addAttachmentFromStagedShare(file)
+                            if (inputText.isBlank()) {
+                                viewModel.sendMessage("")
+                            }
+                        }
+                        showStickerPicker = false
+                    }
                 )
             }
             },

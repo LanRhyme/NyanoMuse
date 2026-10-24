@@ -412,6 +412,9 @@
     <string name="nm_picker_more_models">アカウントで使えるほかのモデル</string>
     <string name="nm_picker_more_models_note">メニューにはありませんが、アカウントで使えます。料金はメニュー内で最も近いモデルと同じです。画面の読み取りにこれらが使われるのは、自分で選んだときだけです。</string>
     <string name="nm_attach_commands">コマンド</string>
+    <string name="nm_attach_stickers">ステッカー</string>
+    <string name="nm_stickers_empty">ステッカーがありません</string>
+    <string name="nm_stickers_search">ステッカーを検索…</string>
     <string name="nm_composer_placeholder">メッセージ</string>
 
     <!-- 0.1.9 · Portrait -->

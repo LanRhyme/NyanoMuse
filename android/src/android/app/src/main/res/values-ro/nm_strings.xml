@@ -418,6 +418,9 @@
     <string name="nm_picker_more_models">Mai multe modele pe contul tău</string>
     <string name="nm_picker_more_models_note">Nu sunt în meniu, dar le poți folosi cu contul tău; facturate ca modelul cel mai apropiat din meniu. Ecranul e citit cu unul dintre ele doar când îl alegi.</string>
     <string name="nm_attach_commands">Comenzi</string>
+    <string name="nm_attach_stickers">Stickere</string>
+    <string name="nm_stickers_empty">Niciun sticker încă</string>
+    <string name="nm_stickers_search">Caută stickere…</string>
     <string name="nm_composer_placeholder">Mesaj</string>
 
     <!-- 0.1.9 · Portrait -->
