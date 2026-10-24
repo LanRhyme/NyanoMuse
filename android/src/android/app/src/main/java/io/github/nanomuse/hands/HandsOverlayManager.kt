@@ -21,6 +21,29 @@ object HandsOverlayManager {
     private var capsule: HandsCapsule? = null
     val stopRequested = AtomicBoolean(false)
     private var isObserverInitialized = false
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
+
+    private fun acquireWakeLock(context: Context) {
+        if (wakeLock == null) {
+            val pm = context.applicationContext.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            wakeLock = pm?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "nanomuse:HandsOverlayWakeLock")?.apply {
+                setReferenceCounted(false)
+            }
+        }
+        try {
+            if (wakeLock?.isHeld != true) {
+                wakeLock?.acquire(5 * 60 * 1000L) // 5-minute safety timeout
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (_: Exception) {}
+    }
 
     private val autoDismissRunnable = Runnable {
         dismiss()
@@ -76,6 +99,7 @@ object HandsOverlayManager {
      */
     fun show(context: Context, actionLabel: String, step: Int = 1) {
         if (!isAppBackgrounded(context)) return
+        acquireWakeLock(context)
         stopRequested.set(false)
         main.removeCallbacks(autoDismissRunnable)
         val c = getOrCreateCapsule(context) ?: return
@@ -89,6 +113,7 @@ object HandsOverlayManager {
         val bg = isAppBackgrounded(context)
         val c = if (bg) getOrCreateCapsule(context) else null
         if (c != null) {
+            acquireWakeLock(context)
             stopRequested.set(false)
             main.removeCallbacks(autoDismissRunnable)
             c.working(1, label)
@@ -112,6 +137,7 @@ object HandsOverlayManager {
         val bg = isAppBackgrounded(context)
         val c = if (bg) getOrCreateCapsule(context) else null
         if (c != null) {
+            acquireWakeLock(context)
             stopRequested.set(false)
             main.removeCallbacks(autoDismissRunnable)
             c.working(1, label)
@@ -137,5 +163,6 @@ object HandsOverlayManager {
         main.removeCallbacks(autoDismissRunnable)
         capsule?.hide()
         capsule = null
+        releaseWakeLock()
     }
 }

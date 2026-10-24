@@ -86,18 +86,20 @@ object NativeSystemTools {
 
     fun deviceControlDefinition(): AgentToolDefinition = AgentToolDefinition(
         name = TOOL_DEVICE_CONTROL,
-        description = "Inspect and control Android hardware settings and state, including audio volume (media, ringtone, alarm, notification), flashlight/torch, system clipboard (read/write), media playback (play/pause/next/prev), navigation key actions (back, home, recents, notifications, quick settings, lock screen), vibration feedback, and navigating to system settings pages.",
+        description = "Inspect and control Android hardware settings and state, including audio volume (media, ringtone, alarm, notification), flashlight/torch, system clipboard (read/write), media playback (play/pause/next/prev), navigation key actions (back, home, recents, notifications, quick settings, lock screen), vibration feedback, system settings pages, and system intents (open URL in browser, dial phone number, share text).",
         parameters = mapOf(
             "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does."),
-            "action" to AgentToolParam("string", "The device control action to execute", enumValues = listOf("volume", "flashlight", "clipboard", "media", "navigation", "open_settings", "vibrate")),
-            "sub_action" to AgentToolParam("string", "Specific command for the action. For volume: 'get', 'set', 'raise', 'lower', 'mute', 'unmute'. For flashlight: 'on', 'off', 'toggle', 'status'. For clipboard: 'get', 'set'. For media: 'play_pause', 'play', 'pause', 'next', 'previous', 'stop'. For navigation: 'back', 'home', 'recents', 'notifications', 'quick_settings', 'lock_screen', 'power_dialog'."),
+            "action" to AgentToolParam("string", "The device control action to execute", enumValues = listOf("volume", "flashlight", "clipboard", "media", "navigation", "open_settings", "vibrate", "intent")),
+            "sub_action" to AgentToolParam("string", "Specific command for the action. For volume: 'get', 'set', 'raise', 'lower', 'mute', 'unmute'. For flashlight: 'on', 'off', 'toggle', 'status'. For clipboard: 'get', 'set'. For media: 'play_pause', 'play', 'pause', 'next', 'previous', 'stop'. For navigation: 'back', 'home', 'recents', 'notifications', 'quick_settings', 'lock_screen', 'power_dialog'. For intent: 'open_url', 'dial', 'share'."),
             "stream" to AgentToolParam("string", "Audio stream for volume action ('media', 'ring', 'notification', 'alarm', 'call'). Default is 'media'."),
             "value" to AgentToolParam("integer", "Numeric parameter. Volume level (0-100 percentage or raw level) for volume 'set'; or duration in milliseconds for 'vibrate'."),
-            "text" to AgentToolParam("string", "Text string to copy into system clipboard for clipboard 'set'."),
+            "text" to AgentToolParam("string", "Text string to copy into system clipboard for clipboard 'set', or text to share for intent 'share'."),
             "settings_page" to AgentToolParam("string", "System settings page to open for open_settings action ('wifi', 'bluetooth', 'display', 'sound', 'battery', 'accessibility', 'apps', 'date', 'location', 'airplane_mode')."),
+            "url" to AgentToolParam("string", "Web URL to open in browser for intent 'open_url' action."),
+            "phone_number" to AgentToolParam("string", "Phone number to open dialer for intent 'dial' action."),
         ),
         required = listOf("tool_title", "action"),
-        propertyOrdering = listOf("tool_title", "action", "sub_action", "stream", "value", "text", "settings_page"),
+        propertyOrdering = listOf("tool_title", "action", "sub_action", "stream", "value", "text", "settings_page", "url", "phone_number"),
     )
 
     fun appManageDefinition(): AgentToolDefinition = AgentToolDefinition(
@@ -117,25 +119,26 @@ object NativeSystemTools {
 
     fun screenInteractDefinition(): AgentToolDefinition = AgentToolDefinition(
         name = TOOL_SCREEN_INTERACT,
-        description = "Directly interact with and control the Android screen via touch, gestures, text input, key presses, or UI element clicking. Works via MinisAccessibilityService or Root mode. Supports normalized 0-999 coordinates (or raw screen pixels), text typing into active input fields, key events, and locating/clicking UI elements by visible text.",
+        description = "Directly interact with and control the Android screen via touch, gestures, text input, key presses, or UI element clicking. Works via MinisAccessibilityService or Root mode. Supports normalized 0-999 coordinates (or raw screen pixels), text typing with automatic focus tap and non-ASCII clipboard paste fallback, key events, and locating/clicking UI elements by visible text or resource ID.",
         parameters = mapOf(
             "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does."),
             "action" to AgentToolParam("string", "The interaction action to perform", enumValues = listOf("tap", "double_tap", "long_press", "swipe", "scroll", "type", "key", "click_element")),
-            "coordinate_x" to AgentToolParam("integer", "X coordinate (0-999 normalized grid or raw screen pixel) for tap, double_tap, long_press."),
-            "coordinate_y" to AgentToolParam("integer", "Y coordinate (0-999 normalized grid or raw screen pixel) for tap, double_tap, long_press."),
+            "coordinate_x" to AgentToolParam("integer", "X coordinate (0-999 normalized grid or raw screen pixel) for tap, double_tap, long_press, or focus tap for type."),
+            "coordinate_y" to AgentToolParam("integer", "Y coordinate (0-999 normalized grid or raw screen pixel) for tap, double_tap, long_press, or focus tap for type."),
             "start_x" to AgentToolParam("integer", "Starting X coordinate for swipe (0-999 grid or raw pixel)."),
             "start_y" to AgentToolParam("integer", "Starting Y coordinate for swipe (0-999 grid or raw pixel)."),
             "end_x" to AgentToolParam("integer", "Ending X coordinate for swipe (0-999 grid or raw pixel)."),
             "end_y" to AgentToolParam("integer", "Ending Y coordinate for swipe (0-999 grid or raw pixel)."),
             "direction" to AgentToolParam("string", "Scroll direction ('up', 'down', 'left', 'right') for scroll action. Default is 'down'."),
             "amount" to AgentToolParam("integer", "Scroll distance in pixels for scroll action. Default is 600."),
-            "text" to AgentToolParam("string", "Text string to type into the currently focused input field for 'type' action."),
+            "text" to AgentToolParam("string", "Text string to type into the focused input field for 'type' action. Automatically handles Chinese and Emoji via clipboard paste fallback."),
             "element_text" to AgentToolParam("string", "Visible text or button label on screen to locate and click for 'click_element' action."),
+            "resource_id" to AgentToolParam("string", "Optional view resource ID (e.g. 'com.tencent.mm:id/action_search') to locate and click for 'click_element' action."),
             "key" to AgentToolParam("string", "Key name for 'key' action ('back', 'home', 'enter', 'tab', 'delete', 'volume_up', 'volume_down', 'power')."),
             "duration_ms" to AgentToolParam("integer", "Optional gesture duration in milliseconds (e.g. for long_press or custom swipe)."),
         ),
         required = listOf("tool_title", "action"),
-        propertyOrdering = listOf("tool_title", "action", "coordinate_x", "coordinate_y", "start_x", "start_y", "end_x", "end_y", "direction", "amount", "text", "element_text", "key", "duration_ms"),
+        propertyOrdering = listOf("tool_title", "action", "coordinate_x", "coordinate_y", "start_x", "start_y", "end_x", "end_y", "direction", "amount", "text", "element_text", "resource_id", "key", "duration_ms"),
     )
 
     fun imageGenerateDefinition(): AgentToolDefinition = AgentToolDefinition(
@@ -491,7 +494,78 @@ object NativeSystemTools {
                 val res = executeVibrate(context, duration)
                 ToolExecutionResult(res.second, res.first, toolTitle = toolTitle)
             }
-            else -> ToolExecutionResult("Unknown device_control action '$action'. Supported actions: volume, flashlight, clipboard, media, navigation, open_settings, vibrate.", false, toolTitle = toolTitle)
+            "intent" -> {
+                val effectiveSub = if (subAction.isNotBlank()) subAction else "open_url"
+                val url = json.optString("url", text).trim()
+                val phone = json.optString("phone_number", text).trim()
+                val res = when (effectiveSub.lowercase()) {
+                    "open_url", "url", "browser" -> {
+                        if (url.isEmpty()) {
+                            false to "Error: 'url' parameter is required for open_url intent."
+                        } else {
+                            val parsedUri = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                                Uri.parse("https://$url")
+                            } else {
+                                Uri.parse(url)
+                            }
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, parsedUri).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                io.github.nanomuse.hands.HandsOverlayManager.show(context, "Open URL: $url")
+                                io.github.nanomuse.hands.HandsOverlayManager.scheduleAutoDismiss(3500L)
+                                true to "Successfully opened URL in browser: $parsedUri"
+                            } catch (e: Exception) {
+                                false to "Failed to open URL $url: ${e.message}"
+                            }
+                        }
+                    }
+                    "dial", "phone", "call" -> {
+                        if (phone.isEmpty()) {
+                            false to "Error: 'phone_number' parameter is required for dial intent."
+                        } else {
+                            try {
+                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                io.github.nanomuse.hands.HandsOverlayManager.show(context, "Dial: $phone")
+                                io.github.nanomuse.hands.HandsOverlayManager.scheduleAutoDismiss(3500L)
+                                true to "Opened phone dialer for number: $phone"
+                            } catch (e: Exception) {
+                                false to "Failed to open dialer: ${e.message}"
+                            }
+                        }
+                    }
+                    "share" -> {
+                        val shareText = if (text.isNotBlank()) text else url
+                        if (shareText.isEmpty()) {
+                            false to "Error: 'text' parameter is required for share intent."
+                        } else {
+                            try {
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                val chooser = Intent.createChooser(intent, "Share via").apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(chooser)
+                                io.github.nanomuse.hands.HandsOverlayManager.show(context, "Share Text")
+                                io.github.nanomuse.hands.HandsOverlayManager.scheduleAutoDismiss(3500L)
+                                true to "Successfully invoked system share sheet with provided text."
+                            } catch (e: Exception) {
+                                false to "Failed to invoke share sheet: ${e.message}"
+                            }
+                        }
+                    }
+                    else -> false to "Unknown intent sub_action '$effectiveSub'. Supported: 'open_url', 'dial', 'share'."
+                }
+                ToolExecutionResult(res.second, res.first, toolTitle = toolTitle)
+            }
+            else -> ToolExecutionResult("Unknown device_control action '$action'. Supported actions: volume, flashlight, clipboard, media, navigation, open_settings, vibrate, intent.", false, toolTitle = toolTitle)
         }
     }
 
@@ -789,34 +863,79 @@ object NativeSystemTools {
             "type" -> {
                 val text = json.optString("text", "")
                 if (text.isEmpty()) return ToolExecutionResult("Error: 'text' parameter is required for type action.", false, toolTitle = toolTitle)
+                val targetX = if (json.has("coordinate_x")) json.optInt("coordinate_x") else if (json.has("x")) json.optInt("x") else null
+                val targetY = if (json.has("coordinate_y")) json.optInt("coordinate_y") else if (json.has("y")) json.optInt("y") else null
+
+                // If coordinates are provided, tap first to focus the input field
+                if (targetX != null && targetY != null) {
+                    val pxX = toPxX(targetX)
+                    val pxY = toPxY(targetY)
+                    io.github.nanomuse.hands.HandsOverlayManager.withAimAndTap(context, pxX, pxY, "Focus: \"${text.take(16)}\"") {
+                        if (svc != null) {
+                            val path = Path().apply { moveTo(pxX.toFloat(), pxY.toFloat()); lineTo(pxX + 0.5f, pxY + 0.5f) }
+                            svc.dispatchSimpleGesture(path, 0L, 50L)
+                        } else if (isRootMode) {
+                            runCatching { ProcessBuilder("su", "-c", "input tap $pxX $pxY").start().waitFor() }
+                        }
+                    }
+                    try { Thread.sleep(200L) } catch (_: InterruptedException) {}
+                }
+
                 io.github.nanomuse.hands.HandsOverlayManager.show(context, "Typing: \"${text.take(24)}\"")
                 io.github.nanomuse.hands.HandsOverlayManager.scheduleAutoDismiss()
+
+                val hasNonAscii = text.any { it.code > 127 }
+
+                // 1. Accessibility Service input
                 if (svc != null) {
                     val roots = svc.rootNodes()
                     val focused = roots.firstNotNullOfOrNull { root ->
                         runCatching { root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }.getOrNull()
                     }
-                    if (focused != null && svc.setNodeText(focused, text)) {
-                        return ToolExecutionResult("Typed text into focused input field: \"$text\"", true, toolTitle = toolTitle)
+                    if (focused != null) {
+                        if (svc.setNodeText(focused, text)) {
+                            return ToolExecutionResult("Typed text into focused input field: \"$text\"", true, toolTitle = toolTitle)
+                        }
+                        // Fallback: clipboard paste on focused node
+                        setClipboardText(context, text)
+                        if (focused.performAction(AccessibilityNodeInfo.ACTION_PASTE)) {
+                            return ToolExecutionResult("Pasted text into focused input field via clipboard: \"$text\"", true, toolTitle = toolTitle)
+                        }
                     }
                 }
+
+                // 2. Root input
                 if (isRootMode) {
-                    val escaped = text.replace("\\", "\\\\")
-                        .replace("\"", "\\\"")
-                        .replace(" ", "%s")
-                        .replace("&", "\\&")
-                        .replace("<", "\\<")
-                        .replace(">", "\\>")
-                        .replace(";", "\\;")
-                        .replace("$", "\\$")
-                    try {
-                        ProcessBuilder("su", "-c", "input text \"$escaped\"").start().waitFor()
-                        return ToolExecutionResult("Typed text via Root input: \"$text\"", true, toolTitle = toolTitle)
-                    } catch (e: Exception) {
-                        return ToolExecutionResult("Root text input failed: ${e.message}", false, toolTitle = toolTitle)
+                    if (hasNonAscii) {
+                        // Android 'input text' cannot handle non-ASCII; use clipboard + KEYCODE_PASTE (279)
+                        setClipboardText(context, text)
+                        return try {
+                            ProcessBuilder("su", "-c", "input keyevent 279").start().waitFor()
+                            ToolExecutionResult("Pasted text via Root clipboard paste: \"$text\"", true, toolTitle = toolTitle)
+                        } catch (e: Exception) {
+                            ToolExecutionResult("Root clipboard paste failed: ${e.message}", false, toolTitle = toolTitle)
+                        }
+                    } else {
+                        val escaped = text.replace("\\", "\\\\")
+                            .replace("\"", "\\\"")
+                            .replace(" ", "%s")
+                            .replace("&", "\\&")
+                            .replace("<", "\\<")
+                            .replace(">", "\\>")
+                            .replace(";", "\\;")
+                            .replace("$", "\\$")
+                        try {
+                            ProcessBuilder("su", "-c", "input text \"$escaped\"").start().waitFor()
+                            return ToolExecutionResult("Typed text via Root input: \"$text\"", true, toolTitle = toolTitle)
+                        } catch (e: Exception) {
+                            return ToolExecutionResult("Root text input failed: ${e.message}", false, toolTitle = toolTitle)
+                        }
                     }
                 }
-                return ToolExecutionResult("Type failed: No text field currently has focus, or AccessibilityService/Root is not active.", false, toolTitle = toolTitle)
+
+                // 3. Fallback when neither worked directly: set clipboard so user/model can paste
+                setClipboardText(context, text)
+                return ToolExecutionResult("Type completed: copied text \"$text\" to clipboard (no active input field had focus for direct entry).", true, toolTitle = toolTitle)
             }
             "key" -> {
                 val keyName = json.optString("key", "").lowercase().trim()
@@ -862,23 +981,42 @@ object NativeSystemTools {
             }
             "click_element" -> {
                 val targetText = json.optString("element_text", "").trim()
-                if (targetText.isEmpty()) return ToolExecutionResult("Error: 'element_text' parameter is required.", false, toolTitle = toolTitle)
+                val resourceId = json.optString("resource_id", json.optString("element_id", "")).trim()
+                if (targetText.isEmpty() && resourceId.isEmpty()) {
+                    return ToolExecutionResult("Error: Either 'element_text' or 'resource_id' parameter is required.", false, toolTitle = toolTitle)
+                }
                 if (svc == null) {
                     return ToolExecutionResult("click_element requires MinisAccessibilityService to be enabled in Android Settings.", false, toolTitle = toolTitle)
                 }
-                io.github.nanomuse.hands.HandsOverlayManager.show(context, "Click “${targetText.take(24)}”")
+                val displayLabel = if (targetText.isNotEmpty()) targetText else resourceId
+                io.github.nanomuse.hands.HandsOverlayManager.show(context, "Click “${displayLabel.take(24)}”")
                 val roots = svc.rootNodes()
                 var matchedNode: AccessibilityNodeInfo? = null
-                // 1. Direct match
-                for (r in roots) {
-                    val list = r.findAccessibilityNodeInfosByText(targetText)
-                    if (!list.isNullOrEmpty()) {
-                        matchedNode = list.firstOrNull { it.isVisibleToUser } ?: list.first()
-                        break
+
+                // 1. Direct match by View ID if provided
+                if (resourceId.isNotEmpty()) {
+                    for (r in roots) {
+                        val list = r.findAccessibilityNodeInfosByViewId(resourceId)
+                        if (!list.isNullOrEmpty()) {
+                            matchedNode = list.firstOrNull { it.isVisibleToUser } ?: list.first()
+                            break
+                        }
                     }
                 }
-                // 2. Recursive fuzzy match
-                if (matchedNode == null) {
+
+                // 2. Direct text match
+                if (matchedNode == null && targetText.isNotEmpty()) {
+                    for (r in roots) {
+                        val list = r.findAccessibilityNodeInfosByText(targetText)
+                        if (!list.isNullOrEmpty()) {
+                            matchedNode = list.firstOrNull { it.isVisibleToUser } ?: list.first()
+                            break
+                        }
+                    }
+                }
+
+                // 3. Recursive fuzzy match
+                if (matchedNode == null && targetText.isNotEmpty()) {
                     fun search(n: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
                         if (n == null) return null
                         val t = n.text?.toString() ?: ""
@@ -897,10 +1035,12 @@ object NativeSystemTools {
                         if (matchedNode != null) break
                     }
                 }
+
                 if (matchedNode == null) {
                     io.github.nanomuse.hands.HandsOverlayManager.scheduleAutoDismiss(1000L)
-                    return ToolExecutionResult("Could not find any visible element matching '$targetText' on current screen.", false, toolTitle = toolTitle)
+                    return ToolExecutionResult("Could not find any visible element matching '${displayLabel}' on current screen.", false, toolTitle = toolTitle)
                 }
+
                 // Perform click on node or its ancestor
                 var curr: AccessibilityNodeInfo? = matchedNode
                 var clicked = false
@@ -918,7 +1058,7 @@ object NativeSystemTools {
                     if (!bounds.isEmpty) {
                         val cx = bounds.centerX()
                         val cy = bounds.centerY()
-                        clicked = io.github.nanomuse.hands.HandsOverlayManager.withAimAndTap(context, cx, cy, "Click “${targetText.take(20)}”") {
+                        clicked = io.github.nanomuse.hands.HandsOverlayManager.withAimAndTap(context, cx, cy, "Click “${displayLabel.take(20)}”") {
                             val path = Path().apply { moveTo(cx.toFloat(), cy.toFloat()); lineTo(cx + 0.5f, cy + 0.5f) }
                             svc.dispatchSimpleGesture(path, 0L, 50L)
                         }
@@ -926,7 +1066,7 @@ object NativeSystemTools {
                 } else {
                     io.github.nanomuse.hands.HandsOverlayManager.scheduleAutoDismiss()
                 }
-                val matchedLabel = matchedNode.text?.toString() ?: matchedNode.contentDescription?.toString() ?: targetText
+                val matchedLabel = matchedNode.text?.toString() ?: matchedNode.contentDescription?.toString() ?: matchedNode.viewIdResourceName ?: displayLabel
                 return if (clicked) {
                     ToolExecutionResult("Successfully clicked element \"$matchedLabel\" on screen.", true, toolTitle = toolTitle)
                 } else {

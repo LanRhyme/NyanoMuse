@@ -37,6 +37,8 @@ class NativeSystemToolsTest {
         assertNotNull(def.parameters["value"])
         assertNotNull(def.parameters["text"])
         assertNotNull(def.parameters["settings_page"])
+        assertNotNull(def.parameters["url"])
+        assertNotNull(def.parameters["phone_number"])
     }
 
     @Test
@@ -62,6 +64,7 @@ class NativeSystemToolsTest {
         assertNotNull(def.parameters["direction"])
         assertNotNull(def.parameters["text"])
         assertNotNull(def.parameters["element_text"])
+        assertNotNull(def.parameters["resource_id"])
         assertNotNull(def.parameters["key"])
     }
 
