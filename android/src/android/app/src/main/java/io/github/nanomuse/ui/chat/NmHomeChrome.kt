@@ -99,8 +99,8 @@ fun NmAssistantBubble(
         content()
         return
     }
-    val topPad = if (clusterSize > 1 && clusterIndex > 0) 2.dp else 4.dp
-    val bottomPad = if (clusterSize > 1 && clusterIndex < clusterSize - 1) 2.dp else 6.dp
+    val topPad = if (clusterSize > 1 && clusterIndex > 0) 1.dp else 2.dp
+    val bottomPad = if (clusterSize > 1 && clusterIndex < clusterSize - 1) 1.dp else 3.dp
     val bubbleShape = if (clusterSize > 1) {
         when {
             clusterIndex == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp)
@@ -132,7 +132,7 @@ fun NmAssistantBubble(
             border = androidx.compose.foundation.BorderStroke(0.5.dp, borderColor),
             modifier = Modifier.widthIn(max = maxBubbleWidth),
         ) {
-            Column(modifier = Modifier.padding(start = 13.dp, end = 13.dp, top = 8.dp, bottom = 6.dp)) {
+            Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp, bottom = 4.dp)) {
                 content()
             }
         }

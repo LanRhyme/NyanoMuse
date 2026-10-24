@@ -446,7 +446,7 @@ internal fun UserMessageBubble(
                                         .border(0.5.dp, if (isQueued) Color.Transparent else borderColor, shape)
                                         .clip(shape)
                                         .then(dashedStroke)
-                                        .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 6.dp),
+                                        .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 5.dp),
                                     isSingleLineCandidate = !message.content.contains('\n') && message.content.length <= 50,
                                     gap = 6.dp,
                                     bottomSpacing = 0.dp,

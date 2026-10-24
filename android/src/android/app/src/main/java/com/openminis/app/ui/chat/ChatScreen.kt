@@ -4529,7 +4529,7 @@ fun ChatScreen(
                             // in the header says who is talking); a small gap keeps the
                             // turns apart.
                             is FlatChatItem.AssistantHeader -> Column {
-                                if (nmHome != null) Spacer(Modifier.height(6.dp)) else AssistantHeader()
+                                if (nmHome != null) Spacer(Modifier.height(2.dp)) else AssistantHeader()
                                 // nanoMuse: "From Pixel 8" when the reply was written on another device (C8)
                                 io.github.nanomuse.ui.chat.NmSyncCaption(item.messageId.substringBefore('#'), end = false)
                             }
