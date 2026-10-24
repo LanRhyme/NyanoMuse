@@ -663,4 +663,209 @@ class CompanionMoodStoreTest {
             CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.PROUD]!! > CompanionMoodStore.Mood.PROUD.baseline
         )
     }
+
+    @Test
+    fun testExcitedPromptAndFeedbackCorroboratesAndEntersSecondaryBlend() {
+        // User explicitly asks to test emotion system and boost excitement:
+        // "我现在要测试情绪系统，你试试提升兴奋数值"
+        val t1 = noon()
+        val t2 = t1 + 1_000L
+
+        CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "我现在要测试情绪系统，你试试提升兴奋数值",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = t1
+        )
+
+        // EXCITED is boosted by heuristic (+3.5) and CALM suppressed (-2.5)
+        val scoresMid = CompanionMoodStore.getScores(prefs)
+        assertEquals(16f + 3.5f, scoresMid[CompanionMoodStore.Mood.EXCITED]!!, 0.05f)
+        assertEquals(32f - 2.5f, scoresMid[CompanionMoodStore.Mood.CALM]!!, 0.05f)
+
+        // Model responds with <nm:mood feel="excited" reason="把档位拉起来"/>:
+        // Both tracks agree on EXCITED: heuristic stands and tag is boosted 1.4x (2.5 * 1.4 = 3.5),
+        // and CALM is suppressed further by 1.5.
+        val snapshot = CompanionMoodStore.applyFeedback(
+            prefs = prefs,
+            feelRaw = "excited",
+            reasonRaw = "把档位拉起来",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = t2
+        )
+        assertNotNull(snapshot)
+        val rawScoresFinal = CompanionMoodStore.getScores(prefs)
+        val expectedExcited = 16f + 3.5f + 2.5f * CompanionMoodStore.CORROBORATION_MULTIPLIER
+        assertEquals(expectedExcited, rawScoresFinal[CompanionMoodStore.Mood.EXCITED]!!, 0.05f)
+        // CALM's heuristic delta is reverted, then applyFeedback suppresses CALM: 32 - 1.5 = 30.5
+        assertEquals(32f - 1.5f, rawScoresFinal[CompanionMoodStore.Mood.CALM]!!, 0.05f)
+
+        // Gap between CALM (30.5) and EXCITED (23.0) is 7.5, which is < BLEND_GAP (8.0).
+        // EXCITED must enter secondary blend and be reflected in displayTitle!
+        assertTrue(
+            "EXCITED must be in secondary moods: ${snapshot!!.secondary}",
+            snapshot.secondary.contains(CompanionMoodStore.Mood.EXCITED)
+        )
+        assertTrue(
+            "Display title must reflect 兴奋: ${snapshot.displayTitle}",
+            snapshot.displayTitle.contains("兴奋")
+        )
+    }
+
+    @Test
+    fun testFromIdOrNullSupportsDisplayNameAndAliases() {
+        assertEquals(CompanionMoodStore.Mood.EXCITED, CompanionMoodStore.Mood.fromIdOrNull("兴奋"))
+        assertEquals(CompanionMoodStore.Mood.EXCITED, CompanionMoodStore.Mood.fromIdOrNull("激动"))
+        assertEquals(CompanionMoodStore.Mood.HAPPY, CompanionMoodStore.Mood.fromIdOrNull("开心"))
+        assertEquals(CompanionMoodStore.Mood.SULK, CompanionMoodStore.Mood.fromIdOrNull("生气"))
+        assertEquals(CompanionMoodStore.Mood.DOWN, CompanionMoodStore.Mood.fromIdOrNull("难过"))
+        assertEquals(CompanionMoodStore.Mood.CALM, CompanionMoodStore.Mood.fromIdOrNull("平静"))
+    }
+
+    @Test
+    fun testPeriodicDecayAllowsWornMoodToSettleBackToLeaderWhenDecayed() {
+        // Boost SULK so it becomes primary
+        CompanionMoodStore.applyAdjustment(
+            prefs,
+            mapOf(CompanionMoodStore.Mood.SULK to 40.0f),
+            now = 1000L
+        )
+        val sInit = CompanionMoodStore.currentSnapshot(prefs, now = noon())
+        assertEquals(CompanionMoodStore.Mood.SULK, sInit.primary)
+
+        // Multiple periodic decays over hours pull SULK back toward baseline (8.0).
+        // CALM (32.0) now leads SULK by >= MARGIN (3.0). Primary must settle back to CALM.
+        var t = 2000L
+        repeat(10) {
+            t += 4 * 3600_000L
+            CompanionMoodStore.periodicDecay(prefs, now = t)
+        }
+        val snapshot = CompanionMoodStore.currentSnapshot(prefs, now = noon())
+        assertEquals(CompanionMoodStore.Mood.CALM, snapshot.primary)
+    }
+
+    @Test
+    fun testFocusRegulationMessageHeuristics() {
+        val snapshotDrop = CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "降低专注，歇会摸鱼放空",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = noon()
+        )
+        val focusedDrop = snapshotDrop.scores[CompanionMoodStore.Mood.FOCUSED] ?: 0f
+        val checkedoutRise = snapshotDrop.scores[CompanionMoodStore.Mood.CHECKEDOUT] ?: 0f
+        assertTrue(
+            "FOCUSED score should decrease on 降低专注",
+            focusedDrop < CompanionMoodStore.Mood.FOCUSED.baseline
+        )
+        assertTrue(
+            "CHECKEDOUT score should increase on 摸鱼放空",
+            checkedoutRise > CompanionMoodStore.Mood.CHECKEDOUT.baseline
+        )
+
+        CompanionMoodStore.resetToBaseline(prefs, now = noon() + 5000L)
+        val snapshotBoost = CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "认真点，提升专注写代码",
+            sessionTurns = 2,
+            sessionErrors = 0,
+            now = noon() + 5000L
+        )
+        val focusedBoost = snapshotBoost.scores[CompanionMoodStore.Mood.FOCUSED] ?: 0f
+        assertTrue(
+            "FOCUSED score should increase on 提升专注",
+            focusedBoost > CompanionMoodStore.Mood.FOCUSED.baseline
+        )
+    }
+
+    @Test
+    fun testFocusCheckedoutMutualSuppression() {
+        // Model feedback tags checkedout: should suppress focused
+        val s1 = CompanionMoodStore.applyFeedback(
+            prefs = prefs,
+            feelRaw = "checkedout",
+            reasonRaw = "摆烂摸鱼",
+            now = noon()
+        )
+        assertNotNull(s1)
+        val focusedScore = s1!!.scores[CompanionMoodStore.Mood.FOCUSED] ?: 0f
+        assertTrue(
+            "FOCUSED should be suppressed when checkedout is tagged",
+            focusedScore < CompanionMoodStore.Mood.FOCUSED.baseline
+        )
+
+        CompanionMoodStore.resetToBaseline(prefs, now = noon() + 5000L)
+        // Model feedback tags focused: should suppress checkedout
+        val s2 = CompanionMoodStore.applyFeedback(
+            prefs = prefs,
+            feelRaw = "focused",
+            reasonRaw = "深度思考",
+            now = noon() + 5000L
+        )
+        assertNotNull(s2)
+        val checkedoutScore = s2!!.scores[CompanionMoodStore.Mood.CHECKEDOUT] ?: 0f
+        assertTrue(
+            "CHECKEDOUT should be suppressed when focused is tagged",
+            checkedoutScore < CompanionMoodStore.Mood.CHECKEDOUT.baseline
+        )
+    }
+
+    @Test
+    fun testCalmDeescalationMessageHeuristics() {
+        // First raise EXCITED
+        CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "太兴奋了，激动",
+            now = noon()
+        )
+        // Now de-escalate
+        val snapshot = CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "冷静点，淡定，消消气",
+            now = noon() + 5000L
+        )
+        val calmScore = snapshot.scores[CompanionMoodStore.Mood.CALM] ?: 0f
+        assertTrue(
+            "CALM score should rise on 冷静点",
+            calmScore > CompanionMoodStore.Mood.CALM.baseline
+        )
+    }
+
+    @Test
+    fun testEmotionIntensityDynamicParameters() {
+        CompanionPrefs.setEmotionIntensity(prefs, "subtle")
+        assertEquals(4.5f, CompanionMoodStore.margin(prefs), 0.01f)
+        assertEquals(8 * 60_000L, CompanionMoodStore.minHoldMs(prefs))
+        assertEquals(10.0f, CompanionMoodStore.bigLead(prefs), 0.01f)
+        assertEquals(5.0f, CompanionMoodStore.blendGap(prefs), 0.01f)
+        assertEquals(0.5f, CompanionMoodStore.intensityMultiplier(prefs), 0.01f)
+
+        CompanionPrefs.setEmotionIntensity(prefs, "vivid")
+        assertEquals(2.0f, CompanionMoodStore.margin(prefs), 0.01f)
+        assertEquals(2 * 60_000L, CompanionMoodStore.minHoldMs(prefs))
+        assertEquals(5.5f, CompanionMoodStore.bigLead(prefs), 0.01f)
+        assertEquals(10.0f, CompanionMoodStore.blendGap(prefs), 0.01f)
+        assertEquals(1.4f, CompanionMoodStore.intensityMultiplier(prefs), 0.01f)
+
+        CompanionPrefs.setEmotionIntensity(prefs, "normal")
+        assertEquals(CompanionMoodStore.MARGIN, CompanionMoodStore.margin(prefs), 0.01f)
+        assertEquals(CompanionMoodStore.MIN_HOLD_MS, CompanionMoodStore.minHoldMs(prefs))
+        assertEquals(CompanionMoodStore.BIG_LEAD, CompanionMoodStore.bigLead(prefs), 0.01f)
+        assertEquals(CompanionMoodStore.BLEND_GAP, CompanionMoodStore.blendGap(prefs), 0.01f)
+        assertEquals(1.0f, CompanionMoodStore.intensityMultiplier(prefs), 0.01f)
+    }
+
+    @Test
+    fun testEmotionIntensityPromptAddendumGuidance() {
+        CompanionPrefs.setEmotionIntensity(prefs, "vivid")
+        val vividPrompt = CompanionMoodStore.promptAddendum(prefs)
+        assertTrue("Vivid prompt must mention 生动充沛", vividPrompt.contains("生动充沛"))
+
+        CompanionPrefs.setEmotionIntensity(prefs, "subtle")
+        val subtlePrompt = CompanionMoodStore.promptAddendum(prefs)
+        assertTrue("Subtle prompt must mention 克制内敛", subtlePrompt.contains("克制内敛"))
+    }
 }

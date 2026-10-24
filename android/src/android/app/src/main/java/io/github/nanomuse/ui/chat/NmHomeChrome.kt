@@ -40,6 +40,7 @@ data class NmHomeChrome(
     val isTwoPane: Boolean = false,
     val onToggleSidebar: (() -> Unit)? = null,
     val sidebarCollapsed: Boolean = false,
+    val onArchiveMainChat: ((String) -> Unit)? = null,
 )
 
 /**

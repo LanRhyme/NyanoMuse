@@ -40,6 +40,7 @@ import com.openminis.app.offload.OffloadPermissionManager
 import com.openminis.app.service.SessionActivityTracker
 import com.openminis.app.service.ToolOutcome
 import io.github.nanomuse.avatar.AvatarStore
+import io.github.nanomuse.companion.CompanionMoodStore.Mood
 import kotlinx.coroutines.delay
 
 /**
@@ -92,32 +93,66 @@ internal data class CompanionPosture(
 internal fun companionPosture(
     family: io.github.nanomuse.companion.CompanionEmotion.PrimaryMood?,
     detail: io.github.nanomuse.companion.CompanionMoodStore.Mood? = null,
+    intensity: String = "normal",
 ): CompanionPosture {
-    val M = io.github.nanomuse.companion.CompanionMoodStore.Mood
-    detail?.let { m ->
+    val base = detail?.let { m ->
         when (m) {
-            io.github.nanomuse.companion.CompanionMoodStore.Mood.FOCUSED -> return CompanionPosture(breathMs = 2200, bobDp = -1.0f, scale = 1.035f)
-            io.github.nanomuse.companion.CompanionMoodStore.Mood.CALM -> return CompanionPosture(breathMs = 3000, bobDp = 0.6f)
-            io.github.nanomuse.companion.CompanionMoodStore.Mood.TIRED -> return CompanionPosture(breathMs = 3800, bobDp = 3.4f, tiltDeg = 2.5f, scale = 0.975f, entryDropDp = 3f)
-            io.github.nanomuse.companion.CompanionMoodStore.Mood.GLOOMY -> return CompanionPosture(breathMs = 4200, bobDp = 3.0f, tiltDeg = 5.5f, scale = 0.965f, entryDropDp = 3f)
-            io.github.nanomuse.companion.CompanionMoodStore.Mood.NUMB -> return CompanionPosture(breathMs = 3400, bobDp = 1.2f, scale = 0.985f)
-            io.github.nanomuse.companion.CompanionMoodStore.Mood.CHECKEDOUT -> return CompanionPosture(breathMs = 4600, bobDp = 4.2f, tiltDeg = 4f, scale = 0.955f, entryDropDp = 4f)
-            else -> Unit
+            Mood.FOCUSED -> CompanionPosture(breathMs = 2200, bobDp = -1.0f, scale = 1.035f)
+            Mood.CALM -> CompanionPosture(breathMs = 3000, bobDp = 0.6f)
+            Mood.TIRED -> CompanionPosture(
+                breathMs = 3800, bobDp = 3.4f, tiltDeg = 2.5f, scale = 0.975f, entryDropDp = 3f
+            )
+            Mood.GLOOMY -> CompanionPosture(
+                breathMs = 4200, bobDp = 3.0f, tiltDeg = 5.5f, scale = 0.965f, entryDropDp = 3f
+            )
+            Mood.NUMB -> CompanionPosture(breathMs = 3400, bobDp = 1.2f, scale = 0.985f)
+            Mood.CHECKEDOUT -> CompanionPosture(
+                breathMs = 4600, bobDp = 4.2f, tiltDeg = 4f, scale = 0.955f, entryDropDp = 4f
+            )
+            else -> null
         }
-    }
-    return when (family) {
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER -> CompanionPosture(breathMs = 900, bobDp = -3.5f, tiltDeg = 6f, scale = 1.06f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED -> CompanionPosture(breathMs = 1200, bobDp = -2.5f, scale = 1.045f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY -> CompanionPosture(breathMs = 2000, bobDp = -1.5f, scale = 1.03f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED -> CompanionPosture(breathMs = 2500, scale = 1.028f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY -> CompanionPosture(breathMs = 2400, tiltDeg = 3.5f, scale = 1.02f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING -> CompanionPosture(breathMs = 2800, tiltDeg = 2f, scale = 1.025f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS -> CompanionPosture(breathMs = 2400, bobDp = -1.8f, tiltDeg = 5f, scale = 1.025f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.LONGING -> CompanionPosture(breathMs = 2900, scale = 1.02f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS -> CompanionPosture(breathMs = 2200, tiltDeg = -3f, scale = 0.99f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT -> CompanionPosture(breathMs = 1800, bobDp = 2f, scale = 0.94f, entryDropDp = 3f)
-        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY -> CompanionPosture(breathMs = 3600, bobDp = 1.5f)
+    } ?: when (family) {
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HYPER ->
+            CompanionPosture(breathMs = 900, bobDp = -3.5f, tiltDeg = 6f, scale = 1.06f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.EXCITED ->
+            CompanionPosture(breathMs = 1200, bobDp = -2.5f, scale = 1.045f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.HAPPY ->
+            CompanionPosture(breathMs = 2000, bobDp = -1.5f, scale = 1.03f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.TOUCHED ->
+            CompanionPosture(breathMs = 2500, scale = 1.028f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SHY ->
+            CompanionPosture(breathMs = 2400, tiltDeg = 3.5f, scale = 1.02f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CARING ->
+            CompanionPosture(breathMs = 2800, tiltDeg = 2f, scale = 1.025f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CURIOUS ->
+            CompanionPosture(breathMs = 2400, bobDp = -1.8f, tiltDeg = 5f, scale = 1.025f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.LONGING ->
+            CompanionPosture(breathMs = 2900, scale = 1.02f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SULK_JEALOUS ->
+            CompanionPosture(breathMs = 2200, tiltDeg = -3f, scale = 0.99f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.CRACKED_HURT ->
+            CompanionPosture(breathMs = 1800, bobDp = 2f, scale = 0.94f, entryDropDp = 3f)
+        io.github.nanomuse.companion.CompanionEmotion.PrimaryMood.SLEEPY ->
+            CompanionPosture(breathMs = 3600, bobDp = 1.5f)
         null -> CompanionPosture()
+    }
+
+    return when (intensity) {
+        "vivid" -> CompanionPosture(
+            breathMs = (base.breathMs * 0.85f).toInt(),
+            bobDp = base.bobDp * 1.4f,
+            tiltDeg = base.tiltDeg * 1.4f,
+            scale = 1.0f + (base.scale - 1.0f) * 1.5f,
+            entryDropDp = base.entryDropDp * 1.3f
+        )
+        "subtle" -> CompanionPosture(
+            breathMs = (base.breathMs * 1.15f).toInt(),
+            bobDp = base.bobDp * 0.5f,
+            tiltDeg = base.tiltDeg * 0.5f,
+            scale = 1.0f + (base.scale - 1.0f) * 0.5f,
+            entryDropDp = base.entryDropDp * 0.6f
+        )
+        else -> base
     }
 }
 
@@ -193,6 +228,7 @@ fun AgentAvatar(
     modifier: Modifier = Modifier,
     companionMood: io.github.nanomuse.companion.CompanionEmotion.PrimaryMood? = null,
     companionDetail: io.github.nanomuse.companion.CompanionMoodStore.Mood? = null,
+    companionIntensity: String = "normal",
     contentDescription: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -207,7 +243,9 @@ fun AgentAvatar(
 
     // One posture drives breath, sink, lean and size together, so the six moods that share
     // the SLEEPY face still read as six different moods.
-    val posture = remember(companionMood, companionDetail) { companionPosture(companionMood, companionDetail) }
+    val posture = remember(companionMood, companionDetail, companionIntensity) {
+        companionPosture(companionMood, companionDetail, companionIntensity)
+    }
 
     val breathDuration = if (mood == AgentMood.WORKING) 700 else posture.breathMs
     val breath by motion.animateFloat(
@@ -463,6 +501,7 @@ fun AgentAvatarDisc(
     modifier: Modifier = Modifier,
     companionMood: io.github.nanomuse.companion.CompanionEmotion.PrimaryMood? = null,
     companionDetail: io.github.nanomuse.companion.CompanionMoodStore.Mood? = null,
+    companionIntensity: String = "normal",
     contentDescription: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -478,6 +517,7 @@ fun AgentAvatarDisc(
             size = discSize,
             companionMood = companionMood,
             companionDetail = companionDetail,
+            companionIntensity = companionIntensity,
             contentDescription = contentDescription,
             onClick = onClick,
         )

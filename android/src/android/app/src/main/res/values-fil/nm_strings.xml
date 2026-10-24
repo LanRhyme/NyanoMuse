@@ -1268,4 +1268,9 @@
     <string name="nm_feed_while_away">Habang wala ka</string>
     <string name="nm_feed_sync_from_computer">I-sync mula sa computer</string>
     <string name="nm_feed_syncing">Sini-sync ang feed…</string>
+    <string name="nm_chat_menu_archive_chat">I-archive ang Chat</string>
+    <string name="nm_chat_archive_dialog_title">I-archive ang Chat</string>
+    <string name="nm_chat_archive_dialog_body">I-archive ang chat na ito sa history at magsimula ng bago? Mananatili ang lahat ng nakaraang mensahe at alaala.</string>
+    <string name="nm_chat_archive_dialog_confirm">I-archive</string>
+    <string name="nm_chat_archive_default_title_prefix">Pangunahing Chat · %1$s</string>
 </resources>

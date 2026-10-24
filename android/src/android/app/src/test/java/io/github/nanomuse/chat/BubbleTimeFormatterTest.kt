@@ -93,6 +93,10 @@ class BubbleTimeFormatterTest {
             "晚安，早点睡。\n```\n<nm:mood feel=\"tired\" reason=\"深夜\"/>\n```",
             "晚安，早点睡。\n<nm:mood feel='tired' reason='深夜'/>",
             "晚安，早点睡。\n<nm:mood\n  feel=\"tired\"\n  reason=\"深夜\"/>",
+            "晚安，早点睡。<nm:mood feel=tired reason=深夜/>",
+            "晚安，早点睡。<nm:mood mood=\"tired\" reason=\"深夜\"/>",
+            "晚安，早点睡。<nm:mood type=\"tired\" reason=\"深夜\"/>",
+            "晚安，早点睡。<nm:mood emotion='tired' reason='深夜'/>",
         )
         for (raw in cases) {
             val feedback = BubbleTimeFormatter.extractMoodFeedback(raw)

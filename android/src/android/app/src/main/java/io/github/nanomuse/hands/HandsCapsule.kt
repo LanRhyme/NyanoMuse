@@ -262,6 +262,7 @@ class HandsCapsule(private val context: Context) {
             alpha = 0f
             translationY = -dp(28).toFloat()
             scaleX = 0.96f; scaleY = 0.96f
+            setOnClickListener { onOpenApp?.invoke() ?: bringAppToFront(null) }
         }
         val faceBox = FrameLayout(context).apply {
             val s = dp(36)

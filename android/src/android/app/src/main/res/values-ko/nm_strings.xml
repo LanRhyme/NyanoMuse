@@ -1264,4 +1264,9 @@
     <string name="nm_feed_while_away">자리를 비운 동안</string>
     <string name="nm_feed_sync_from_computer">컴퓨터에서 동기화</string>
     <string name="nm_feed_syncing">피드 동기화 중…</string>
+    <string name="nm_chat_menu_archive_chat">채팅 보관</string>
+    <string name="nm_chat_archive_dialog_title">채팅 보관</string>
+    <string name="nm_chat_archive_dialog_body">현재 채팅을 보관하고 새 대화를 시작할까요? 이전의 모든 메시지와 기억은 안전하게 보존됩니다.</string>
+    <string name="nm_chat_archive_dialog_confirm">보관</string>
+    <string name="nm_chat_archive_default_title_prefix">메인 채팅 · %1$s</string>
 </resources>

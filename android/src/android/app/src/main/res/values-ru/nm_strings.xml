@@ -1276,4 +1276,9 @@
     <string name="nm_feed_while_away">Пока вас не было</string>
     <string name="nm_feed_sync_from_computer">Синхронизировать с компьютера</string>
     <string name="nm_feed_syncing">Синхронизация ленты…</string>
+    <string name="nm_chat_menu_archive_chat">Архивировать чат</string>
+    <string name="nm_chat_archive_dialog_title">Архивировать чат</string>
+    <string name="nm_chat_archive_dialog_body">Архивировать этот чат в историю и начать новый диалог? Все предыдущие сообщения и воспоминания сохранятся.</string>
+    <string name="nm_chat_archive_dialog_confirm">В архив</string>
+    <string name="nm_chat_archive_default_title_prefix">Основной чат · %1$s</string>
 </resources>

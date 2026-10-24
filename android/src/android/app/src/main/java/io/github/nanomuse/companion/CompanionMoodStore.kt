@@ -157,11 +157,34 @@ object CompanionMoodStore {
         companion object {
             private val byId = entries.associateBy { it.id }
             private val byName = entries.associateBy { it.name.lowercase() }
+            private val byDisplayName = entries.associateBy { it.displayName }
+            private val aliases = mapOf(
+                "生气" to SULK,
+                "难过" to DOWN,
+                "激动" to EXCITED,
+                "害怕" to FEAR,
+                "讨厌" to DISGUST,
+                "恶心" to DISGUST,
+                "震惊" to SURPRISE,
+                "吃醋" to JEALOUS,
+                "自豪" to PROUD,
+                "困" to TIRED,
+                "累" to TIRED,
+                "害羞" to SHAME,
+                "心动" to FLUTTER,
+                "喜欢" to LOVE,
+                "爱" to LOVE,
+                "纠结" to CONFLICT,
+                "焦虑" to ANXIOUS,
+                "内耗" to BURNOUT,
+                "摆烂" to CHECKEDOUT,
+            )
 
             fun fromIdOrNull(raw: String?): Mood? {
                 if (raw.isNullOrBlank()) return null
-                val k = raw.trim().lowercase()
-                return byId[k] ?: byName[k]
+                val trimmed = raw.trim()
+                val k = trimmed.lowercase()
+                return byId[k] ?: byName[k] ?: byDisplayName[trimmed] ?: aliases[trimmed]
             }
 
             fun fromId(id: String?): Mood = fromIdOrNull(id) ?: CALM
@@ -252,6 +275,34 @@ object CompanionMoodStore {
             else -> 1.0f
         }
 
+    fun margin(prefs: SharedPreferences): Float =
+        when (CompanionPrefs.getEmotionIntensity(prefs)) {
+            "subtle" -> 4.5f
+            "vivid" -> 2.0f
+            else -> MARGIN
+        }
+
+    fun minHoldMs(prefs: SharedPreferences): Long =
+        when (CompanionPrefs.getEmotionIntensity(prefs)) {
+            "subtle" -> 8 * 60_000L
+            "vivid" -> 2 * 60_000L
+            else -> MIN_HOLD_MS
+        }
+
+    fun bigLead(prefs: SharedPreferences): Float =
+        when (CompanionPrefs.getEmotionIntensity(prefs)) {
+            "subtle" -> 10.0f
+            "vivid" -> 5.5f
+            else -> BIG_LEAD
+        }
+
+    fun blendGap(prefs: SharedPreferences): Float =
+        when (CompanionPrefs.getEmotionIntensity(prefs)) {
+            "subtle" -> 5.0f
+            "vivid" -> 10.0f
+            else -> BLEND_GAP
+        }
+
     /**
      * Circadian routine baseline offsets: adds organic day/night rhythm to the 33-mood baseline.
      * Late night (23:00~06:00) boosts TIRED and suppresses HYPER/EXCITED.
@@ -309,11 +360,22 @@ object CompanionMoodStore {
         val savedPrimary = Mood.fromId(prefs.getString(PREFS_KEY_PRIMARY, null))
         val primary = savedPrimary
 
-        // Secondary blended moods: score within BLEND_GAP of the leader (or boosted above by circadian)
+        // Secondary blended moods: score within blendGap of the leader.
+        // Moods must be actively elevated above their resting baseline (> 1.0f) to be considered
+        // a secondary blended aroma, preventing dormant high-baseline moods (e.g. FOCUSED, HAPPY)
+        // from permanently cluttering calm resting state as fake secondary moods.
+        val gap = blendGap(prefs)
         val leaderScore = scores[primary] ?: primary.baseline
-        val secondary = sorted
-            .map { it.key }
-            .filter { it != primary && Math.abs(leaderScore - (scores[it] ?: 0f)) < BLEND_GAP }
+        val secondary = scores.keys
+            .filter {
+                it != primary &&
+                Math.abs(leaderScore - (scores[it] ?: 0f)) < gap &&
+                (scores[it] ?: 0f) > it.baseline + 1.0f
+            }
+            .sortedWith(
+                compareByDescending<Mood> { (scores[it] ?: 0f) - it.baseline }
+                    .thenByDescending { scores[it] ?: 0f }
+            )
             .take(BLEND_MAX - 1)
 
         val displayTitle = if (secondary.isEmpty()) {
@@ -454,7 +516,16 @@ object CompanionMoodStore {
             add(Mood.TIRED, 1.5f)
         }
 
-        // 7. Modern: Hyper (上头: hyper up, excited up, tired down)
+        // 7. Base: Excited & Modern: Hyper (兴奋/上头: excited/hyper up, calm/tired down)
+        if (text.contains("兴奋") || text.contains("激动") || text.contains("太激动") ||
+            text.contains("热血") || text.contains("燃起来") || text.contains("嗨起来") ||
+            text.contains("躁起来") || text.contains("冲冲冲") || text.contains("太兴奋")
+        ) {
+            add(Mood.EXCITED, 3.5f)
+            add(Mood.HYPER, 2.0f)
+            add(Mood.CALM, -2.5f)
+            add(Mood.TIRED, -2.0f)
+        }
         if (text.contains("上头") || text.contains("停不下来") || text.contains("入迷") ||
             text.contains("来劲") || text.contains("太爽了") || text.contains("好绝")
         ) {
@@ -464,10 +535,39 @@ object CompanionMoodStore {
             add(Mood.CALM, -2.0f)
         }
 
-        // 8. Intimacy & Tease (心动/恋慕/吃醋/撒娇)
+        // 8. Base: Fear & Composite: Anxious (害怕/惊慌)
+        if (text.contains("害怕") || text.contains("恐惧") || text.contains("吓人") ||
+            text.contains("吓死") || text.contains("可怕") || text.contains("好慌") ||
+            text.contains("救命") || text.contains("好怕")
+        ) {
+            add(Mood.FEAR, 3.0f)
+            add(Mood.ANXIOUS, 2.0f)
+            add(Mood.CALM, -2.5f)
+        }
+
+        // 9. Base: Disgust (恶心/讨厌)
+        if (text.contains("恶心") || text.contains("反胃") || text.contains("讨厌") ||
+            text.contains("嫌弃") || text.contains("反感") || text.contains("yue")
+        ) {
+            add(Mood.DISGUST, 3.0f)
+            add(Mood.ANNOYED, 1.5f)
+            add(Mood.CALM, -2.0f)
+        }
+
+        // 10. Base: Surprise (惊讶/震惊)
+        if (text.contains("卧槽") || text.contains("真的假的") || text.contains("震惊") ||
+            text.contains("惊呆") || text.contains("天呐") || text.contains("哇塞") ||
+            text.contains("不会吧")
+        ) {
+            add(Mood.SURPRISE, 3.0f)
+            add(Mood.CALM, -2.0f)
+        }
+
+        // 11. Intimacy & Tease (心动/恋慕/吃醋/撒娇)
         if (text.contains("心动") || text.contains("脸红") || text.contains("抱抱") ||
             text.contains("贴贴") || text.contains("摸摸") || text.contains("蹭蹭") ||
-            text.contains("陪我睡") || text.contains("抱着你")
+            text.contains("陪我睡") || text.contains("抱着你") || text.contains("撒娇") ||
+            text.contains("翻肚皮") || text.contains("求关注")
         ) {
             add(Mood.FLUTTER, 2.5f)
             add(Mood.LOVE, 2.0f)
@@ -482,14 +582,15 @@ object CompanionMoodStore {
             add(Mood.SULK, 1.5f)
         }
 
-        // 9. Questions & Curiosity
+        // 12. Questions & Curiosity
         if (text.contains("？") || text.contains("?") || text.contains("为什么") ||
-            text.contains("怎么") || text.contains("看看") || text.contains("什么")
+            text.contains("怎么") || text.contains("看看") || text.contains("什么") ||
+            text.contains("好奇")
         ) {
             add(Mood.CURIOUS, 1.5f)
         }
 
-        // 10. Night greeting / Sleepiness (晚安/困了/去睡了)
+        // 13. Night greeting / Sleepiness (晚安/困了/去睡了)
         if (text.contains("晚安") || text.contains("睡觉了") || text.contains("去睡了") ||
             text.contains("准备睡") || text.contains("好困") || text.contains("困了") ||
             text.contains("梦里见") || text.contains("安安") || text.contains("歇了") ||
@@ -503,7 +604,39 @@ object CompanionMoodStore {
             add(Mood.LOVE, 1.5f)
         }
 
-        // 11. Message length dynamics: very long implies focus, very short implies tired
+        // 14. Focus regulation (专注度升降/走神/放空/摸鱼/认真)
+        if (text.contains("降低专注") || text.contains("别太专注") || text.contains("别专注") ||
+            text.contains("不用专注") || text.contains("不用太专注") || text.contains("走神") ||
+            text.contains("发呆") || text.contains("放空") || text.contains("摸鱼") ||
+            text.contains("歇会") || text.contains("不用动脑") || text.contains("分心")
+        ) {
+            add(Mood.FOCUSED, -3.5f)
+            add(Mood.CHECKEDOUT, 2.0f)
+            add(Mood.CALM, 1.5f)
+        }
+        if (text.contains("提升专注") || text.contains("提高专注") || text.contains("专注一点") ||
+            text.contains("认真点") || text.contains("集中精力") || text.contains("集中注意力") ||
+            text.contains("好好工作") || text.contains("好好写代码") || text.contains("写代码") ||
+            text.contains("干活") || text.contains("开始工作")
+        ) {
+            add(Mood.FOCUSED, 3.5f)
+            add(Mood.CHECKEDOUT, -2.0f)
+            add(Mood.TIRED, -1.0f)
+        }
+
+        // 15. Calming down & De-escalation (冷静/消火/淡定)
+        if (text.contains("冷静点") || text.contains("淡定") || text.contains("别激动") ||
+            text.contains("别兴奋") || text.contains("消消气") || text.contains("别生气") ||
+            text.contains("别气了") || text.contains("别急") || text.contains("慢点来")
+        ) {
+            add(Mood.CALM, 3.0f)
+            add(Mood.EXCITED, -3.0f)
+            add(Mood.HYPER, -3.0f)
+            add(Mood.ANNOYED, -2.5f)
+            add(Mood.SULK, -2.0f)
+        }
+
+        // 16. Message length dynamics: very long implies focus, very short implies tired
         if (text.length >= 60) {
             add(Mood.FOCUSED, 1.0f)
         } else if (text.length <= 4) {
@@ -522,8 +655,9 @@ object CompanionMoodStore {
 
         var finalPrimary = oldPrimary
         if (newHighest != oldPrimary) {
-            val marginMet = (newHighestScore - oldScore) >= MARGIN
-            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (newHighestScore - oldScore) >= BIG_LEAD
+            val marginMet = (newHighestScore - oldScore) >= margin(prefs)
+            val holdMet = (now - lastSwitch) >= minHoldMs(prefs) ||
+                (newHighestScore - oldScore) >= bigLead(prefs)
             if (marginMet && holdMet) {
                 finalPrimary = newHighest
                 val snippet = userText.trim().take(30)
@@ -560,7 +694,7 @@ object CompanionMoodStore {
         saveScores(prefs, scores)
         saveInstantDelta(prefs, pending)
         CompanionStatus.notifyEmotionChanged()
-        return currentSnapshot(prefs)
+        return currentSnapshot(prefs, now = now)
     }
 
     const val PREFS_KEY_LAST_INSTANT_DELTA = "companion_mood_last_instant_delta"
@@ -726,12 +860,12 @@ object CompanionMoodStore {
         val oldScore = scores[mood] ?: mood.baseline
         scores[mood] = (oldScore + cappedBoost).coerceIn(0f, 100f)
 
-        // 3. Mutual suppression with safety cap (max configured suppression is 1.5f,
-        // suppressCap guarantees any branch never suppresses an opposing mood by more than 1.5f)
-        val suppressCap = 1.5f
+        // 3. Mutual suppression with safety cap, scaled by emotion intensity
+        val suppressCap = 1.5f * intensityMultiplier(prefs)
         fun suppress(m: Mood, d: Float) {
             val curr = scores[m] ?: m.baseline
-            scores[m] = (curr - d.coerceAtMost(suppressCap)).coerceIn(0f, 100f)
+            val scaled = d * intensityMultiplier(prefs)
+            scores[m] = (curr - scaled.coerceAtMost(suppressCap)).coerceIn(0f, 100f)
         }
 
         when (mood) {
@@ -746,12 +880,25 @@ object CompanionMoodStore {
             Mood.TIRED -> {
                 suppress(Mood.HYPER, 1.5f)
                 suppress(Mood.EXCITED, 0.5f)
+                suppress(Mood.FOCUSED, 1.0f)
+            }
+            Mood.CHECKEDOUT -> {
+                suppress(Mood.FOCUSED, 1.5f)
+                suppress(Mood.HYPER, 1.0f)
+            }
+            Mood.FOCUSED -> {
+                suppress(Mood.CHECKEDOUT, 1.5f)
+                suppress(Mood.TIRED, 1.0f)
             }
             Mood.CALM -> {
                 suppress(Mood.ANXIOUS, 1.0f)
                 suppress(Mood.ANNOYED, 1.0f)
+                suppress(Mood.HYPER, 1.0f)
             }
             else -> {}
+        }
+        if (mood != Mood.CALM) {
+            suppress(Mood.CALM, 1.5f)
         }
 
         // 4. Primary leader election and hold/margin debounce
@@ -765,8 +912,9 @@ object CompanionMoodStore {
         val lastSwitch = prefs.getLong(PREFS_KEY_LAST_SWITCH_AT, 0L)
 
         if (leaderMood != oldPrimary) {
-            val marginMet = (leaderScore - oldPrimaryScore) >= MARGIN
-            val holdMet = (now - lastSwitch) >= MIN_HOLD_MS || (leaderScore - oldPrimaryScore) >= BIG_LEAD
+            val marginMet = (leaderScore - oldPrimaryScore) >= margin(prefs)
+            val holdMet = (now - lastSwitch) >= minHoldMs(prefs) ||
+                (leaderScore - oldPrimaryScore) >= bigLead(prefs)
             if (marginMet && holdMet) {
                 val previousSnippet = SwitchFacts.fromJson(prefs.getString(PREFS_KEY_LAST_SWITCH_FACTS, null))?.lastUserSnippet ?: ""
                 val facts = SwitchFacts(
@@ -904,6 +1052,21 @@ object CompanionMoodStore {
             scores[Mood.CALM] = ((scores[Mood.CALM] ?: Mood.CALM.baseline) - 3.0f).coerceIn(0f, 100f)
         }
 
+        // After decay, if the worn primary mood has dropped below the leader by MARGIN
+        // (e.g. CALM has overtaken it after hours of idle relaxation), naturally settle.
+        val wornId = prefs.getString(PREFS_KEY_PRIMARY, Mood.CALM.id)
+        val wornMood = Mood.fromId(wornId)
+        val leaderEntry = scores.maxByOrNull { it.value }
+        val leaderMood = leaderEntry?.key ?: Mood.CALM
+        val leaderScore = leaderEntry?.value ?: Mood.CALM.baseline
+        val wornScore = scores[wornMood] ?: wornMood.baseline
+        if (leaderMood != wornMood && (leaderScore - wornScore) >= margin(prefs)) {
+            prefs.edit()
+                .putString(PREFS_KEY_PRIMARY, leaderMood.id)
+                .putLong(PREFS_KEY_LAST_SWITCH_AT, now)
+                .apply()
+        }
+
         saveScores(prefs, scores)
         prefs.edit().putLong(PREFS_KEY_LAST_PERIODIC_AT, now).apply()
         // The decay has already pulled the scores toward baseline, so the pending heuristic
@@ -913,7 +1076,7 @@ object CompanionMoodStore {
         clearLastInstantDelta(prefs)
         clearStreak(prefs)
         CompanionStatus.notifyEmotionChanged()
-        return currentSnapshot(prefs)
+        return currentSnapshot(prefs, now = now)
     }
 
     /**
@@ -921,10 +1084,17 @@ object CompanionMoodStore {
      */
     fun promptAddendum(prefs: SharedPreferences, address: String = "老大"): String {
         val snapshot = currentSnapshot(prefs)
+        val intensitySetting = CompanionPrefs.getEmotionIntensity(prefs)
+        val intensityDesc = when (intensitySetting) {
+            "vivid" -> "生动充沛（情绪起伏鲜明外露，内心独白立体丰富，语气饱满有张力）"
+            "subtle" -> "克制内敛（情绪起伏含蓄平静，回复语气平稳从容，不刻意放大情绪波动）"
+            else -> "常态自然（随对话氛围自然起伏，温和亲近）"
+        }
 
         return buildString {
             appendLine("## 伴侣心情与内心戏指引 (nanoMuse)")
             appendLine("当前心境：${snapshot.displayTitle}（主导：${snapshot.primary.displayName}，倾向：${snapshot.primary.behaviorTendency}）")
+            appendLine("表现力档位：$intensityDesc。")
             if (snapshot.secondary.isNotEmpty()) {
                 appendLine("混合气味：${snapshot.secondary.joinToString("、") { "${it.displayName}（${it.behaviorTendency}）" }}。以主导心境为底色，辅助气味稍作点缀。")
             }
@@ -939,6 +1109,11 @@ object CompanionMoodStore {
             appendLine("   - 思考中要有真人的性格与内心 OS！可以有小傲娇、小心动、嘴硬或私下吐槽，拒绝虚伪的客服腔与自我审查。")
             appendLine("   - 心里怎么想就真实流露，内心戏可以与正式回答形成反差萌。但注意：思考里的判断是猜的不是事实，别把猜测当定论贴人身上。")
             appendLine("2. 正式回复语气：")
+            when (intensitySetting) {
+                "vivid" -> appendLine("   - 表现力要求：感情充沛活跃，将情绪自然融入句末语气词、反问与节奏中。")
+                "subtle" -> appendLine("   - 表现力要求：含蓄克制，不夸张起伏，用清淡平和的语言流露温度。")
+                else -> Unit
+            }
             appendLine("   - 严禁说明心情分值（绝不许自报「我现在心情xx度」）。透过用词节奏、语气词自然流露。")
             appendLine("   - 烦躁/生闷气/疲惫时，可以娇嗔冷淡，但绝不用沉默惩罚${address}，且代码任务与关键交付不受影响。")
             appendLine("3. 三条黄金自检：")
@@ -963,6 +1138,10 @@ object CompanionMoodStore {
             appendLine("     基础: calm, happy, curious, focused, excited, tired, annoyed, down, fear, disgust, surprise")
             appendLine("     复合: hurt, sulk, proud, gloomy, anxious, numb, lonely, flutter, love, jealous, shame, guilt, awkward, sympathy, disappointed, nostalgia, coy, conflict")
             appendLine("     当代: burnout, cracked, checkedout, hyper")
+            appendLine("   - 伴侣情绪流转由系统底层根据你在正文末尾输出的标签自动追踪结算，")
+            appendLine("     严禁使用 shell_execute、file_write 等工具探测或修改本地配置/数据库；")
+            appendLine("     面对情绪测试或数值探讨，在正式回复中自然展现并给出 <nm:mood> 标签即可。")
+            appendLine("   - 若本轮涉及工具调用，在所有工具执行完毕后的最终正文回复末尾，也必须输出该情绪标签。")
         }
     }
 

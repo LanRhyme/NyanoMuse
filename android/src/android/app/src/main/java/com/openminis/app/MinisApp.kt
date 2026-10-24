@@ -742,6 +742,12 @@ class MinisApp : Application(), ImageLoaderFactory {
             override fun onActivityDestroyed(activity: Activity) {}
         })
 
+        // nanoMuse: floating overlay observer to auto-dismiss on app foreground
+        io.github.nanomuse.hands.HandsOverlayManager.initAppObserver(
+            this,
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main),
+        )
+
         // Initialize offload permission manager
         OffloadPermissionManager.init(this)
 

@@ -1268,4 +1268,9 @@
     <string name="nm_feed_while_away">Mientras estabas ausente</string>
     <string name="nm_feed_sync_from_computer">Sincronizar desde la computadora</string>
     <string name="nm_feed_syncing">Sincronizando feed…</string>
+    <string name="nm_chat_menu_archive_chat">Archivar chat</string>
+    <string name="nm_chat_archive_dialog_title">Archivar chat</string>
+    <string name="nm_chat_archive_dialog_body">¿Archivar este chat en el historial e iniciar una nueva conversación? Todos los mensajes y recuerdos anteriores se conservan.</string>
+    <string name="nm_chat_archive_dialog_confirm">Archivar</string>
+    <string name="nm_chat_archive_default_title_prefix">Chat principal · %1$s</string>
 </resources>

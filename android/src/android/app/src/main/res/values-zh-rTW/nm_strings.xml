@@ -1234,4 +1234,9 @@
     <string name="nm_feed_while_away">在你離開期間</string>
     <string name="nm_feed_sync_from_computer">從電腦同步動態</string>
     <string name="nm_feed_syncing">正在同步動態…</string>
+    <string name="nm_chat_menu_archive_chat">封存對話</string>
+    <string name="nm_chat_archive_dialog_title">封存對話</string>
+    <string name="nm_chat_archive_dialog_body">將目前主要聊天封存至歷史清單並開啟全新對話？所有聊天記錄與記憶都將完整保留。</string>
+    <string name="nm_chat_archive_dialog_confirm">封存</string>
+    <string name="nm_chat_archive_default_title_prefix">主要聊天 · %1$s</string>
 </resources>

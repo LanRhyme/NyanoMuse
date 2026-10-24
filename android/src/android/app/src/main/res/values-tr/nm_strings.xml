@@ -1268,4 +1268,9 @@
     <string name="nm_feed_while_away">Yokluğunda</string>
     <string name="nm_feed_sync_from_computer">Bilgisayardan senkronize et</string>
     <string name="nm_feed_syncing">Akış senkronize ediliyor…</string>
+    <string name="nm_chat_menu_archive_chat">Sohbeti arşivle</string>
+    <string name="nm_chat_archive_dialog_title">Sohbeti arşivle</string>
+    <string name="nm_chat_archive_dialog_body">Bu sohbeti geçmişe arşivleyip yeni bir sohbet başlatılsın mı? Önceki tüm iletiler ve anılar korunur.</string>
+    <string name="nm_chat_archive_dialog_confirm">Arşivle</string>
+    <string name="nm_chat_archive_default_title_prefix">Ana Sohbet · %1$s</string>
 </resources>

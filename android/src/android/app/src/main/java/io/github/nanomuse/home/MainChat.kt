@@ -178,6 +178,26 @@ object MainChat {
     }
 
     /**
+     * Archives current main chat and rotates the home session to a fresh draft.
+     * Returns the newly generated draft session id.
+     */
+    fun archiveAndRotate(context: Context): String {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_SESSION)
+            .remove(KEY_FIRST_CONVERSATION_SESSION)
+            .remove(KEY_LAST_ACTIVE_SESSION)
+            .remove(KEY_LAST_ACTIVE_TIME)
+            .apply()
+        val d = "__new__${UUID.randomUUID()}"
+        draft = d
+        promotedDraft = null
+        _lastPromotedDraft.value = null
+        _sessionId.value = d
+        return d
+    }
+
+    /**
      * The account changed (contract C12): whatever was resolved is forgotten and the next
      * [resolve] starts from the preferences as they are now — the returning account's own main
      * chat if it was kept, else the newest of its chats, else a draft.

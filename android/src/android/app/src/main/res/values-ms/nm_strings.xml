@@ -1264,4 +1264,9 @@
     <string name="nm_feed_while_away">Semasa anda tiada</string>
     <string name="nm_feed_sync_from_computer">Segerak dari komputer</string>
     <string name="nm_feed_syncing">Menyegerakkan suapan…</string>
+    <string name="nm_chat_menu_archive_chat">Arkibkan Sembang</string>
+    <string name="nm_chat_archive_dialog_title">Arkibkan Sembang</string>
+    <string name="nm_chat_archive_dialog_body">Arkibkan sembang ini ke sejarah dan mulakan perbualan baharu? Semua mesej dan ingatan terdahulu dikekalkan.</string>
+    <string name="nm_chat_archive_dialog_confirm">Arkibkan</string>
+    <string name="nm_chat_archive_default_title_prefix">Sembang Utama · %1$s</string>
 </resources>

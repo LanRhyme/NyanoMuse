@@ -142,6 +142,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.outlined.Tune // nanoMuse
+import androidx.compose.material.icons.outlined.Archive // nanoMuse
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreHoriz // nanoMuse
 import androidx.compose.material.icons.filled.MoreVert
@@ -1008,6 +1009,7 @@ fun ChatScreen(
     var showMoveSheet by remember { mutableStateOf(false) }
     var showMoodDashboardSheet by remember { mutableStateOf(false) }
     var showClearChatDialog by remember { mutableStateOf(false) }
+    var showArchiveChatDialog by remember { mutableStateOf(false) }
     // [T-android-delete-from-here] Id of the message a pending "Delete From
     // Here" would cut at, or null when no confirmation is open. Holding the
     // id (rather than a boolean plus a separate field) keeps the dialog and
@@ -1027,7 +1029,11 @@ fun ChatScreen(
     val clearChatRequested by viewModel.clearChatConfirmRequested.collectAsState()
     LaunchedEffect(clearChatRequested) {
         if (clearChatRequested) {
-            showClearChatDialog = true
+            if (isMainChat) {
+                showArchiveChatDialog = true
+            } else {
+                showClearChatDialog = true
+            }
             viewModel.ackClearChatConfirmRequest()
         }
     }
@@ -3172,17 +3178,41 @@ fun ChatScreen(
                                 )
                             }
                             MinisMenuDivider()
-                            // Clear Chat (iOS parity, red)
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_menu_clear_chat), color = MaterialTheme.colorScheme.error) },
-                                onClick = {
-                                    showChatMenu = false
-                                    showClearChatDialog = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                },
-                            )
+                            // Clear or Archive Chat
+                            if (isMainChat) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(stringResource(R.string.nm_chat_menu_archive_chat))
+                                    },
+                                    onClick = {
+                                        showChatMenu = false
+                                        showArchiveChatDialog = true
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Outlined.Archive, contentDescription = null)
+                                    },
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = stringResource(R.string.chat_menu_clear_chat),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = {
+                                        showChatMenu = false
+                                        showClearChatDialog = true
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                )
+                            }
                             MinisMenuDivider()
                             // Open Terminal (iOS parity) — session-bound, starts in /var/minis
                             DropdownMenuItem(
@@ -3453,7 +3483,14 @@ fun ChatScreen(
                         emotionTick++
                     }
                 }
-                val compState = remember(context, emotionVersion, emotionTick, isStreaming) { io.github.nanomuse.companion.CompanionStatus.currentMood(context) }
+                val compState = remember(context, emotionVersion, emotionTick, isStreaming) {
+                    io.github.nanomuse.companion.CompanionStatus.currentMood(context)
+                }
+                val compIntensity = remember(context, emotionVersion) {
+                    io.github.nanomuse.companion.CompanionPrefs.getEmotionIntensity(
+                        io.github.nanomuse.companion.CompanionPrefs.prefs(context)
+                    )
+                }
                 val liveMood = nmStatusLine ?: io.github.nanomuse.companion.CompanionStatus.currentMoodDescription(context, compState)
                 val compMood = compState.primaryMood
 
@@ -3471,6 +3508,7 @@ fun ChatScreen(
                         // nanoMuse: the concrete mood, not just its family, so the six
                         // moods that share the SLEEPY face can be told apart.
                         companionDetail = compState.primaryDetail,
+                        companionIntensity = compIntensity,
                         size = avatarDp,
                         contentDescription = stringResource(R.string.nm_avatar_content_description),
                         onClick = { io.github.nanomuse.ui.header.openAgentProfile(context) },
@@ -7355,6 +7393,23 @@ fun ChatScreen(
                         viewModel.clearChat()
                         viewModel.setInputText("")
                         showClearChatDialog = false
+                    },
+                )
+            }
+
+            if (showArchiveChatDialog) {
+                MinisAlertDialog(
+                    onDismissRequest = { showArchiveChatDialog = false },
+                    title = stringResource(R.string.nm_chat_archive_dialog_title),
+                    text = stringResource(R.string.nm_chat_archive_dialog_body),
+                    confirmText = stringResource(R.string.nm_chat_archive_dialog_confirm),
+                    isDestructive = false,
+                    onConfirm = {
+                        showArchiveChatDialog = false
+                        viewModel.archiveMainChat { newDraftId ->
+                            viewModel.setInputText("")
+                            nmHome?.onArchiveMainChat?.invoke(newDraftId)
+                        }
                     },
                 )
             }

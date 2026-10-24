@@ -5417,6 +5417,88 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Archives current main chat, distills memories asynchronously, sets category to
+     * "archived", and rotates the main session to a clean new draft.
+     */
+    fun archiveMainChat(onArchived: (newSessionId: String) -> Unit) {
+        if (_isStreaming.value) cancelStream()
+        val sid = activeSessionId
+        val uiMsgs = _messages.value.toList()
+        val historyList: List<LLMMessage> = if (agentHistory.isNotEmpty()) {
+            agentHistory.toList()
+        } else {
+            uiMsgs.map { msg ->
+                val roleEnum = if (msg.role.equals("assistant", ignoreCase = true)) {
+                    LLMMessage.Role.ASSISTANT
+                } else {
+                    LLMMessage.Role.USER
+                }
+                LLMMessage(role = roleEnum, content = msg.content, dbMessageId = msg.id)
+            }
+        }
+        viewModelScope.launch {
+            try {
+                if (historyList.isNotEmpty()) {
+                    io.github.nanomuse.companion.MainChatMemoryDistiller.distillAsync(
+                        context = context,
+                        sessionId = sid,
+                        messages = historyList,
+                        chatRepository = chatRepository,
+                    )
+                }
+
+                if (!io.github.nanomuse.home.MainChat.isDraftId(sid)) {
+                    val currentSession = chatRepository.getSession(sid)
+                    val rawTitle = currentSession?.title?.trim()
+                    val resolvedTitle = if (!rawTitle.isNullOrBlank()) {
+                        rawTitle
+                    } else {
+                        val firstUserMsg = uiMsgs.firstOrNull {
+                            it.role.equals("user", ignoreCase = true)
+                        }?.content?.trim()
+                        if (!firstUserMsg.isNullOrBlank()) {
+                            firstUserMsg.take(24)
+                        } else {
+                            val df = java.text.SimpleDateFormat(
+                                "MM-dd",
+                                java.util.Locale.getDefault(),
+                            )
+                            context.getString(
+                                R.string.nm_chat_archive_default_title_prefix,
+                                df.format(java.util.Date()),
+                            )
+                        }
+                    }
+                    chatRepository.updateSessionTitleAndCategory(
+                        id = sid,
+                        title = resolvedTitle,
+                        category = "archived",
+                    )
+
+                    runCatching {
+                        val syncDao = io.github.nanomuse.sync.SyncDatabase.get(context).dao()
+                        val syncConv = syncDao.conversation(sid)
+                        if (syncConv != null && syncConv.kind == "main") {
+                            syncDao.putConversation(syncConv.copy(kind = "side"))
+                        }
+                    }
+                }
+
+                val newDraftId = io.github.nanomuse.home.MainChat.archiveAndRotate(context)
+                withContext(Dispatchers.Main) {
+                    onArchived(newDraftId)
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "archiveMainChat failed: ${t.message}")
+                val fallbackDraft = io.github.nanomuse.home.MainChat.archiveAndRotate(context)
+                withContext(Dispatchers.Main) {
+                    onArchived(fallbackDraft)
+                }
+            }
+        }
+    }
+
     // ─── Share Injection (T51) ────────────────────────────────────────────
 
     /**
@@ -10215,6 +10297,9 @@ class ChatViewModel(
             "memory_get" -> executeMemoryGetTool(argsJson)
             com.openminis.app.tools.NativeSystemTools.TOOL_DEVICE_INFO -> com.openminis.app.tools.NativeSystemTools.executeDeviceInfo(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_FOREGROUND_APP -> com.openminis.app.tools.NativeSystemTools.executeForegroundApp(argsJson, context)
+            com.openminis.app.tools.NativeSystemTools.TOOL_DEVICE_CONTROL -> com.openminis.app.tools.NativeSystemTools.executeDeviceControl(argsJson, context)
+            com.openminis.app.tools.NativeSystemTools.TOOL_APP_MANAGE -> com.openminis.app.tools.NativeSystemTools.executeAppManage(argsJson, context)
+            com.openminis.app.tools.NativeSystemTools.TOOL_SCREEN_INTERACT -> com.openminis.app.tools.NativeSystemTools.executeScreenInteract(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_APP_LAUNCH -> com.openminis.app.tools.NativeSystemTools.executeAppLaunch(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SYSTEM_NOTIFY -> com.openminis.app.tools.NativeSystemTools.executeSystemNotify(argsJson, context)
             com.openminis.app.tools.NativeSystemTools.TOOL_SCREEN_CAPTURE -> executeScreenCaptureTool(argsJson)

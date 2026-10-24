@@ -1246,4 +1246,9 @@
     <string name="nm_thinking_done_simple">Deep Thinking</string>
     <string name="nm_code_expand_all">Expand all (%1$d lines)</string>
     <string name="nm_code_collapse">Collapse</string>
+    <string name="nm_chat_menu_archive_chat">Archive chat</string>
+    <string name="nm_chat_archive_dialog_title">Archive Chat</string>
+    <string name="nm_chat_archive_dialog_body">Archive this chat into your history list and start a fresh conversation? All previous messages and memories are preserved.</string>
+    <string name="nm_chat_archive_dialog_confirm">Archive</string>
+    <string name="nm_chat_archive_default_title_prefix">Main Chat · %1$s</string>
 </resources>

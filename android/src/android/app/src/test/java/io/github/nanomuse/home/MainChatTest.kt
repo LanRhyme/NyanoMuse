@@ -178,4 +178,16 @@ class MainChatTest {
         val persisted = MainChat.persisted(context)
         org.junit.Assert.assertNull(persisted)
     }
+
+    @Test
+    fun `archiveAndRotate clears main chat and issues fresh draft`() {
+        MainChat.set(context, "session-old")
+        assertEquals("session-old", MainChat.persisted(context))
+        assertEquals("session-old", MainChat.sessionId.value)
+
+        val newDraft = MainChat.archiveAndRotate(context)
+        assertTrue(newDraft.startsWith("__new__"))
+        assertEquals(newDraft, MainChat.sessionId.value)
+        org.junit.Assert.assertNull(MainChat.persisted(context))
+    }
 }

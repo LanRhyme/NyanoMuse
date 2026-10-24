@@ -1272,4 +1272,9 @@
     <string name="nm_feed_while_away">În timp ce erai plecat</string>
     <string name="nm_feed_sync_from_computer">Sincronizează de pe computer</string>
     <string name="nm_feed_syncing">Se sincronizează fluxul…</string>
+    <string name="nm_chat_menu_archive_chat">Arhivează conversația</string>
+    <string name="nm_chat_archive_dialog_title">Arhivează conversația</string>
+    <string name="nm_chat_archive_dialog_body">Arhivați acest chat în istoric și începeți o nouă conversație? Toate mesajele și amintirile anterioare sunt păstrate.</string>
+    <string name="nm_chat_archive_dialog_confirm">Arhivează</string>
+    <string name="nm_chat_archive_default_title_prefix">Chat principal · %1$s</string>
 </resources>

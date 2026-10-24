@@ -537,6 +537,9 @@ fun NanoMuseHome(
                                             isTwoPane = true,
                                             onToggleSidebar = { sidebarCollapsed = !sidebarCollapsed },
                                             sidebarCollapsed = sidebarCollapsed,
+                                            onArchiveMainChat = { newDraftId ->
+                                                showSession(newDraftId)
+                                            },
                                         ),
                                         nmBottomOverlay = 0.dp,
                                     )
@@ -656,7 +659,13 @@ fun NanoMuseHome(
                                     },
                                     onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
                                     onOpenUsageStats = { navController.safeNavigate(Routes.USAGE_STATS) },
-                                    nmHome = NmHomeChrome(isMainChat = isMainChat, onOpenDrawer = { openDrawer() }),
+                                    nmHome = NmHomeChrome(
+                                        isMainChat = isMainChat,
+                                        onOpenDrawer = { openDrawer() },
+                                        onArchiveMainChat = { newDraftId ->
+                                            showSession(newDraftId)
+                                        },
+                                    ),
                                     nmBottomOverlay = 0.dp,
                                 )
                             }

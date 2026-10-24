@@ -1264,4 +1264,9 @@
     <string name="nm_feed_while_away">ขณะที่คุณไม่อยู่</string>
     <string name="nm_feed_sync_from_computer">ซิงค์จากคอมพิวเตอร์</string>
     <string name="nm_feed_syncing">กำลังซิงค์ฟีด…</string>
+    <string name="nm_chat_menu_archive_chat">เก็บถาวรแชท</string>
+    <string name="nm_chat_archive_dialog_title">เก็บถาวรแชท</string>
+    <string name="nm_chat_archive_dialog_body">เก็บถาวรแชทนี้ไปยังประวัติและเริ่มการสนทนาใหม่หรือไม่? ข้อความและความทรงจำก่อนหน้าทั้งหมดจะถูกเก็บไว้</string>
+    <string name="nm_chat_archive_dialog_confirm">เก็บถาวร</string>
+    <string name="nm_chat_archive_default_title_prefix">แชทหลัก · %1$s</string>
 </resources>

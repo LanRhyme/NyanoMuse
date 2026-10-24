@@ -147,6 +147,18 @@ fun MoodDashboardSheet(
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary
                             )
+                            val intensityKey = CompanionPrefs.getEmotionIntensity(prefs)
+                            val intensityLabel = when (intensityKey) {
+                                "vivid" -> " · 生动"
+                                "subtle" -> " · 克制"
+                                else -> " · 常态"
+                            }
+                            Text(
+                                text = intensityLabel,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         val leaderScore = snapshot.scores[snapshot.primary] ?: snapshot.primary.baseline
                         Text(

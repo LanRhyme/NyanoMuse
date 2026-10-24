@@ -2,11 +2,14 @@ package com.openminis.app.ui.chat
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NoteAdd
+import androidx.compose.material.icons.filled.AppShortcut
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Terminal
@@ -59,6 +62,14 @@ internal fun toolAccentColor(toolName: String): Color = when (toolName) {
     "read_image", "image_generate" -> Color(0xFFAF52DE)
     "memory_write", "memory_get" -> Color(0xFFFF2D55)
     "web_search" -> Color(0xFF32ADE6)    // iOS: .cyan for search
+    "device_control" -> Color(0xFF0A84FF)
+    "app_manage" -> Color(0xFF5E5CE6)
+    "screen_interact" -> Color(0xFFFF375F)
+    "device_info" -> Color(0xFF32ADE6)
+    "foreground_app" -> Color(0xFF30D158)
+    "app_launch" -> Color(0xFFBF5AF2)
+    "system_notify" -> Color(0xFFFF9F0A)
+    "screen_capture" -> Color(0xFF64D2FF)
     else -> Color(0xFF8E8E93)
 }
 
@@ -72,6 +83,9 @@ internal fun toolIconFor(toolName: String) = when (toolName) {
     "read_image", "image_generate" -> Icons.Default.Image // iOS: photo
     "memory_write", "memory_get" -> Icons.Default.Psychology // iOS: brain.head.profile
     "web_search" -> Icons.Default.Search               // iOS: magnifyingglass
+    "device_control", "device_info" -> Icons.Default.PhoneAndroid
+    "app_manage", "app_launch" -> Icons.Default.AppShortcut
+    "screen_interact", "screen_capture" -> Icons.Default.AutoAwesome
     else -> Icons.Default.Build
 }
 
@@ -87,6 +101,14 @@ internal fun toolDisplayName(toolName: String): String = when (toolName) {
     "memory_write" -> "memory"
     "memory_get" -> "memory"
     "web_search" -> "search"
+    "device_control" -> "device control"
+    "app_manage" -> "app manager"
+    "screen_interact" -> "screen operator"
+    "device_info" -> "device info"
+    "foreground_app" -> "app sensor"
+    "app_launch" -> "app launcher"
+    "system_notify" -> "notifier"
+    "screen_capture" -> "screen capture"
     else -> toolName
 }
 
@@ -104,6 +126,14 @@ internal fun toolTitleLabel(toolName: String): String = when (toolName) {
     "image_generate" -> "nanoMuse is generating Image"
     "memory_write", "memory_get" -> "nanoMuse is using Memory"
     "web_search" -> "nanoMuse is using Search"
+    "device_control" -> "nanoMuse is controlling Device"
+    "app_manage" -> "nanoMuse is managing Apps"
+    "screen_interact" -> "nanoMuse is interacting with Screen"
+    "device_info" -> "nanoMuse is checking Device Info"
+    "foreground_app" -> "nanoMuse is sensing Foreground App"
+    "app_launch" -> "nanoMuse is launching App"
+    "system_notify" -> "nanoMuse is sending Notification"
+    "screen_capture" -> "nanoMuse is capturing Screen"
     else -> "nanoMuse is using ${toolDisplayName(toolName)}"
 }
 
@@ -122,6 +152,14 @@ internal fun toolTitleLabel(toolName: String, status: ToolBlockStatus?): String 
         "image_generate" -> "nanoMuse generated Image"
         "memory_write", "memory_get" -> "nanoMuse used Memory"
         "web_search" -> "nanoMuse used Search"
+        "device_control" -> "nanoMuse adjusted Device"
+        "app_manage" -> "nanoMuse managed Apps"
+        "screen_interact" -> "nanoMuse interacted with Screen"
+        "device_info" -> "nanoMuse checked Device Info"
+        "foreground_app" -> "nanoMuse sensed Foreground App"
+        "app_launch" -> "nanoMuse launched App"
+        "system_notify" -> "nanoMuse posted Notification"
+        "screen_capture" -> "nanoMuse captured Screen"
         else -> "nanoMuse used ${toolDisplayName(toolName)}"
     }
     ToolBlockStatus.FAILED -> "${toolDisplayName(toolName).replaceFirstChar { it.uppercase() }} failed"

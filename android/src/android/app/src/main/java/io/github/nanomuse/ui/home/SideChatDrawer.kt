@@ -648,6 +648,15 @@ private fun SideChatRow(
                 )
                 Spacer(Modifier.size(4.dp))
             }
+            if (session.category == "archived") {
+                Icon(
+                    Icons.Outlined.Archive,
+                    contentDescription = null,
+                    tint = ChatColors.link.copy(alpha = 0.85f),
+                    modifier = Modifier.size(15.dp).padding(end = 3.dp),
+                )
+                Spacer(Modifier.size(4.dp))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = session.title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.nm_drawer_untitled),

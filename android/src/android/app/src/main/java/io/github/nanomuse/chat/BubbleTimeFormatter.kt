@@ -45,10 +45,14 @@ object BubbleTimeFormatter {
     // 跨行断开，所以标签内部允许折行；属性只在前一个字符不是字母时算数，
     // 否则 <nm:mood feedback="x"/> 也会被当成 feel。
     val MOOD_TAG_REGEX = Regex("""<\s*nm:mood\b([^>]*)>\s*(?:<\s*/\s*nm:mood\s*>)?""", RegexOption.IGNORE_CASE)
-    private val ATTR_FEEL_REGEX =
-        Regex("""(?:^|[^\w])feel\s*=\s*(?:"([^"]*)"|'([^']*)')""", RegexOption.IGNORE_CASE)
-    private val ATTR_REASON_REGEX =
-        Regex("""(?:^|[^\w])reason\s*=\s*(?:"([^"]*)"|'([^']*)')""", RegexOption.IGNORE_CASE)
+    private val ATTR_FEEL_REGEX = Regex(
+        """(?:^|[^\w])(?:feel|mood|emotion|type)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s/>]+))""",
+        RegexOption.IGNORE_CASE
+    )
+    private val ATTR_REASON_REGEX = Regex(
+        """(?:^|[^\w])reason\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s/>]+))""",
+        RegexOption.IGNORE_CASE
+    )
     // The wrappers a model reaches for around a hidden tag: a bare backtick pair
     // around a single tag, or a fenced block that holds nothing else.
     private val MOOD_FENCE_REGEX =
@@ -61,11 +65,17 @@ object BubbleTimeFormatter {
     fun extractMoodFeedback(text: CharSequence): MoodFeedbackRaw? {
         val match = MOOD_TAG_REGEX.findAll(text).lastOrNull() ?: return null
         val attrs = match.groupValues.getOrNull(1) ?: return null
-        // Either quote style may be the one that matched; the other group is empty.
-        val feel = (ATTR_FEEL_REGEX.find(attrs)?.let { it.groupValues[1].ifEmpty { it.groupValues[2] } } ?: return null).trim()
+        val feelMatch = ATTR_FEEL_REGEX.find(attrs) ?: return null
+        val feel = (
+            feelMatch.groupValues[1]
+                .ifEmpty { feelMatch.groupValues[2] }
+                .ifEmpty { feelMatch.groupValues[3] }
+        ).trim()
         if (feel.isEmpty()) return null
-        val reason = ATTR_REASON_REGEX.find(attrs)
-            ?.let { it.groupValues[1].ifEmpty { it.groupValues[2] } }?.trim()
+        val reasonMatch = ATTR_REASON_REGEX.find(attrs)
+        val reason = reasonMatch?.let {
+            it.groupValues[1].ifEmpty { it.groupValues[2] }.ifEmpty { it.groupValues[3] }
+        }?.trim()
         return MoodFeedbackRaw(feel = feel, reason = reason)
     }
 
