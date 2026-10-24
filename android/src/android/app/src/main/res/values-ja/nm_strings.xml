@@ -415,6 +415,15 @@
     <string name="nm_attach_stickers">ステッカー</string>
     <string name="nm_stickers_empty">ステッカーがありません</string>
     <string name="nm_stickers_search">ステッカーを検索…</string>
+    <string name="nm_stickers_all">すべて</string>
+    <string name="nm_stickers_add_group">グループ作成</string>
+    <string name="nm_stickers_group_name">グループ名</string>
+    <string name="nm_stickers_add_sticker">スタンプ追加</string>
+    <string name="nm_stickers_delete_confirm">このスタンプを削除しますか？</string>
+    <string name="nm_stickers_delete_group_confirm">このスタンプグループを削除しますか？</string>
+    <string name="nm_stickers_rename">名前変更</string>
+    <string name="nm_confirm">確認</string>
+    <string name="nm_delete">削除</string>
     <string name="nm_composer_placeholder">メッセージ</string>
 
     <!-- 0.1.9 · Portrait -->

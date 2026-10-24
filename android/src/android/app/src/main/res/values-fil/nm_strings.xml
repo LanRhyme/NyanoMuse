@@ -418,6 +418,15 @@
     <string name="nm_attach_stickers">Mga Sticker</string>
     <string name="nm_stickers_empty">Wala pang mga sticker</string>
     <string name="nm_stickers_search">Maghanap ng mga sticker…</string>
+    <string name="nm_stickers_all">Lahat</string>
+    <string name="nm_stickers_add_group">Bagong pangkat</string>
+    <string name="nm_stickers_group_name">Pangalan ng pangkat</string>
+    <string name="nm_stickers_add_sticker">Magdagdag ng sticker</string>
+    <string name="nm_stickers_delete_confirm">Tanggalin ang sticker na ito?</string>
+    <string name="nm_stickers_delete_group_confirm">Tanggalin ang pangkat na ito?</string>
+    <string name="nm_stickers_rename">Palitan ang pangalan</string>
+    <string name="nm_confirm">Kumpirmahin</string>
+    <string name="nm_delete">Tanggalin</string>
     <string name="nm_composer_placeholder">Mensahe</string>
 
     <!-- 0.1.9 · Portrait -->

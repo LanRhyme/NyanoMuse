@@ -424,6 +424,15 @@
     <string name="nm_attach_stickers">Naklejki</string>
     <string name="nm_stickers_empty">Brak naklejek</string>
     <string name="nm_stickers_search">Szukaj naklejek…</string>
+    <string name="nm_stickers_all">Wszystkie</string>
+    <string name="nm_stickers_add_group">Nowa grupa</string>
+    <string name="nm_stickers_group_name">Nazwa grupy</string>
+    <string name="nm_stickers_add_sticker">Dodaj naklejkę</string>
+    <string name="nm_stickers_delete_confirm">Usunąć tę naklejkę?</string>
+    <string name="nm_stickers_delete_group_confirm">Usunąć tę grupę naklejek?</string>
+    <string name="nm_stickers_rename">Zmień nazwę</string>
+    <string name="nm_confirm">Potwierdź</string>
+    <string name="nm_delete">Usuń</string>
     <string name="nm_composer_placeholder">Wiadomość</string>
 
     <!-- 0.1.9 · Portrait -->

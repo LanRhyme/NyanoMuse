@@ -418,6 +418,15 @@
     <string name="nm_attach_stickers">Pegatinas</string>
     <string name="nm_stickers_empty">Aún no hay pegatinas</string>
     <string name="nm_stickers_search">Buscar pegatinas…</string>
+    <string name="nm_stickers_all">Todos</string>
+    <string name="nm_stickers_add_group">Nuevo grupo</string>
+    <string name="nm_stickers_group_name">Nombre del grupo</string>
+    <string name="nm_stickers_add_sticker">Añadir sticker</string>
+    <string name="nm_stickers_delete_confirm">¿Eliminar este sticker?</string>
+    <string name="nm_stickers_delete_group_confirm">¿Eliminar este grupo de stickers?</string>
+    <string name="nm_stickers_rename">Renombrar</string>
+    <string name="nm_confirm">Confirmar</string>
+    <string name="nm_delete">Eliminar</string>
     <string name="nm_composer_placeholder">Mensaje</string>
 
     <!-- 0.1.9 · Portrait -->

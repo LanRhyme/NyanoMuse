@@ -415,6 +415,15 @@
     <string name="nm_attach_stickers">Pelekat</string>
     <string name="nm_stickers_empty">Tiada pelekat lagi</string>
     <string name="nm_stickers_search">Cari pelekat…</string>
+    <string name="nm_stickers_all">Semua</string>
+    <string name="nm_stickers_add_group">Kumpulan baru</string>
+    <string name="nm_stickers_group_name">Nama kumpulan</string>
+    <string name="nm_stickers_add_sticker">Tambah pelekat</string>
+    <string name="nm_stickers_delete_confirm">Padam pelekat ini?</string>
+    <string name="nm_stickers_delete_group_confirm">Padam kumpulan pelekat ini?</string>
+    <string name="nm_stickers_rename">Namakan semula</string>
+    <string name="nm_confirm">Sahkan</string>
+    <string name="nm_delete">Padam</string>
     <string name="nm_composer_placeholder">Mesej</string>
 
     <!-- 0.1.9 · Portrait -->

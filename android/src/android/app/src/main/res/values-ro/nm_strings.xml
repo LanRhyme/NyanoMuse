@@ -421,6 +421,15 @@
     <string name="nm_attach_stickers">Stickere</string>
     <string name="nm_stickers_empty">Niciun sticker încă</string>
     <string name="nm_stickers_search">Caută stickere…</string>
+    <string name="nm_stickers_all">Toate</string>
+    <string name="nm_stickers_add_group">Grup nou</string>
+    <string name="nm_stickers_group_name">Nume grup</string>
+    <string name="nm_stickers_add_sticker">Adaugă autocolant</string>
+    <string name="nm_stickers_delete_confirm">Ștergeți acest autocolant?</string>
+    <string name="nm_stickers_delete_group_confirm">Ștergeți acest grup de autocolante?</string>
+    <string name="nm_stickers_rename">Redenumiți</string>
+    <string name="nm_confirm">Confirmați</string>
+    <string name="nm_delete">Șterge</string>
     <string name="nm_composer_placeholder">Mesaj</string>
 
     <!-- 0.1.9 · Portrait -->

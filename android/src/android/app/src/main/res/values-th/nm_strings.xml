@@ -415,6 +415,15 @@
     <string name="nm_attach_stickers">สติกเกอร์</string>
     <string name="nm_stickers_empty">ยังไม่มีสติกเกอร์</string>
     <string name="nm_stickers_search">ค้นหาสติกเกอร์…</string>
+    <string name="nm_stickers_all">ทั้งหมด</string>
+    <string name="nm_stickers_add_group">กลุ่มใหม่</string>
+    <string name="nm_stickers_group_name">ชื่อกลุ่ม</string>
+    <string name="nm_stickers_add_sticker">เพิ่มสติกเกอร์</string>
+    <string name="nm_stickers_delete_confirm">ลบสติกเกอร์นี้?</string>
+    <string name="nm_stickers_delete_group_confirm">ลบกลุ่มสติกเกอร์นี้?</string>
+    <string name="nm_stickers_rename">เปลี่ยนชื่อ</string>
+    <string name="nm_confirm">ยืนยัน</string>
+    <string name="nm_delete">ลบ</string>
     <string name="nm_composer_placeholder">ข้อความ</string>
 
     <!-- 0.1.9 · Portrait -->

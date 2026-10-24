@@ -424,6 +424,15 @@
     <string name="nm_attach_stickers">Стикеры</string>
     <string name="nm_stickers_empty">Стикеров пока нет</string>
     <string name="nm_stickers_search">Поиск стикеров…</string>
+    <string name="nm_stickers_all">Все</string>
+    <string name="nm_stickers_add_group">Новая группа</string>
+    <string name="nm_stickers_group_name">Название группы</string>
+    <string name="nm_stickers_add_sticker">Добавить стикер</string>
+    <string name="nm_stickers_delete_confirm">Удалить этот стикер?</string>
+    <string name="nm_stickers_delete_group_confirm">Удалить эту группу стикеров?</string>
+    <string name="nm_stickers_rename">Переименовать</string>
+    <string name="nm_confirm">Подтвердить</string>
+    <string name="nm_delete">Удалить</string>
     <string name="nm_composer_placeholder">Сообщение</string>
 
     <!-- 0.1.9 · Portrait -->

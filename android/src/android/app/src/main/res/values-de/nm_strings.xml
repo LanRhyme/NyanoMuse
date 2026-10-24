@@ -418,6 +418,15 @@
     <string name="nm_attach_stickers">Sticker</string>
     <string name="nm_stickers_empty">Noch keine Sticker</string>
     <string name="nm_stickers_search">Sticker suchen…</string>
+    <string name="nm_stickers_all">Alle</string>
+    <string name="nm_stickers_add_group">Neue Gruppe</string>
+    <string name="nm_stickers_group_name">Gruppenname</string>
+    <string name="nm_stickers_add_sticker">Sticker hinzufügen</string>
+    <string name="nm_stickers_delete_confirm">Diesen Sticker löschen?</string>
+    <string name="nm_stickers_delete_group_confirm">Diese Stickergruppe löschen?</string>
+    <string name="nm_stickers_rename">Umbenennen</string>
+    <string name="nm_confirm">Bestätigen</string>
+    <string name="nm_delete">Löschen</string>
     <string name="nm_composer_placeholder">Nachricht</string>
 
     <!-- 0.1.9 · Portrait -->

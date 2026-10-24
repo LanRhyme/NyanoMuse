@@ -403,6 +403,15 @@
     <string name="nm_attach_stickers">貼圖表情</string>
     <string name="nm_stickers_empty">暫無貼圖表情</string>
     <string name="nm_stickers_search">搜尋貼圖…</string>
+    <string name="nm_stickers_all">全部</string>
+    <string name="nm_stickers_add_group">新增分組</string>
+    <string name="nm_stickers_group_name">分組名稱</string>
+    <string name="nm_stickers_add_sticker">新增表情</string>
+    <string name="nm_stickers_delete_confirm">確定刪除此表情？</string>
+    <string name="nm_stickers_delete_group_confirm">確定刪除該表情分組？</string>
+    <string name="nm_stickers_rename">重新命名</string>
+    <string name="nm_confirm">確定</string>
+    <string name="nm_delete">刪除</string>
     <string name="nm_composer_placeholder">訊息</string>
 
     <!-- 0.1.9 · Portrait -->

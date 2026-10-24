@@ -418,6 +418,15 @@
     <string name="nm_attach_stickers">Çıkartmalar</string>
     <string name="nm_stickers_empty">Henüz çıkartma yok</string>
     <string name="nm_stickers_search">Çıkartma ara…</string>
+    <string name="nm_stickers_all">Tümü</string>
+    <string name="nm_stickers_add_group">Yeni grup</string>
+    <string name="nm_stickers_group_name">Grup adı</string>
+    <string name="nm_stickers_add_sticker">Çıkartma ekle</string>
+    <string name="nm_stickers_delete_confirm">Bu çıkartma silinsin mi?</string>
+    <string name="nm_stickers_delete_group_confirm">Bu çıkartma grubu silinsin mi?</string>
+    <string name="nm_stickers_rename">Yeniden adlandır</string>
+    <string name="nm_confirm">Onayla</string>
+    <string name="nm_delete">Sil</string>
     <string name="nm_composer_placeholder">Mesaj</string>
 
     <!-- 0.1.9 · Portrait -->

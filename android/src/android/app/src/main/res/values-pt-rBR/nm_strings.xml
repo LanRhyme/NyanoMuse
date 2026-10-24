@@ -419,6 +419,15 @@
     <string name="nm_attach_stickers">Figurinhas</string>
     <string name="nm_stickers_empty">Nenhuma figurinha ainda</string>
     <string name="nm_stickers_search">Pesquisar figurinhas…</string>
+    <string name="nm_stickers_all">Todos</string>
+    <string name="nm_stickers_add_group">Novo grupo</string>
+    <string name="nm_stickers_group_name">Nome do grupo</string>
+    <string name="nm_stickers_add_sticker">Adicionar figurinha</string>
+    <string name="nm_stickers_delete_confirm">Excluir esta figurinha?</string>
+    <string name="nm_stickers_delete_group_confirm">Excluir este grupo de figurinhas?</string>
+    <string name="nm_stickers_rename">Renomear</string>
+    <string name="nm_confirm">Confirmar</string>
+    <string name="nm_delete">Excluir</string>
     <string name="nm_composer_placeholder">Mensagem</string>
 
     <!-- 0.1.9 · Portrait -->

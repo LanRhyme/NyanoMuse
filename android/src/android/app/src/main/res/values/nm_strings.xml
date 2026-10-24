@@ -415,6 +415,15 @@
     <string name="nm_attach_stickers">Stickers</string>
     <string name="nm_stickers_empty">No stickers yet</string>
     <string name="nm_stickers_search">Search stickers…</string>
+    <string name="nm_stickers_all">All</string>
+    <string name="nm_stickers_add_group">New group</string>
+    <string name="nm_stickers_group_name">Group name</string>
+    <string name="nm_stickers_add_sticker">Add sticker</string>
+    <string name="nm_stickers_delete_confirm">Delete this sticker?</string>
+    <string name="nm_stickers_delete_group_confirm">Delete this sticker group?</string>
+    <string name="nm_stickers_rename">Rename</string>
+    <string name="nm_confirm">Confirm</string>
+    <string name="nm_delete">Delete</string>
     <string name="nm_composer_placeholder">Message</string>
 
     <!-- 0.1.9 · Portrait -->
