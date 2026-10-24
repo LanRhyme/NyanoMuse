@@ -289,8 +289,16 @@ class RelaySyncApi(
 
     companion object {
         private val json = "application/json; charset=utf-8".toMediaType()
+
+        // one client, so calls to the relay reuse connections instead of opening a socket and
+        // a TLS handshake for every page of every push
         private val defaultClient: OkHttpClient by lazy {
-            OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build()
+            OkHttpClient.Builder()
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
+                .build()
         }
 
         /** The query as the relay reads it; `scope` and `tail` only when they say something (an older relay ignores them anyway). */

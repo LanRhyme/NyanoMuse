@@ -309,7 +309,12 @@ class SyncStore:
                 rows.sort(key=lambda x: x[0])
                 more = len(rows) > limit
                 rows = rows[:limit]
-                cursor = rows[-1][0] if more and rows else self._cursor(c, account_id)
+                # 0.24: the cursor is where the page ended whatever follows it. The counter at
+                # the end of a store and the seq in the middle of one are both plain numbers,
+                # so a client could not tell a pull that had read the lot from one that stopped
+                # between two pages; with the seq always, a device continues from it and asks
+                # again for nothing when there is nothing left to read.
+                cursor = rows[-1][0] if rows else self._cursor(c, account_id)
             conversations = [r for _, k, r in rows if k == "c"]
             # A rename gives a conversation a seq above its messages, so a device starting
             # from zero would meet the messages first. Every message's conversation rides
@@ -479,7 +484,10 @@ class SyncStore:
                     rejected.append({"mid": mid, "reason": "main_exists", "cid_main": redirected[cid]})
                     continue
                 deleted = bool(msg.get("deleted"))
-                row = c.execute("SELECT deleted FROM sync_messages WHERE account_id=? AND mid=?", (account_id, mid)).fetchone()
+                row = c.execute(
+                    "SELECT deleted, text, truncated, attachments, device FROM sync_messages WHERE account_id=? AND mid=?",
+                    (account_id, mid),
+                ).fetchone()
                 if row is not None:
                     if deleted and not row["deleted"]:
                         seq = self._next_seq(c, account_id)
@@ -488,6 +496,25 @@ class SyncStore:
                             (t, seq, account_id, mid),
                         )
                         accepted += 1
+                        continue
+                    # An edit, not a new message: the same mid with other text belongs to a row
+                    # the relay already holds (a device rewrote a line). Only the text and its
+                    # attachments change, and only from the device that wrote the row, so two
+                    # phones cannot overwrite each other's lines. A tombstone stays one.
+                    if row["deleted"] or not msg.get("text"):
+                        continue
+                    if str(row["device"]) != device:
+                        continue
+                    text, truncated = cut_text(msg.get("text"))
+                    fresh = json.dumps(clean_attachments(msg.get("attachments")), ensure_ascii=False)
+                    if text == row["text"] and truncated == bool(row["truncated"]) and fresh == (row["attachments"] or "[]"):
+                        continue
+                    seq = self._next_seq(c, account_id)
+                    c.execute(
+                        "UPDATE sync_messages SET text=?, truncated=?, attachments=?, seq=? WHERE account_id=? AND mid=?",
+                        (text, 1 if truncated else 0, fresh, seq, account_id, mid),
+                    )
+                    accepted += 1
                     continue
                 conv = c.execute("SELECT deleted FROM sync_conversations WHERE account_id=? AND cid=?", (account_id, cid)).fetchone()
                 if conv is None:
@@ -554,7 +581,14 @@ class SyncStore:
 
     def _retain(self, c: sqlite3.Connection, account_id: str, keep: set[str]) -> None:
         """Over the message limit: the oldest conversations' messages go first (the ones not
-        written in this request); when one conversation holds it all, its oldest messages go."""
+        written in this request); when one conversation holds it all, its oldest messages go.
+
+        A dropped message becomes a tombstone with a seq of its own rather than a row deleted
+        behind the devices' backs: a device that was offline through the trim asks for what
+        came after its cursor, and without the tombstone it would keep the text forever while
+        the relay, and every device after it, no longer has it. Tombstones cost no place in
+        the limit (only rows with `deleted=0` are counted) and the sweep clears them after
+        TOMBSTONE_DAYS, by which time every device that was coming back has."""
         limit = LIMITS["messages"]
         count = int(c.execute("SELECT COUNT(*) FROM sync_messages WHERE account_id=? AND deleted=0", (account_id,)).fetchone()[0])
         if count <= limit:
@@ -570,15 +604,32 @@ class SyncStore:
                 return
             if str(r["cid"]) in keep:
                 continue
-            c.execute("DELETE FROM sync_messages WHERE account_id=? AND cid=? AND deleted=0", (account_id, r["cid"]))
+            self._bury(
+                c,
+                account_id,
+                "SELECT rowid FROM sync_messages WHERE account_id=? AND cid=? AND deleted=0",
+                (account_id, str(r["cid"])),
+            )
             count -= int(r["n"])
         if count > limit:
             # only the conversations written just now are left: trim their oldest messages
-            c.execute(
-                """DELETE FROM sync_messages WHERE account_id=? AND deleted=0 AND rowid IN (
-                     SELECT rowid FROM sync_messages WHERE account_id=? AND deleted=0 ORDER BY created_at, seq LIMIT ?)""",
-                (account_id, account_id, count - limit),
+            self._bury(
+                c,
+                account_id,
+                "SELECT rowid FROM sync_messages WHERE account_id=? AND deleted=0 ORDER BY created_at, seq LIMIT ?",
+                (account_id, count - limit),
             )
+
+    def _bury(self, c: sqlite3.Connection, account_id: str, select: str, args: tuple) -> int:
+        """The messages `select` names become tombstones with new seqs; returns how many went."""
+        rowids = [int(r[0]) for r in c.execute(select, args).fetchall()]
+        for rowid in rowids:
+            seq = self._next_seq(c, account_id)
+            c.execute(
+                "UPDATE sync_messages SET deleted=1, deleted_at=?, text='', truncated=0, attachments='[]', seq=? WHERE rowid=?",
+                (now(), seq, rowid),
+            )
+        return len(rowids)
 
     @staticmethod
     def _sweep(c: sqlite3.Connection, t: int) -> None:

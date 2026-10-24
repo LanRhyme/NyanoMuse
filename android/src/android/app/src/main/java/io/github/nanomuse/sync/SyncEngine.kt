@@ -28,6 +28,13 @@ data class PullResult(
  *   chats whose title changed. A chat deleted here goes as a tombstone plus `DELETE`.
  * - A pull applies changes in `seq` order: new chats are created, known ones merge by `mid`,
  *   tombstones delete. The first remote `main` is adopted as this phone's main chat.
+ * - A pull after the first reads what follows its cursor page by page until the relay says
+ *   there is no page after, a page brings nothing this phone did not have, or a page is short
+ *   of [PAGE]. The account counter travels beside the cursor ([SyncStore.HEAD]) and is not an
+ *   end: the relay gives it out with a tail only, so a pull cut off after a page inside the
+ *   store has no counter to read to, and the cursor alone says where it stopped. A walk left on
+ *   record ([SyncStore.PAGES] and [SyncStore.WALK], written by a first pull cut off inside the
+ *   store) is finished first, from the page it reached to the counter it set out for.
  * - `main_exists` in a push's answer re-homes the local main chat under the relay's cid and
  *   posts its messages again.
  *
@@ -66,6 +73,8 @@ class SyncEngine(
     private val sideChats: () -> Boolean = { true },
     /** The signed-in account is not the last one (C10): the caller drops what it cached of the old one. */
     private val onAccountChanged: suspend () -> Unit = {},
+    /** One line for the log, so a refused push can be read back from a release build. */
+    private val log: (String) -> Unit = {},
 ) {
     /** The cursor last applied, or null before the first pull of this account. */
     suspend fun cursor(): Long? = store.meta(SyncStore.CURSOR)?.toLongOrNull()
@@ -87,7 +96,7 @@ class SyncEngine(
         val previous = store.meta(SyncStore.ACCOUNT)
         if (previous == account) return
         store.putMeta(SyncStore.ACCOUNT, account)
-        store.putMeta(SyncStore.CURSOR, null)
+        forgetPull()
         val current = chats.mainSessionId()?.let { store.conversation(it) }
         if (current != null && !current.mine()) {
             val own = store.conversations().firstOrNull { it.kind == "main" && it.owner == account && !it.deleted && chats.session(it.sessionId) != null }
@@ -105,8 +114,10 @@ class SyncEngine(
     /** Sends what the relay does not have yet. Returns how many changes it accepted. */
     suspend fun push(): Int {
         ensureAccount()
-        // adoption first: a phone that never pulled must not seed a second main chat
-        if (cursor() == null) pull()
+        // adoption first: a phone that never pulled must not seed a second main chat. A push
+        // right after a pull the caller made runs this only for a store that has no cursor
+        // yet, and that one is from the end: the newest rows, not the whole of the history
+        if (cursor() == null) pull(atEnd = true)
         return pushOnce(retryMain = true)
     }
 
@@ -208,21 +219,46 @@ class SyncEngine(
         // the conversations ride with the first batch so every message finds its cid
         val ordered = msgs.sortedBy { it.createdAt }
         val batches = if (ordered.isEmpty()) listOf(emptyList()) else ordered.chunked(BATCH)
+        // every batch that came back marks its rows as said, and only those: a POST that throws
+        // leaves the later batches unpushed for the next push, instead of marking the lot at the
+        // end, which is how a push that failed on its second batch lost the third and fourth
+        val sent = mutableSetOf<String>()
+        val held = mutableSetOf<String>()
         batches.forEachIndexed { i, batch ->
             val r = api.push(deviceId, if (i == 0) convs else emptyList(), batch)
             accepted += r.accepted
             rejected += r.rejected
+            // A row of a chat the relay refused for want of room was never taken and waits with
+            // the chat (below): the cid says which batch rows are its own, so it is not marked
+            // as said here. Everything else in the batch is.
+            val full = r.rejected.filter { it.reason == "conversation_limit" }.mapNotNull { it.cid }.toSet()
+            for (out in batch) {
+                if (out.cid in full) held += out.mid else sent += out.mid
+            }
+            store.putMessages(pending.filter { it.mid in sent && it.mid !in held }.map { it.copy(pushed = true) })
         }
         val rejectedMids = rejected.mapNotNull { it.mid }.toSet()
         val rejectedCids = rejected.mapNotNull { it.cid }.toSet()
 
-        // what the relay took is pushed; what it refused for good is dropped rather than retried forever
-        store.putMessages(pending.map { it.copy(pushed = true) })
-        store.removeMessages(gone.map { it.messageId })
+        // the tombstones among the rows that went up are gone here: the relay holds one instead
+        store.removeMessages(gone.filter { it.mid in sent }.map { it.messageId })
+        // `conversation_limit` (0.23): the account keeps at most 2000 live side chats and this
+        // one is past it. The chat stays on the phone, not sent again, and its rows wait with
+        // it: they go up when the account has room, so they are not called sent either
+        val limitedCids = rejected.filter { it.reason == "conversation_limit" }.mapNotNull { it.cid }.toSet()
         for ((cid, pair) in titles) {
-            if (cid in rejectedCids) continue
             val (map, title) = pair
+            if (cid in limitedCids) {
+                // the relay was told this cid takes no place, so the chat is left as unknown to
+                // it: a later push, when there is room, offers it again from the start
+                store.putConversation(map.copy(pushed = false, pushedTitle = null))
+                continue
+            }
+            if (cid in rejectedCids) continue
             store.putConversation(map.copy(pushed = true, pushedTitle = title))
+        }
+        if (limitedCids.isNotEmpty()) {
+            log("the account is at its conversation limit; ${limitedCids.size} chat(s) stay on this phone")
         }
         for (map in deletedMaps) {
             if (!map.pushed) continue
@@ -230,13 +266,9 @@ class SyncEngine(
             store.removeMessagesOf(map.sessionId)
             store.removeConversation(map.sessionId)
         }
-        if (rejectedMids.isNotEmpty()) {
-            // a message the relay will never take (bad role, unknown cid): not sent again
-            val drop = pending.filter { it.mid in rejectedMids }
-            store.putMessages(drop.map { it.copy(pushed = true) })
-        }
-
-        // two devices seeded a main chat each: the relay kept the older one, ours moves under it
+        // Two devices seeded a main chat each: the relay kept the older one, ours moves under
+        // it. Done before the bookkeeping below, since its rows go up again with the answer's
+        // own seqs: counting them as said first would leave the relay without them
         val mainClash = rejected.firstOrNull { it.reason == "main_exists" && it.cidMain != null }
         if (mainClash != null && retryMain) {
             val local = store.conversationByCid(mainClash.cid.orEmpty()) ?: store.conversation(mainId.orEmpty())
@@ -245,10 +277,22 @@ class SyncEngine(
                 return accepted + pushOnce(retryMain = false)
             }
         }
+        // what the relay refused for good is not sent again: a bad role, an unknown cid, a
+        // tombstone for a chat it never had
+        if (rejectedMids.isNotEmpty()) {
+            // a row of a chat the relay turned away for want of room was not refused itself:
+            // it waits with the chat, so the account's room in time sends it along
+            val drop = pending.filter { it.mid in rejectedMids && store.conversation(it.sessionId)?.cid !in limitedCids }
+            store.putMessages(drop.map { it.copy(pushed = true) })
+        }
         return accepted
     }
 
-    /** The local chat [local] is from now on the relay's conversation [cid]; its rows go out again. */
+    /**
+     * The local chat [local] is from now on the relay's conversation [cid]. Its rows go out
+     * again under the new cid, all of them: a row the relay took under the old one is a
+     * different mid there, so the new cid needs it too, and the relay drops the repeat by mid.
+     */
     private suspend fun rehome(local: SyncConversation, cid: String, device: String, deviceName: String) {
         store.putConversation(local.copy(cid = cid, kind = "main", device = device, deviceName = deviceName, pushed = true, pushedTitle = null))
         store.putMessages(store.messages(local.sessionId).map { it.copy(pushed = false) })
@@ -257,41 +301,254 @@ class SyncEngine(
     // ── pull ──────────────────────────────────────────────────────────────
 
     /**
-     * Fetches and applies everything after the stored cursor — or, before there is one, the
-     * tail of the scope (C9): the newest [TAIL] messages and their chats, in one page. Each
-     * page is written as one transaction.
+     * Fetches and applies everything after the stored cursor, or the tail of the scope (C9)
+     * for an account this phone has never pulled. Each page is written as one transaction.
+     *
+     * Where the pull continues from is one number, the relay's own: the account's counter at
+     * the end of a store, the seq of a page's last row in the middle of one. Both are plain
+     * numbers, so [SyncStore.HEAD] is kept beside the cursor to tell a store read to the end
+     * from one a pull stopped in: a cursor the counter is equal to has nothing after it.
+     *
+     * A page with nothing this phone did not have already ends the pull. The store's order
+     * comes from rows of other devices, which this phone has or has not by its own lights, so
+     * a gap in the seqs a page hands out does not say the phone lacks the rows in it; reading
+     * on the chance it does would walk a store of thousands of rows for nothing on every pull.
+     * The two pulls that must read past that are a phone that never had the account and one
+     * whose cursor went back under the store's oldest rows: they walk it, page by page, from
+     * [SyncStore.PAGES] to [SyncStore.WALK], and a walk that fails starts over where it was.
      */
-    suspend fun pull(): PullResult {
+    suspend fun pull(): PullResult = pull(atEnd = false)
+
+    /**
+     * [atEnd] says where to start when the caller knows: the push that follows a pull runs a
+     * pull of its own only for a store this account has never had ([push]), and that one is
+     * from the end.
+     */
+    private suspend fun pull(atEnd: Boolean): PullResult {
         ensureAccount()
-        val first = cursor() == null
-        var cursor = cursor() ?: 0L
+        // ensureAccount may have started this account over: these are read after it, never before
+        var cursor: Long? = store.meta(SyncStore.CURSOR)?.toLongOrNull()
+        // the account's counter as the pages last saw it, for [save] to carry along
+        var head: Long? = store.meta(SyncStore.HEAD)?.toLongOrNull()
+        // where a walk got to, and the counter it set out for; absent when there is none
+        //
+        // A walk is a first pull (or one after the account was switched) that reads the store
+        // from its start, a page at a time, to the counter the store stood at when it set out.
+        // It is the only reading that reaches rows the tail could not, and the only one that
+        // declares the store read to its end, so it alone writes [SyncStore.PULLED] "done".
+        //
+        // [SyncStore.PAGES] is where the walk reads next, not where it began: the page a walk
+        // got to and the page it starts again from are the same page after a failure, so the
+        // pull that carries on asks for it and goes on from wherever it ends. The cursor is no
+        // measure of it. A reading takes its cursor to the highest seq a page held, and rows
+        // near the end of the store are laid out past the reading's place all the time; a walk
+        // whose page fell under such a cursor is still owed the rest of the store.
+        var walkFrom = store.meta(SyncStore.PAGES)?.toLongOrNull()
+        var walkTo = store.meta(SyncStore.WALK)?.toLongOrNull()
+        // both or neither: a walk with a page and no counter to read to, or the other way
+        // round, is a record of a pull that was cut short in the middle of writing it
+        if ((walkFrom == null) != (walkTo == null)) {
+            walkFrom = null
+            walkTo = null
+            forgetWalk()
+        }
+        // A store the relay trimmed: the cursor stands below the oldest rows the phone has
+        // and the counter the pages last saw stands above it. The phone cannot tell which
+        // rows the trim took from it, so it reads the store from its start, page by page, to
+        // the counter, as a phone that never had the account does.
+        val trimmed = cursor == 0L && head != null && head > 0L
+        // a walk on record carries on from the page it reached; a pull with none starts one
+        // with a tail, which reads the newest rows and the account's counter in one page, and
+        // goes on to read the store from its start to that counter a page at a time. So the
+        // counter a walk sets out for is known as it starts, never guessed from [HEAD]
+        var walking = walkFrom != null || cursor == null || atEnd || trimmed
+        // the tail is the first page of a walk the pull starts; a walk on record is already
+        // past it, and a reading is not a walk at all
+        var tailFirst = walking && walkFrom == null
+        // whether the tail has been read: it is the first page and no other, whatever the
+        // walk goes on to ask for
+        var tailDone = false
+        // where the pull reads first: the page a walk reached, or, with no walk, what follows
+        // the cursor. A pull that has no cursor reads the store from its start
+        var next = walkFrom ?: cursor ?: 0L
+        if (walking && walkFrom == null) {
+            store.batch {
+                store.putMeta(SyncStore.PAGES, "0")
+            }
+        }
         var applied = 0
         var skipped = 0
+        // whether the page the pull last read had more after it
+        var more = false
+        // where a walk that ran out ended, as the clock of the pull saw it
+        var walkDone: Long? = null
+        // the counter a walk set out for, as it was when the walk started: a walk under way
+        // reads to it even when the account has moved past it in the meanwhile
+        var bound = walkTo
+        // how many changes the relay sent that were already here or of no use here
+        var unchanged = 0
+        // a page with nothing new ended the pull, and the page after it is not read
+        var stalled = false
         val touched = mutableSetOf<String>()
         val replied = mutableSetOf<String>()
         val scope = if (sideChats()) SyncApi.SCOPE_ALL else SyncApi.SCOPE_MAIN
+        // Where the store stood when the pull set out. A reading goes no further than that:
+        // the rows a walk read past the counter it set out for are older ones the store laid
+        // out later, and reading on to them would be reading the store from wherever the walk
+        // stopped. The pull after this one reads on from where the store now stands.
+        val cap = if (walking) null else head
+        // a reading has nothing to walk to, so its own cursor is where it starts: one past it
+        // reads a page ahead of what the pull came for. A walk goes by the page it got to and
+        // the counter it set out for
+        next = if (!walking) minOf(next, cursor ?: next) else next
         while (true) {
-            val page = api.changes(cursor, PAGE, scope, if (first && cursor == 0L) TAIL else 0)
-            skipped += page.skipped
-            applied += chats.transaction {
-                var n = 0
-                for (c in page.conversations) {
-                    if (applyConversation(c, touched)) n++
+            val tailNow = tailFirst && !tailDone
+            val page = api.changes(next, PAGE, scope, if (tailNow) TAIL else 0)
+            unchanged = page.conversations.size + page.messages.size
+            // the relay says whether the store goes on; the pages it hands back are what this
+            // pull has left to read
+            more = page.more
+            // only a tail hands back the account's counter; every other page hands back a seq
+            if (tailNow) {
+                head = maxOf(head ?: 0L, page.cursor)
+                bound = head
+                walkTo = head
+                tailDone = true
+                // the walk is on record from the page it reads to the counter it set out for,
+                // so a pull that stops between two of them has one to go on with
+                store.batch {
+                    store.putMeta(SyncStore.PAGES, "0")
+                    store.putMeta(SyncStore.WALK, head.toString())
                 }
-                for (m in page.messages) {
-                    if (applyMessage(m, touched, replied)) n++
-                }
-                n
             }
-            cursor = maxOf(cursor, page.cursor)
-            store.putMeta(SyncStore.CURSOR, cursor.toString())
-            if (!page.more || (page.conversations.isEmpty() && page.messages.isEmpty())) break
+            if (page.conversations.isEmpty() && page.messages.isEmpty()) {
+                // a page with nothing on it between two others is one the walk reads on from;
+                // one the relay has nothing after is the store's end, and so is a walk's page
+                // at the counter it set out for
+                val atBound = walking && bound != null && next >= bound
+                // a page with nothing at all, between two others, is one the walk reads on
+                // from: what ends a pull is a page the relay has nothing after, a walk's page
+                // past the counter it set out for, or a reading let as far as it goes
+                val end = !page.more || atBound || (!walking && next >= (cap ?: next))
+                if (cursor == null || page.cursor > cursor) cursor = page.cursor
+                if (!page.more && head == null) head = next
+                if (end) {
+                    // a walk read every row the store had up to its counter, and one that ran
+                    // out of pages before it read what there was
+                    if (walking) {
+                        walkDone = maxOf(page.cursor, next)
+                        forgetWalk()
+                    }
+                    save(cursor ?: next, head ?: (cursor ?: next), "done")
+                    break
+                }
+                save(cursor ?: next, head, "pages")
+                next = maxOf(page.cursor, next)
+                continue
+            }
+            // the tail reports as skipped what it left out, and the walk reads those rows:
+            // only a page of the walk itself adds to the count
+            if (!tailNow) skipped += page.skipped
+            val rows = page.conversations.size + page.messages.size
+            val n = store.batch {
+                chats.transaction {
+                    var count = 0
+                    for (c in page.conversations) {
+                        if (applyConversation(c, touched)) count++
+                    }
+                    for (m in page.messages) {
+                        if (applyMessage(m, touched, replied)) count++
+                    }
+                    count
+                }
+            }
+            applied += n
+            unchanged -= n
+            // where the page ends: never behind where it was asked from, so a relay that hands
+            // back 0 for a page of rows this phone already holds cannot send the pull back to
+            // the page it just read
+            val cut = maxOf(
+                page.cursor, next,
+                page.conversations.maxOfOrNull { it.seq } ?: 0L,
+                page.messages.maxOfOrNull { it.seq } ?: 0L,
+            )
+            // the counter is the account's, and it only ever goes up: the tail hands it back
+            // whole, and a page's seq is where the store stood when that page was cut
+            cursor = maxOf(cursor ?: 0L, cut)
+            if (walking) {
+                // the tail hands back the account's counter, not the store's seq: the walk
+                // reads the store from its start, whatever page the tail ended at
+                next = if (tailNow) 0L else cut
+                // the tail is the newest rows and the counter, not a page of the walk: the
+                // walk reads the store from its start, and what ends it is the page at the
+                // counter it set out for, or one the relay has nothing after
+                val walked = !tailNow
+                val atBound = walked && bound != null && cut >= bound
+                if (atBound || (walked && !page.more)) {
+                    walkDone = cut
+                    forgetWalk()
+                    save(cursor, head ?: cursor, "done")
+                    break
+                }
+                store.batch {
+                    store.putMeta(SyncStore.PAGES, next.toString())
+                    if (bound != null) store.putMeta(SyncStore.WALK, bound.toString())
+                }
+                // 0.24: a page hands back the seq of its last row whether or not more follows
+                // it, so the word "pages" is what tells a pull left between two of them from
+                // one that read to the end
+                save(cursor, head, "pages")
+                continue
+            }
+            // a reading that meets a page of rows this phone already holds has nothing to
+            // learn from the pages after it: the rows of other devices are laid out here by
+            // their own times, so what it lacks is not where the seqs leave a gap. A walk is
+            // not a reading of that kind, and reads the store to its counter whatever the
+            // pages hold
+            if (page.more && n == 0) {
+                stalled = true
+                break
+            }
+            save(cursor, head, "pages")
+            // a reading stops at the counter the store stood at when it set out: what the
+            // account took after that is the next pull's business. A page short of the brim,
+            // one read to the end of the store, or one that reached the counter is the last
+            next = maxOf(cursor, cut)
+            if (page.more && rows >= PAGE && (cap == null || cut < cap)) continue
+            break
         }
-        return PullResult(applied, touched, cursor, replied, skipped)
+        // a reading that stopped between pages leaves "pages" behind, and the next pull reads
+        // on from its cursor; one that stopped at a page with nothing after it has read the
+        // store to its end
+        if (walkDone == null && !walking) save(cursor ?: 0L, head, if (more) "pages" else "done")
+        return PullResult(applied, touched, cursor ?: 0L, replied, skipped)
     }
 
-    private suspend fun applyConversation(c: RemoteConversation, touched: MutableSet<String>): Boolean {
-        // C9: side chats are not this phone's business while the switch is off — none should
+    /**
+     * No walk is left to do: a pull that reads the store again starts from nothing rather than
+     * from a page the store may have drifted past.
+     */
+    private suspend fun forgetWalk() {
+        store.batch {
+            store.putMeta(SyncStore.PAGES, null)
+            store.putMeta(SyncStore.WALK, null)
+        }
+    }
+
+    /**
+     * Where the pull stands, as one write: the cursor, the account's counter as the pages saw
+     * it, and how far it got — `pages` between two of them, `done` at the end, `nopages` when
+     * a page held nothing at all.
+     */
+    private suspend fun save(cursor: Long, head: Long?, how: String) {
+        store.batch {
+            store.putMeta(SyncStore.CURSOR, cursor.toString())
+            store.putMeta(SyncStore.PULLED, how)
+            if (head != null) store.putMeta(SyncStore.HEAD, head.toString())
+        }
+    }
+
+    private suspend fun applyConversation(c: RemoteConversation, touched: MutableSet<String>): Boolean {        // C9: side chats are not this phone's business while the switch is off — none should
         // arrive with scope=main; one that does makes no chat here and changes none
         if (c.kind != "main" && !sideChats()) return false
         val titleStr = c.title.orEmpty().trim()
@@ -334,13 +591,27 @@ class SyncEngine(
         if (known != null) {
             val s = chats.session(known.sessionId) ?: return false // gone here; the next push says so
             var renamed = false
-            if (c.title != known.pushedTitle && c.title != s.title) {
-                // another device renamed it
-                chats.renameSession(s.id, c.title, maxOf(s.updatedAt, c.updatedAt * 1000))
-                touched += s.id
-                renamed = true
+            // A title that changed on another device and one changed here: the later change
+            // wins, as it does everywhere else. The relay's title carries the second it was
+            // written in, the local one the millisecond, so they can be compared.
+            val remoteChanged = c.title != known.pushedTitle
+            val localChanged = s.title != known.pushedTitle
+            if (remoteChanged && c.title != s.title) {
+                if (localChanged && s.updatedAt > c.updatedAt * 1000) {
+                    // the local rename is the later one: it stays, and the next push carries
+                    // it up, so the relay takes it back
+                    store.putConversation(known)
+                } else {
+                    // another device renamed it
+                    chats.renameSession(s.id, c.title, maxOf(s.updatedAt, c.updatedAt * 1000))
+                    touched += s.id
+                    renamed = true
+                    if (c.title != known.pushedTitle) store.putConversation(known.copy(pushedTitle = c.title))
+                }
+            } else if (remoteChanged) {
+                // only the other device renamed it, or the two names are the same
+                store.putConversation(known.copy(pushedTitle = c.title))
             }
-            if (c.title != known.pushedTitle) store.putConversation(known.copy(pushedTitle = c.title))
             return renamed
         }
         if (c.kind == "main") {
@@ -408,7 +679,9 @@ class SyncEngine(
         if (conv.kind != "main" && !sideChats()) return false // C9: a side row while the switch is off
         // by time among the chat's rows, not at the end (C8)
         val id = chats.insertMessage(conv.sessionId, m.role, m.text, m.attachments, m.createdAt * 1000)
-        store.putMessages(listOf(SyncMessage(id, m.mid, conv.sessionId, pushed = true, device = m.device, deviceName = m.deviceName)))
+        store.putMessages(
+            listOf(SyncMessage(id, m.mid, conv.sessionId, pushed = true, seq = m.seq, device = m.device, deviceName = m.deviceName)),
+        )
         touched += conv.sessionId
         if (m.role == "assistant") replied += conv.sessionId
         return true
@@ -423,7 +696,7 @@ class SyncEngine(
             // the relay's store is empty again: everything of this phone goes out
             ensureAccount()
             store.markAllUnpushed()
-            store.putMeta(SyncStore.CURSOR, null)
+            forgetPull()
         }
         return state
     }
@@ -436,7 +709,20 @@ class SyncEngine(
      */
     suspend fun sideChatsTurnedOn() {
         ensureAccount()
-        store.putMeta(SyncStore.CURSOR, null)
+        forgetPull()
+    }
+
+    /**
+     * The next pull reads the store as a phone that has never had it: no cursor, no counter,
+     * no walk, and a tail to start from. For the account that changed and for a store the
+     * relay emptied.
+     */
+    private suspend fun forgetPull() {
+        store.batch {
+            for (key in arrayOf(SyncStore.CURSOR, SyncStore.HEAD, SyncStore.PULLED, SyncStore.PAGES, SyncStore.WALK)) {
+                store.putMeta(key, null)
+            }
+        }
     }
 
     /** "Delete synced conversations": the relay's store goes, the switch and the local chats stay. */

@@ -148,12 +148,17 @@ async def test_known_mids_are_idempotent_and_tombstones_propagate():
     first = {"device": "d1", "conversations": [conv(cid)], "messages": [msg(mid, cid, text="first")]}
     r = await client.post("/v1/sync/changes", json=first, headers=auth(key))
     assert r.json()["accepted"] == 2 and r.json()["cursor"] == 2
-    # the same again, with a different text: left alone, nothing accepted, nothing rejected
+    # the same device's same mid with a different text: an edit the relay takes, one seq
     first["messages"][0]["text"] = "changed"
     r = await client.post("/v1/sync/changes", json=first, headers=auth(key))
-    assert r.json() == {"cursor": 2, "accepted": 0, "rejected": []}
+    assert r.json() == {"cursor": 3, "accepted": 1, "rejected": []}
     out = (await client.get("/v1/sync/changes", headers=auth(key))).json()
-    assert out["messages"][0]["text"] == "first"
+    assert out["messages"][0]["text"] == "changed"
+    # another device's word on that row is not an edit: same mid, other text, nothing happens
+    r = await client.post("/v1/sync/changes", json={"device": "d2", "messages": [msg(mid, cid, text="not mine to say")]}, headers=auth(key))
+    assert r.json()["accepted"] == 0
+    out = (await client.get("/v1/sync/changes", headers=auth(key))).json()
+    assert out["messages"][0]["text"] == "changed"
     # an edit: a new mid plus a tombstone for the old one
     mid2 = uid()
     r = await client.post(
@@ -162,7 +167,7 @@ async def test_known_mids_are_idempotent_and_tombstones_propagate():
         headers=auth(key),
     )
     assert r.json()["accepted"] == 2
-    out = (await client.get("/v1/sync/changes?since=2", headers=auth(key))).json()
+    out = (await client.get("/v1/sync/changes?since=3", headers=auth(key))).json()
     by = {m["mid"]: m for m in out["messages"]}
     assert by[mid]["deleted"] is True and by[mid]["text"] == "" and by[mid2]["text"] == "edited"
     # the newer title wins; an older updated_at does not
@@ -290,12 +295,19 @@ async def test_retention_drops_the_oldest_conversations_messages():
         store.push(account_id, "a", [], [msg(uid(), new, created_at=3000)])
         by_cid: dict[str, int] = {}
         for m in store.changes(account_id, 0, 1000)["messages"]:
-            by_cid[m["cid"]] = by_cid.get(m["cid"], 0) + 1
+            if not m["deleted"]:
+                by_cid[m["cid"]] = by_cid.get(m["cid"], 0) + 1
         assert old not in by_cid and by_cid[mid_conv] == 2 and by_cid[new] == 1
         # one conversation holding it all: its oldest messages go
         store.push(account_id, "a", [], [msg(uid(), new, created_at=3001 + i) for i in range(6)])
-        msgs = [m for m in store.changes(account_id, 0, 1000)["messages"] if m["cid"] == new]
+        msgs = [m for m in store.changes(account_id, 0, 1000)["messages"] if m["cid"] == new and not m["deleted"]]
         assert len(msgs) == 5 and min(m["created_at"] for m in msgs) == 3002
+        # a trimmed message is a tombstone, not a row gone behind the devices' backs: a device
+        # that was away asks for what came after its cursor and learns the line is gone
+        tombstones = [m for m in store.changes(account_id, 0, 1000)["messages"] if m["cid"] == new and m["deleted"]]
+        assert tombstones, "the trim leaves a tombstone for every message it drops"
+        assert all(m["text"] == "" for m in tombstones)
+        assert store.state(account_id)["counts"]["messages"] == 5
     finally:
         sync_mod.LIMITS.update(saved)
 

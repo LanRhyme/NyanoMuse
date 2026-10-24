@@ -49,7 +49,10 @@ data class Changes(
     val messages: List<RemoteMessage>,
     /** A tail page (C9): how many older messages the relay kept back. 0 on an ordinary page. */
     val skipped: Int = 0,
-)
+) {
+    /** Nothing in it: neither a row to apply nor an older part left behind. */
+    val isBlank: Boolean get() = conversations.isEmpty() && messages.isEmpty() && skipped == 0
+}
 
 /**
  * Another device is working on a synced conversation (contract C9): the relay's `working`

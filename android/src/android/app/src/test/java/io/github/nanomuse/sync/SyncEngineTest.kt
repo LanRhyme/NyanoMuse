@@ -7,21 +7,34 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.UUID
 
 /** Contract C7's client rules, against the fake relay: ids, adoption, merge, tombstones, cursor, the switch. */
 class SyncEngineTest {
     private val uuid = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
     /** A phone; the C7/C8 tests below were written with side chats on, C9's own tests set it per case. */
-    private class Phone(val relay: FakeRelay, val device: String, account: String = "acct-1", sideChats: Boolean = true) {
+    private class Phone(
+        val relay: FakeRelay,
+        val device: String,
+        account: String = "acct-1",
+        sideChats: Boolean = true,
+        newId: () -> String = { UUID.randomUUID().toString() },
+    ) {
         val store = MemorySyncStore()
         val chats = MemoryChats()
         var clock = 1_700_000_000_000L
         var sideChats = sideChats
-        val engine = SyncEngine(store, chats, relay, device, account, now = { clock }, sideChats = { this.sideChats })
+        val engine = SyncEngine(store, chats, relay, device, account, now = { clock }, sideChats = { this.sideChats }, newId = newId)
     }
 
-    private fun phone(relay: FakeRelay, device: String, account: String = "acct-1", sideChats: Boolean = true) = Phone(relay, device, account, sideChats)
+    private fun phone(
+        relay: FakeRelay,
+        device: String,
+        account: String = "acct-1",
+        sideChats: Boolean = true,
+        newId: () -> String = { UUID.randomUUID().toString() },
+    ) = Phone(relay, device, account, sideChats, newId)
 
     @Test fun `first push mints a cid per chat and a mid per message, main as main`() = runTest {
         val relay = FakeRelay()
@@ -234,7 +247,30 @@ class SyncEngineTest {
         assertTrue(p.store.msgs.values.none { it.sessionId == "side" })
     }
 
-    @Test fun `a rename on another device lands here`() = runTest {
+    @Test fun `the later rename wins when both sides renamed the chat`() = runTest {
+        val relay = FakeRelay()
+        val p = phone(relay, "phone-a")
+        p.chats.addSession("main"); p.chats.main = "main"
+        p.chats.addSession("side", "Old")
+        p.chats.user("side", "x")
+        p.engine.push()
+        val cid = p.store.convs.getValue("side").cid
+        val conv = relay.convs.getValue(cid)
+        conv.title = "Renamed elsewhere"
+        conv.updatedAt = 1_700_000_500L
+        conv.seq = ++relay.seq
+        // the local rename came after it: the local name stays, and the next push carries it up
+        p.chats.sessions.getValue("side").title = "Renamed here"
+        p.chats.sessions.getValue("side").updatedAt = 1_700_000_600_000L
+
+        p.engine.pull()
+
+        assertEquals("the later rename wins", "Renamed here", p.chats.sessions.getValue("side").title)
+        p.engine.push()
+        assertEquals("and it goes up to the relay", "Renamed here", relay.convs.getValue(cid).title)
+    }
+
+    @Test fun `a rename on another device lands here when this phone did not rename it`() = runTest {
         val relay = FakeRelay()
         val p = phone(relay, "phone-a")
         p.chats.addSession("main"); p.chats.main = "main"
@@ -253,6 +289,8 @@ class SyncEngineTest {
     }
 
     @Test fun `cursor is kept and pages are followed`() = runTest {
+        // 500 rows a page, and 1200 of them: two full pages, the second stopping at the counter
+        // the tail wrote (1201), so a later change is what tells the two apart
         val relay = FakeRelay(mapOf("pixel" to "Pixel 8"))
         relay.seed("pixel", "cid-s", "side", "Long", 1_700_000_000)
         repeat(1200) { relay.seedMessage("pixel", "cid-s", "mid-$it", if (it % 2 == 0) "user" else "assistant", "line $it", 1_700_000_001L + it) }
@@ -261,18 +299,40 @@ class SyncEngineTest {
         // the first pull after sign-in is the tail (C9): the chat and its newest 300 rows, in one page
         val r = p.engine.pull()
 
-        assertEquals(1 + SyncEngine.TAIL, r.applied)
-        assertEquals(1200 - SyncEngine.TAIL, r.skipped)
+        // the tail first, then the walk of the store from its start: the store holds 1200 rows
+        // and the tail hands back the newest 300 of them, so the walk adds the other 900, and
+        // the chat with them
+        assertEquals(1 + SyncEngine.TAIL + 900, r.applied)
+        assertEquals("the 1200 the store holds, the tail's 300 among them", 1_200, p.chats.messages(p.store.conversationByCid("cid-s")!!.sessionId).size)
+        assertEquals(0, r.skipped)
         assertEquals(relay.seq, r.cursor)
         assertEquals(relay.seq.toString(), p.store.meta[SyncStore.CURSOR])
-        // later changes only, in pages of 500 followed to the end
-        repeat(1200) { relay.seedMessage("pixel", "cid-s", "mid-new-$it", "user", "more $it", 1_700_002_000L + it) }
+        // Later changes only. A pull reads one page of what follows its cursor and stops at
+        // the counter the store stood at when it set out: a page at the brim is where that
+        // page was cut, and the pages after it are the next pull's business. Reading on to
+        // the end of a store another device is writing would make every pull a walk, and a
+        // walk is what a first pull is for
+        repeat(1_200) { relay.seedMessage("pixel", "cid-s", "mid-new-$it", "user", "more $it", 1_700_002_000L + it) }
+        val before = relay.changeCalls.size
         val r2 = p.engine.pull()
-        assertEquals(1200, r2.applied)
+        // the first page of 500, and the counter as it was before it: this pull stops there
+        assertEquals("one page of 500", 1, relay.changeCalls.size - before)
+        assertEquals("the 500 of the first page", 500, r2.applied)
         assertEquals(0, r2.skipped)
-        assertEquals(relay.seq, r2.cursor)
-        assertEquals(1500, p.chats.messages(p.store.conversationByCid("cid-s")!!.sessionId).size)
+        assertEquals(1701, r2.cursor)
+        assertEquals("the 1200 the walk left, and these 500", 1_700, p.chats.messages(p.store.conversationByCid("cid-s")!!.sessionId).size)
+        assertEquals("pages", p.store.meta[SyncStore.PULLED])
+        // what the first pull left, in the pages that follow the cursor it ended on
+        assertEquals(500, p.engine.pull().applied)
+        assertEquals(200, p.engine.pull().applied)
+        assertEquals("done", p.store.meta[SyncStore.PULLED])
+        assertEquals(2_400, p.chats.messages(p.store.conversationByCid("cid-s")!!.sessionId).size)
+        assertEquals(relay.seq.toString(), p.store.meta[SyncStore.CURSOR])
+        val still = relay.changeCalls.size
+        assertEquals(0, p.engine.pull().applied)
+        assertEquals(1, relay.changeCalls.size - still)
     }
+
 
     @Test fun `a push of many messages goes in batches of 200`() = runTest {
         val relay = FakeRelay()
@@ -282,6 +342,141 @@ class SyncEngineTest {
         p.engine.push()
         assertEquals(listOf(200, 200, 100), relay.pushedBatches)
         assertEquals(500, relay.msgs.size)
+    }
+
+    @Test fun `a batch that fails leaves the batches after it unsent`() = runTest {
+        val relay = FakeRelay()
+        val p = phone(relay, "phone-a")
+        p.chats.addSession("main"); p.chats.main = "main"
+        repeat(250) { p.chats.user("main", "q$it"); p.chats.assistant("main", "a$it") }
+        // the first POST lands, the second does not: the rows of the second and the third wait
+        relay.pushesToSucceed = 1
+        val threw = runCatching { p.engine.push() }.isFailure
+        assertTrue(threw)
+        assertEquals(200, relay.msgs.size)
+        assertEquals(200, p.store.msgs.values.count { it.pushed })
+        assertEquals(300, p.store.msgs.values.count { !it.pushed })
+
+        // the network is back: everything that really never went up goes now, nothing twice
+        relay.pushesToSucceed = Int.MAX_VALUE
+        p.engine.push()
+        assertEquals(500, relay.msgs.size)
+        assertEquals(500, p.store.msgs.values.count { it.pushed })
+    }
+
+    @Test fun `a chat past the account's conversation limit is not asked for again and keeps its rows unpushed`() = runTest {
+        val relay = FakeRelay()
+        var n = 0
+        val p = phone(relay, "phone-a", newId = { "id-${++n}" })
+        p.chats.addSession("main"); p.chats.main = "main"
+        p.chats.user("main", "hi")
+        p.engine.push()
+        p.chats.addSession("side2", "Later")
+        p.chats.user("side2", "later on")
+        // the account is full: the next chat made here cannot go up (0.23 `conversation_limit`)
+        relay.full = true
+        p.engine.push()
+        val side2 = p.store.convs.getValue("side2")
+        assertFalse("the relay does not hold it", relay.convs.containsKey(side2.cid))
+        assertTrue("its rows wait", p.store.msgs.values.filter { it.sessionId == "side2" }.none { it.pushed })
+        // another turn on the waiting chat goes with it, not alone
+        p.chats.user("side2", "more")
+        // the chat is offered again with every push: the relay is the one that knows whether
+        // the account has room now, and a push that skipped it would leave it on this phone
+        // for as long as nothing else needed sending
+        val before = relay.pushes
+        p.engine.push()
+        assertEquals("offered again, and refused again", before + 1, relay.pushes)
+        assertNull("still not the relay's", relay.convs[side2.cid])
+        // the rows of a refused chat never go up alone: they are refused as an unknown cid
+        val rows = relay.msgs.size
+        // it goes up once there is room, whole: room is read at the POST, not from the answer
+        // to the last one
+        relay.full = false
+        p.engine.push()
+        assertEquals("offered again without being asked to", before + 2, relay.pushes)
+        assertEquals("its rows from the start, with the turns since", rows + 2, relay.msgs.size)
+        assertEquals(3, relay.msgs.size)
+        assertNotNull(relay.convs[side2.cid])
+        assertTrue("the rows that waited are the ones that went", p.store.msgs.values.all { it.pushed })
+    }
+
+    @Test
+    fun `a page of rows this phone holds in another order is not walked to the end`() = runTest {
+        val relay = FakeRelay()
+        val p = phone(relay, "phone-a")
+        // the pages of the store laid out in another order than the relay's: its first page is
+        // rows this phone has, at seqs another device of the account has them at
+        relay.seed("pixel", "cid-main", "main", null, 1_700_000_000L)
+        val rows = (0 until 1_200).map { i ->
+            val r = relay.seedMessage("pixel", "cid-main", "mid-$i", "user", "line $i", 1_700_000_100L + i)
+            SyncMessage(r.mid, r.mid, "main", pushed = true, seq = i + 1L, device = "phone-a")
+        }
+        p.store.putConversation(SyncConversation("main", "cid-main", "main", "pixel", "", pushedTitle = null, pushed = true))
+        p.store.putMessages(rows)
+        // nothing has been pulled: the cursor is 0 and the counter the walk goes to
+        p.store.putMeta(SyncStore.CURSOR, "0")
+        p.store.putMeta(SyncStore.HEAD, relay.cursorNow.toString())
+        p.store.putMeta(SyncStore.PULLED, "done")
+        val calls = relay.changeCalls.size
+        val r = p.engine.pull()
+        assertEquals("nothing new in a page laid out elsewhere", 0, r.applied)
+        // a cursor of 0 under a counter far above it is a store the relay trimmed: the pull
+        // walks it, the tail first and then the store from its start, and a page laid out in
+        // another order does not stop the walk a page short of the counter
+        assertEquals("the tail, then the store in pages up to the counter", 4, relay.changeCalls.size - calls)
+        assertEquals("the tail comes first", SyncEngine.TAIL, relay.changeCalls[calls].third)
+        assertEquals("the walk reads the store from its start", Triple(0L, SyncApi.SCOPE_ALL, 0), relay.changeCalls[calls + 1])
+        // a walk of the store carries on past such a page, to the counter it set out for. The
+        // page it got to is the one on record, and a walk starts where that page ended rather
+        // than at the start again
+        p.store.putMeta(SyncStore.PAGES, "0")
+        p.store.putMeta(SyncStore.WALK, relay.cursorNow.toString())
+        val walking = relay.changeCalls.size
+        p.engine.pull()
+        assertEquals("the walk reads on from the page it got to", Triple(0L, SyncApi.SCOPE_ALL, 0), relay.changeCalls[walking])
+        assertEquals("every row of the store is here after it", 1_200, p.store.msgs.size)
+        assertEquals("the walk is done", null, p.store.meta[SyncStore.WALK])
+    }
+
+    @Test
+    fun `a store the relay trimmed is read past the first page`() = runTest {
+        val relay = FakeRelay()
+        val p = phone(relay, "phone-a")
+        // a store put back to 0 under a counter far above it: the reading is nowhere near the
+        // end, so the store is read page by page, and the pages this phone holds in another
+        // order do not stop it from reaching the ones it lacks
+        relay.seed("pixel", "cid-main", "main", null, 1_700_000_000L)
+        for (i in 0 until 1_200) {
+            relay.seedMessage("pixel", "cid-main", "mid-$i", "user", "line $i", 1_700_000_100L + i)
+        }
+        p.chats.addSession("main")
+        p.chats.main = "main"
+        p.store.putConversation(SyncConversation("main", "cid-main", "main", "pixel", "", pushedTitle = null, pushed = true))
+        p.engine.pull()
+        assertEquals("the tail, then the rest of the store", 1_200, p.store.msgs.size)
+        // a cursor under a walk that was read to the end: the store has more since, and the
+        // reading starts again from the oldest rows it does not have
+        p.store.putMeta(SyncStore.CURSOR, "0")
+        p.store.putMeta(SyncStore.HEAD, relay.cursorNow.toString())
+        val calls = relay.changeCalls.size
+        val r = p.engine.pull()
+        // The cursor went back to 0 under the counter the store is at: that is a store the
+        // relay trimmed, and the pull reads it again as a first pull does, the tail first.
+        // The rows are here already, so the tail applies nothing, and the walk goes on over
+        // the store to the counter, a page at a time
+        assertEquals("the tail, then the store in pages up to the counter", 4, relay.changeCalls.size - calls)
+        assertEquals("the tail comes first", SyncEngine.TAIL, relay.changeCalls[calls].third)
+        assertEquals("every row the relay has is here, whatever pages it came in", 1_200, p.store.msgs.size)
+        assertEquals("nothing new in it, so nothing counted", 0, r.applied)
+        assertEquals(relay.cursorNow, p.engine.cursor())
+        assertEquals("the walk read to the counter, so none is left", null, p.store.meta[SyncStore.WALK])
+        assertEquals("the store is read to its end", "done", p.store.meta[SyncStore.PULLED])
+        // and a pull after that one has nothing to read: one page of what follows the cursor
+        val again = relay.changeCalls.size
+        val q = p.engine.pull()
+        assertEquals("the page at the cursor, and nothing past it", 1, relay.changeCalls.size - again)
+        assertEquals(0, q.applied)
     }
 
     @Test fun `another account starts with its own cursor and none of the first account's chats`() = runTest {
@@ -497,11 +692,11 @@ class SyncEngineTest {
 
         val r = p.engine.pull()
 
-        assertEquals(50, r.skipped)
-        assertEquals(SyncEngine.TAIL, p.store.msgs.size)
+        assertEquals("the first pull walked the store on from its start, so none of it is past", 0, r.skipped)
+        assertEquals("the tail, then the walk from the start", SyncEngine.TAIL + 50, p.store.msgs.size)
         val main = p.chats.mainSessionId()!!
         val texts = p.chats.messages(main).map { Transcript.items(listOf(it)).first().text }
-        assertEquals("line 51", texts.first())
+        assertEquals("the tail first, then the walk from the start", "line 1", texts.first())
         assertEquals("line ${SyncEngine.TAIL + 50}", texts.last())
         assertEquals(relay.seq, r.cursor)
         // a later pull continues from the cursor: nothing older comes, something newer does
@@ -509,7 +704,7 @@ class SyncEngineTest {
         val r2 = p.engine.pull()
         assertEquals(1, r2.applied)
         assertEquals(0, r2.skipped)
-        assertEquals(SyncEngine.TAIL + 1, p.store.msgs.size)
+        assertEquals(SyncEngine.TAIL + 51, p.store.msgs.size)
         // the relay's assistant row is reported, so the "working" line can go
         assertEquals(setOf(main), r2.replied)
     }
@@ -532,7 +727,7 @@ class SyncEngineTest {
         p.sideChats = true
         p.engine.sideChatsTurnedOn()
         p.engine.pull()
-        assertEquals(Triple(0L, SyncApi.SCOPE_ALL, SyncEngine.TAIL), relay.changeCalls.last())
+        assertEquals("the pull the switch makes is the first of the account: it walks the store, scope=all", Triple(0L, SyncApi.SCOPE_ALL, 0), relay.changeCalls.last())
         // the other device's side chat is here now, the main chat is unchanged (one row per mid)
         assertTrue(p.chats.sessions.values.any { it.title == "Groceries" })
         assertEquals(1, p.chats.messages("main").size)

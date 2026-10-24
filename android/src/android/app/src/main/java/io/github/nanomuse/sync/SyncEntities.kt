@@ -13,7 +13,9 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
+import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
+import kotlinx.coroutines.runBlocking
 
 /*
  * What this phone remembers about sync, apart from the chats themselves: which local chat is
@@ -52,6 +54,12 @@ data class SyncMessage(
     val mid: String,
     val sessionId: String,
     val pushed: Boolean,
+    /**
+     * The seq the relay gave the row, 0 for one that has not been up and for a row from before
+     * this column. It is how a pull tells a page that closes a gap from one that repeats what
+     * is here in another order.
+     */
+    @ColumnInfo(defaultValue = "0") val seq: Long = 0,
     /** The device that wrote the row — blank for this phone's own; another id for a pulled one (contract C8's caption). */
     @ColumnInfo(defaultValue = "") val device: String = "",
     @ColumnInfo(defaultValue = "") val deviceName: String = "",
@@ -71,6 +79,8 @@ data class SessionOwner(@PrimaryKey val sessionId: String, val owner: String)
 
 /** The mapping store, as the engine sees it; [RoomSyncStore] on the phone, a map in tests. */
 interface SyncStore {
+    /** One transaction for a whole page of changes: a pull is applied entirely or not at all. */
+    fun <T> batch(block: suspend () -> T): T
     suspend fun meta(key: String): String?
     suspend fun putMeta(key: String, value: String?)
     suspend fun conversations(): List<SyncConversation>
@@ -92,6 +102,28 @@ interface SyncStore {
     companion object {
         const val CURSOR = "cursor"
         const val ACCOUNT = "account"
+
+        /**
+         * How far the last pull got, in its own words: `pages` when it stopped between two
+         * pages of the store, `done` when it reached the end of what the relay had, `nopages`
+         * when a page held nothing at all. Together with the cursor and the counter it says
+         * whether there is anything left to read: a cursor the counter is equal to was read to
+         * the end, any other is one a pull stopped at.
+         */
+        const val PULLED = "pulled"
+
+        /** The account's counter as the last pull's pages saw it, carried for the next. */
+        const val HEAD = "head"
+
+        /**
+         * Where a walk of the account's store has got to, and how far it goes (the counter
+         * when it started), as two numbers. A walk is the one pull that reads the store from
+         * its start page by page, for a phone that has never had the account or one whose
+         * cursor went back under the store's oldest rows; every other pull stops at the first
+         * page that holds nothing it did not have already.
+         */
+        const val PAGES = "pages"
+        const val WALK = "walk"
     }
 }
 
@@ -175,7 +207,7 @@ interface SyncDao {
     suspend fun removeMessagesOfAll(ids: List<String>)
 }
 
-@Database(entities = [SyncConversation::class, SyncMessage::class, SyncMeta::class, SessionOwner::class], version = 4, exportSchema = false)
+@Database(entities = [SyncConversation::class, SyncMessage::class, SyncMeta::class, SessionOwner::class], version = 5, exportSchema = false)
 abstract class SyncDatabase : RoomDatabase() {
     abstract fun dao(): SyncDao
 
@@ -210,18 +242,44 @@ abstract class SyncDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 0.24: the seq the relay gave a pulled row. Rows from before it stand at 0, which only
+         * makes a pull read one page further than it had to; the ids and the cursor survive.
+         */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sync_messages ADD COLUMN seq INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** Every version's own step from the one before, so no store is dropped. */
+        private val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+
         fun get(context: Context): SyncDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, SyncDatabase::class.java, "nanomuse_sync.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
-                .fallbackToDestructiveMigration()
+                .addMigrations(*MIGRATIONS)
                 .build()
                 .also { instance = it }
         }
     }
 }
 
-class RoomSyncStore(private val dao: SyncDao) : SyncStore {
-    constructor(context: Context) : this(SyncDatabase.get(context).dao())
+class RoomSyncStore(
+    private val dao: SyncDao,
+    /** The database the dao came from; taken when [batch] opens its transaction. */
+    private val database: SyncDatabase? = null,
+) : SyncStore {
+    constructor(context: Context) : this(SyncDatabase.get(context).dao(), SyncDatabase.get(context))
+
+    /**
+     * The page as one write. The transaction is taken here, around the engine's own calls
+     * into the chat store, so a page that fails halfway leaves neither the ids nor the chats
+     * with half of it.
+     */
+    override fun <T> batch(block: suspend () -> T): T {
+        val db = database ?: return runBlocking { block() }
+        return runBlocking { db.withTransaction { block() } }
+    }
 
     override suspend fun meta(key: String): String? = dao.meta(key)
     override suspend fun putMeta(key: String, value: String?) {

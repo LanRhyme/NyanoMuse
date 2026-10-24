@@ -1,6 +1,9 @@
 package io.github.nanomuse.sync
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -10,6 +13,8 @@ import com.openminis.app.logging.AppLogger
 import io.github.nanomuse.account.AccountData
 import io.github.nanomuse.cloud.NanoMuseCloud
 import io.github.nanomuse.hub.Hub
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,10 +43,15 @@ import org.json.JSONObject
  * - **Push** at once when the person sends a message ([sent], from the view model's send
  *   path — contract C8), two seconds after any other row is written, a chat renamed or deleted
  *   (the hooks in `ChatRepository`), and when the app goes to the background.
- * - **Pull** when the app comes to the foreground, on the hub's `sync` frame (another device
- *   pushed), and every minute while in the foreground.
+ * - **Pull** when the app comes to the foreground, when the network comes back, on the hub's
+ *   `sync` frame (another device pushed), and every minute while in the foreground.
  * - 409 `sync_off` turns the local switch off; 401 stops everything until the next sign-in;
- *   a network error waits for the next trigger.
+ *   a failure that is not one of those waits longer each time it happens again ([RETRY_MS])
+ *   and never more than [RETRY_MAX_MS], so a relay that is down is asked once a minute rather
+ *   than on every keystroke. Any call that succeeds starts the wait over.
+ * - Offline is not a failure: while the phone has no network a trigger does nothing and the
+ *   network callback does the pull when there is one, instead of three table scans and a
+ *   socket that fails in a few milliseconds.
  *
  * Contract C9 (0.1.38): every conversation travels, side chats included, unless "Also sync
  * side chats" is turned off ([sideChats], per device, on by default); the first pull after a
@@ -60,14 +70,31 @@ object ConversationSync {
     private const val PULL_EVERY_MS = 15_000L
     /** The turn's last rows are settled in SQLite WAL; reply goes immediately. */
     private const val TURN_END_SETTLE_MS = 200L
+    /** Waits after a failed call that is not 401 or `sync_off`, in order; the last one holds. */
+    private val RETRY_MS = longArrayOf(2_000, 5_000, 10_000, 20_000, 40_000, 60_000)
+    private const val RETRY_MAX_MS = 60_000L
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Mutex()
+    /**
+     * The same time, two lanes: a push never waits for a pull. A pull of a page takes as long
+     * as the relay needs, and a message the person just typed must not sit behind it.
+     */
+    private val pushLock = Mutex()
+    private val pullLock = Mutex()
     @Volatile private var app: Context? = null
     /** The relay refused the key: nothing more until a new sign-in. */
     @Volatile private var halted = false
     @Volatile private var pushJob: Job? = null
     @Volatile private var ticker: Job? = null
+    /** The app is in front (between ON_START and ON_STOP). */
+    @Volatile private var visible = false
+    /** The phone has a network that says it is connected. */
+    @Volatile private var online = true
+    @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    /** How many calls in a row have failed since the last one that went through. */
+    private val failures = AtomicInteger(0)
+    @Volatile private var retryAt = 0L
     /** Chats this phone said `working: true` for and has not cleared yet. */
     private val workingSent = java.util.Collections.synchronizedSet(HashSet<String>())
 
@@ -108,20 +135,24 @@ object ConversationSync {
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** App start: the switch, the lifecycle, the captions the bubbles show. */
+    /** App start: the switch, the lifecycle, the network, the captions the bubbles show. */
     fun init(context: Context) {
         val ctx = context.applicationContext
         app = ctx
         _enabled.value = prefs(ctx).getBoolean(KEY_ENABLED, true)
         _sideChats.value = prefs(ctx).getBoolean(KEY_SIDE_CHATS, true)
+        online = hasNetwork(ctx)
+        watchNetwork(ctx)
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
                 when (event) {
                     Lifecycle.Event.ON_START -> {
+                        visible = true
                         syncSoon(ctx)
                         startTicker(ctx)
                     }
                     Lifecycle.Event.ON_STOP -> {
+                        visible = false
                         ticker?.cancel()
                         ticker = null
                         pushNow(ctx)
@@ -169,7 +200,11 @@ object ConversationSync {
      */
     suspend fun <T> exclusive(block: suspend () -> T): T {
         pushJob?.cancel()
-        return lock.withLock { block() }
+        pushLock.withLock {
+            pullLock.withLock {
+                return lock.withLock { block() }
+            }
+        }
     }
 
     /** Every chat has an owner and the hidden set is current (C12); after a sign-in, a sign-out, a restore. */
@@ -203,7 +238,7 @@ object ConversationSync {
         pushJob?.cancel()
         pushJob = scope.launch {
             delay(PUSH_DELAY_MS)
-            run(ctx) { it.push() }
+            push(ctx)
         }
     }
 
@@ -213,7 +248,7 @@ object ConversationSync {
         if (!active(ctx)) return
         pushJob?.cancel()
         scope.launch {
-            run(ctx) { it.push() }
+            push(ctx)
             memorySoon(ctx)
         }
     }
@@ -230,7 +265,7 @@ object ConversationSync {
         if (!active(ctx)) return
         pushJob?.cancel()
         scope.launch {
-            run(ctx) {
+            withEngine(ctx) {
                 it.push()
                 if (sessionId != null && runCatching { it.working(sessionId, true) }.getOrDefault(false)) workingSent += sessionId
             }
@@ -247,7 +282,7 @@ object ConversationSync {
         pushJob?.cancel()
         scope.launch {
             delay(TURN_END_SETTLE_MS)
-            run(ctx) {
+            withEngine(ctx) {
                 it.push()
                 runCatching { it.working(sessionId, false) }
             }
@@ -259,7 +294,7 @@ object ConversationSync {
     fun pullSoon(context: Context) {
         val ctx = context.applicationContext
         if (!active(ctx)) return
-        scope.launch { run(ctx) { applyPull(it.pull()) } }
+        scope.launch { pull(ctx) }
     }
 
     /** Launch and foreground: the others' changes first, then ours; who is working, from the relay's memory. */
@@ -267,12 +302,12 @@ object ConversationSync {
         val ctx = context.applicationContext
         if (!active(ctx)) return
         scope.launch {
-            run(ctx) {
-                applyPull(it.pull())
+            val pulled = pull(ctx)
+            withEngine(ctx) {
                 it.push()
                 runCatching { seedPresence(it, it.state().working) }
             }
-            memorySoon(ctx)
+            if (pulled) memorySoon(ctx)
         }
     }
 
@@ -281,7 +316,7 @@ object ConversationSync {
      * effort: a failure leaves the ops queued for the next beat, and it never blocks a chat.
      */
     private fun memorySoon(ctx: Context) {
-        if (!active(ctx)) return
+        if (!active(ctx) || !online || System.currentTimeMillis() < retryAt) return
         scope.launch {
             runCatching {
                 val token = NanoMuseCloud.apiKey(ctx) ?: return@runCatching
@@ -350,6 +385,8 @@ object ConversationSync {
      */
     fun signedIn(context: Context) {
         halted = false
+        failures.set(0)
+        retryAt = 0
         val ctx = context.applicationContext
         scope.launch {
             run(ctx) {
@@ -359,11 +396,13 @@ object ConversationSync {
                 _hidden.value = it.hidden() + AccountData.reconcile(ctx)
                 val state = runCatching { it.state() }.getOrNull()
                 if (state != null) setLocalEnabled(ctx, state.enabled)
-                if (_enabled.value) {
-                    applyPull(it.pull())
-                    if (state != null) seedPresence(it, state.working)
-                    it.push()
-                }
+                if (_enabled.value) applyPull(it.pull())
+                if (state != null) seedPresence(it, state.working)
+            }
+            // the history goes up on the push lane: a tail page never holds it
+            if (_enabled.value) {
+                push(ctx)
+                memorySoon(ctx)
             }
         }
     }
@@ -394,10 +433,7 @@ object ConversationSync {
         ticker = scope.launch {
             while (isActive) {
                 delay(PULL_EVERY_MS)
-                if (active(ctx)) {
-                    run(ctx) { applyPull(it.pull()) }
-                    memorySoon(ctx)
-                }
+                if (active(ctx) && pull(ctx)) memorySoon(ctx)
             }
         }
     }
@@ -438,11 +474,10 @@ object ConversationSync {
         if (!on || !active(ctx)) return
         pushJob?.cancel()
         scope.launch {
-            run(ctx) {
-                it.sideChatsTurnedOn()
-                applyPull(it.pull())
-                it.push()
-            }
+            // the cursor starts over, so the pull is the one that brings the whole scope down
+            withEngine(ctx) { it.sideChatsTurnedOn() }
+            pull(ctx)
+            push(ctx)
         }
     }
 
@@ -473,14 +508,69 @@ object ConversationSync {
             account = account,
             sideChats = { _sideChats.value },
             onAccountChanged = { accountChanged() },
+            log = { AppLogger.info(TAG, it) },
         )
     }
 
-    private suspend fun run(ctx: Context, block: suspend (SyncEngine) -> Unit) {
-        lock.withLock {
-            val e = engine(ctx) ?: return
+    /** A call with the engine that is not a page: no lane, no retry. */
+    private suspend fun <T> withEngine(ctx: Context, block: suspend (SyncEngine) -> T): T? {
+        val e = engine(ctx) ?: return null
+        return try {
+            lock.withLock { block(e) }
+        } catch (x: CancellationException) {
+            throw x
+        } catch (x: Exception) {
+            AppLogger.warning(TAG, "sync: ${x.message}")
+            null
+        }
+    }
+
+    /**
+     * One call with the engine, on the push lane: a push never waits for a pull. Returns what
+     * [block] returned, or null when it did not go through (or had nothing to do).
+     */
+    private suspend fun <T> run(ctx: Context, block: suspend (SyncEngine) -> T): T? =
+        call(ctx, pushLock, block)
+
+    /**
+     * One pull, on its own lane; true when the relay was reached and the page applied. The
+     * answer `push()` needs before it sends anything (adoption of the account's main chat)
+     * comes from here, so it is the one call the two lanes share.
+     */
+    private suspend fun pull(ctx: Context): Boolean = call(ctx, pullLock) { applyPull(it.pull()) } != null
+
+    /** A push: nothing while the phone is offline, and never on the back of a pull. */
+    private suspend fun push(ctx: Context) {
+        call(ctx, pushLock) { e ->
+            // a phone that never pulled this account has no main chat to adopt: pull first, or
+            // seed a second main chat, which the relay would refuse and this phone would rehome
+            if (e.cursor() == null) adoptPull(ctx)
+            e.push()
+        }
+    }
+
+    /**
+     * The account's newest rows and its main chat, pulled before a push that finds no cursor:
+     * a fresh install must adopt the relay's main chat rather than mint a second one. Nothing
+     * while a pull is already running, since that is what it is doing.
+     */
+    private suspend fun adoptPull(ctx: Context) {
+        if (pullLock.isLocked) return
+        call(ctx, pullLock) { applyPull(it.pull()) }
+    }
+
+    private suspend fun <T> call(ctx: Context, lane: Mutex, block: suspend (SyncEngine) -> T): T? {
+        val e = engine(ctx) ?: return null
+        return lane.withLock {
+            // a failure a moment ago is not asked again this instant
+            if (!online || System.currentTimeMillis() < retryAt) return null
             try {
-                block(e)
+                val out = lock.withLock { block(e) }
+                failures.set(0)
+                retryAt = 0
+                out
+            } catch (x: CancellationException) {
+                throw x
             } catch (x: SyncException) {
                 when {
                     x.status == 401 -> {
@@ -491,18 +581,85 @@ object ConversationSync {
                         setLocalEnabled(ctx, false)
                         AppLogger.info(TAG, "sync is off for the account")
                     }
-                    x.status == 0 -> {} // offline: the next trigger tries again
-                    else -> AppLogger.info(TAG, "relay: ${x.status} ${x.code}")
+                    else -> {
+                        AppLogger.info(TAG, "relay: ${x.status} ${x.code}")
+                        backOff(x)
+                    }
                 }
+                null
             } catch (x: Exception) {
                 AppLogger.warning(TAG, "sync: ${x.message}")
-            }
-            runCatching {
-                _hidden.value = e.hidden() + AccountData.reconcile(ctx)
-                _captions.value = e.captions()
-                _remoteRows.value = e.remoteRows()
+                backOff(null)
+                null
+            } finally {
+                runCatching {
+                    _hidden.value = e.hidden() + AccountData.reconcile(ctx)
+                    _captions.value = e.captions()
+                    _remoteRows.value = e.remoteRows()
+                }
             }
         }
+    }
+
+    /**
+     * A call did not go through: the next one waits longer. Offline is the one case with no
+     * wait — the network callback is the trigger then, and it is the right one.
+     */
+    private fun backOff(x: SyncException?) {
+        if (x != null && x.status == 0) {
+            online = false
+            return
+        }
+        val n = failures.incrementAndGet()
+        val wait = RETRY_MS[minOf(n, RETRY_MS.size) - 1].coerceAtMost(RETRY_MAX_MS)
+        retryAt = System.currentTimeMillis() + wait
+    }
+
+    /** Whether the phone has a network that reports a connection (any transport). */
+    private fun hasNetwork(ctx: Context): Boolean = try {
+        val cm = ctx.getSystemService(ConnectivityManager::class.java) ?: return true
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    } catch (x: Exception) {
+        AppLogger.warning(TAG, "network state: ${x.message}")
+        true // unknown: let the calls themselves find out
+    }
+
+    /**
+     * The network comes and goes. Back: the wait is over and a pull goes as soon as there is
+     * one, without waiting for the next trigger. Gone: pushes stop until it returns, instead
+     * of each one spending a socket timeout to learn it.
+     */
+    private fun watchNetwork(ctx: Context) {
+        if (networkCallback != null) return
+        val cm = ctx.getSystemService(ConnectivityManager::class.java) ?: return
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) = cameBack()
+
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return
+                cameBack()
+            }
+
+            override fun onLost(network: Network) {
+                // another network may still be up (Wi-Fi dropping to mobile); ask
+                if (!hasNetwork(ctx)) online = false
+            }
+        }
+        runCatching { cm.registerDefaultNetworkCallback(cb) }
+            .onSuccess { networkCallback = cb }
+            .onFailure { AppLogger.warning(TAG, "network watch: ${it.message}") }
+    }
+
+    private fun cameBack() {
+        val wasOffline = !online
+        online = true
+        if (!wasOffline) return // a capability change on a network that was already there
+        failures.set(0)
+        retryAt = 0
+        val ctx = app ?: return
+        if (!visible) return // in the background: ON_START's own sync brings it up to date
+        pullSoon(ctx)
     }
 
     private fun applyPull(r: PullResult) {

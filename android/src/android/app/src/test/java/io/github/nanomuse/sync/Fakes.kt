@@ -1,5 +1,6 @@
 package io.github.nanomuse.sync
 
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -8,6 +9,21 @@ class MemorySyncStore : SyncStore {
     val meta = HashMap<String, String>()
     val convs = LinkedHashMap<String, SyncConversation>()
     val msgs = LinkedHashMap<String, SyncMessage>()
+
+    /** The page, as one write: anything thrown inside puts the three maps back as they were. */
+    override fun <T> batch(block: suspend () -> T): T {
+        val m = HashMap(meta)
+        val c = LinkedHashMap(convs)
+        val g = LinkedHashMap(msgs)
+        return try {
+            runBlocking { block() }
+        } catch (e: Throwable) {
+            meta.clear(); meta.putAll(m)
+            convs.clear(); convs.putAll(c)
+            msgs.clear(); msgs.putAll(g)
+            throw e
+        }
+    }
 
     override suspend fun meta(key: String) = meta[key]
     override suspend fun putMeta(key: String, value: String?) {
@@ -162,6 +178,10 @@ class FakeRelay(private val names: Map<String, String> = emptyMap()) : SyncApi {
     val pushedBatches = mutableListOf<Int>()
     /** Set to make every call fail with this. */
     var failWith: SyncException? = null
+    /** Set to make only `push` fail, for a while: count of pushes that still go through. */
+    var pushesToSucceed: Int = Int.MAX_VALUE
+    /** The account is at its side-chat limit: a new side conversation is refused `conversation_limit`. */
+    var full = false
 
     private fun check() {
         failWith?.let { throw it }
@@ -181,6 +201,8 @@ class FakeRelay(private val names: Map<String, String> = emptyMap()) : SyncApi {
 
     /** Every `changes` call as (since, scope, tail), to check what the engine asked for. */
     val changeCalls = mutableListOf<Triple<Long, String, Int>>()
+    /** Where the account's counter stands: what a pull that read the lot ends on. */
+    val cursorNow: Long get() = seq
     /** Every `working` call as (device, cid, working). */
     val workingCalls = mutableListOf<Triple<String, String, Boolean>>()
     /** What `state()` reports under `working` (another device's presence). */
@@ -193,28 +215,38 @@ class FakeRelay(private val names: Map<String, String> = emptyMap()) : SyncApi {
         check()
         if (!enabled) throw SyncException(409, "sync_off", "sync is off")
         changeCalls += Triple(since, scope, tail)
-        val mainOnly = scope == SyncApi.SCOPE_MAIN && !ignoreScope
-        val inScope: (String) -> Boolean = { cid -> !mainOnly || convs[cid]?.kind == "main" }
-        val cs = convs.values.filter { it.seq > since && inScope(it.cid) }.sortedBy { it.seq }
-        val ms = msgs.values.filter { it.seq > since && inScope(it.cid) }.sortedBy { it.seq }
-        if (since == 0L && tail > 0 && ms.size > tail) {
-            // C9 tail: the newest K live messages and every conversation row; the rest is reported as skipped
-            val keep = ms.filter { !it.deleted }.takeLast(tail).map { it.mid }.toSet()
-            val skipped = ms.count { it.mid !in keep }
-            val kept = ms.filter { it.mid in keep }
+        if (since == 0L && tail > 0) {
+            // C9 tail: the newest `tail` live messages and the rows of their conversations; the
+            // rest is reported as skipped, and `cursor` is where the account stands — the pull
+            // reports what it applied, the post state what was in the store
+            val mainOnly = scope == SyncApi.SCOPE_MAIN && !ignoreScope
+            val live = msgs.values.filter { !it.deleted && (!mainOnly || convs[it.cid]?.kind == "main") }.sortedBy { it.seq }
+            val kept = live.takeLast(tail)
+            val parents = kept.map { it.cid }.toSet()
+            val rows = convs.values.filter { it.cid in parents || (!mainOnly && it.kind == "main") }.sortedBy { it.seq }
             return Changes(
-                cursor = seq, more = false, skipped = skipped,
-                conversations = cs.map { it.remote() },
+                cursor = seq, more = false, skipped = live.size - kept.size,
+                conversations = rows.map { it.remote() },
                 messages = kept.map { it.remote() },
             )
         }
-        val all = (cs.map { it.seq } + ms.map { it.seq }).sorted().take(limit)
-        val cut = all.lastOrNull() ?: since
+        val mainOnly = scope == SyncApi.SCOPE_MAIN && !ignoreScope
+        val inScope: (String) -> Boolean = { cid -> !mainOnly || convs[cid]?.kind == "main" }
+        // a cursor beyond the counter reads as a fresh device, as the relay's does; so does 0,
+        // because a device that restarts its cursor asks for the whole store from the start
+        val from = if (since > seq) 0L else since
+        val cs = convs.values.filter { it.seq > from && inScope(it.cid) }.sortedBy { it.seq }
+        val ms = msgs.values.filter { it.seq > from && inScope(it.cid) }.sortedBy { it.seq }
+        // a limit of 0 is no limit, as at the relay; and the page holds rows, so 500 is 500
+        // of them, conversation lines included
+        val cap = if (limit > 0) limit else Int.MAX_VALUE
+        val cutSeq = (cs.map { it.seq } + ms.map { it.seq }).sorted()
+            .let { if (it.size > cap) it[cap - 1] else it.lastOrNull() ?: from }
         return Changes(
-            cursor = if (all.size < limit) seq else cut,
-            more = all.size >= limit && (cs.any { it.seq > cut } || ms.any { it.seq > cut }),
-            conversations = cs.filter { it.seq <= cut }.map { it.remote() },
-            messages = ms.filter { it.seq <= cut }.map { it.remote() },
+            cursor = cutSeq,
+            more = cs.any { it.seq > cutSeq } || ms.any { it.seq > cutSeq },
+            conversations = cs.filter { it.seq <= cutSeq }.map { it.remote() },
+            messages = ms.filter { it.seq <= cutSeq }.map { it.remote() },
         )
     }
 
@@ -230,6 +262,9 @@ class FakeRelay(private val names: Map<String, String> = emptyMap()) : SyncApi {
         check()
         if (!enabled) throw SyncException(409, "sync_off", "sync is off")
         if (messages.size > 200) throw SyncException(413, "http_413", "too many")
+        // a batch that fails takes the rest of the push with it, as the real one does
+        if (pushesToSucceed <= 0) throw SyncException(0, "unreachable", "unreachable")
+        if (messages.isNotEmpty()) pushesToSucceed--
         pushes++
         pushedBatches += messages.size
         var accepted = 0
@@ -243,6 +278,10 @@ class FakeRelay(private val names: Map<String, String> = emptyMap()) : SyncApi {
                         rejected += Rejection(null, c.cid, "main_exists", main.cid)
                         continue
                     }
+                }
+                if (full && c.kind == "side" && !c.deleted) {
+                    rejected += Rejection(null, c.cid, "conversation_limit", null)
+                    continue
                 }
                 convs[c.cid] = Conv(c.cid, c.kind, c.title, device, c.createdAt, c.updatedAt, c.deleted, ++seq)
                 accepted++
@@ -319,6 +358,9 @@ class FakeRelay(private val names: Map<String, String> = emptyMap()) : SyncApi {
             ops = rows.map { RemoteMemoryOp(it.opId, it.seq, it.opType, it.payload, it.clientTime) },
         )
     }
+
+    /** The newest message's seq: a row seeded here at this seq is the last one the relay has. */
+    val lastSeq: Long get() = msgs.values.maxOfOrNull { it.seq } ?: 0L
 
     /** A device [device] starting a chat on the relay directly (what another client would do). */
     fun seed(device: String, cid: String, kind: String, title: String?, at: Long): Conv =
