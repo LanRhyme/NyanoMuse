@@ -893,6 +893,12 @@ class MinisApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
             .components {
+                // nanoMuse: support animated GIF stickers
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    add(coil.decode.ImageDecoderDecoder.Factory())
+                } else {
+                    add(coil.decode.GifDecoder.Factory())
+                }
                 add(MinisImageFetcher.Factory())
                 add(MinisImageFetcher.UriFactory())
                 // T-image-cache-mtime-35133: include File.lastModified() in

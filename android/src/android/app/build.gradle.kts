@@ -291,6 +291,7 @@ dependencies {
 
     // Coil (image loading)
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-gif:2.7.0") // nanoMuse: animated GIF support for stickers
 
     // Markdown rendering (mikepenz multiplatform-markdown-renderer)
     implementation("com.mikepenz:multiplatform-markdown-renderer-android:0.33.0")

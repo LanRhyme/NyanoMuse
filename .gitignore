@@ -10,6 +10,7 @@ android/src/ios/Configs/ProviderCustomization.xcconfig
 android/src/android/app/provider-customization.properties
 
 # runtime data
+data/
 workspace/
 *.db
 *.enc

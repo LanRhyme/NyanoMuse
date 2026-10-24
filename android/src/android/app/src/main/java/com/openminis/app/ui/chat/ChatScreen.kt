@@ -4030,6 +4030,7 @@ fun ChatScreen(
                     is FlatChatItem.NanoMuseAvatarShare -> false // nanoMuse
                     is FlatChatItem.NanoMuseAvatarConfirm -> false // nanoMuse
                     is FlatChatItem.NanoMuseAllowance -> false // nanoMuse
+                    is FlatChatItem.NanoMuseMeme -> grayedMap[originalMessageId(messageId)] == true // nanoMuse
                     is FlatChatItem.AssistantTyping -> false
                     is FlatChatItem.AssistantError -> grayedMap[originalMessageId(messageId)] == true
                     is FlatChatItem.AssistantLegacyContent -> grayedMap[originalMessageId(messageId)] == true
@@ -4858,6 +4859,10 @@ fun ChatScreen(
                                     )
                                 }
                             }
+                            // nanoMuse: custom meme & sticker bubble
+                            is FlatChatItem.NanoMuseMeme -> io.github.nanomuse.ui.sticker.MemeBubble(
+                                item = item,
+                            )
                             is FlatChatItem.AssistantTyping -> TypingIndicator()
                             // nanoMuse: a provider that could not be reached (or refused the
                             // region, or whose sign-in ran out) is a card, not the socket's text

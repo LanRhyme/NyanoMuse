@@ -11566,6 +11566,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                 namingAddendum,
                 emotionAddendum,
                 bubbleFlowAddendum,
+                io.github.nanomuse.sticker.StickerManager.promptParagraph(context), // nanoMuse: custom meme & sticker guidelines
                 io.github.nanomuse.media.MediaModels.promptParagraph(context),
                 io.github.nanomuse.reach.Computers.promptParagraph(context),
                 io.github.nanomuse.chat.SessionAddenda.forPrompt(sessionKey),

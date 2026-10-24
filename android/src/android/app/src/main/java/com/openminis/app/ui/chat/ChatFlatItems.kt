@@ -512,6 +512,21 @@ internal sealed class FlatChatItem {
         override val contentType = "nm_allowance"
     }
 
+    /** nanoMuse: custom meme & sticker bubble */
+    data class NanoMuseMeme(
+        val messageId: String,
+        val stickerId: String,
+        val name: String,
+        val filePath: String,
+        val isGif: Boolean,
+        val clusterIndex: Int = 0,
+        val clusterSize: Int = 1,
+        val createdAt: Long = 0L,
+    ) : FlatChatItem() {
+        override val key = "nm_meme:$messageId:$stickerId"
+        override val contentType = "nm_meme"
+    }
+
     data class AssistantTyping(val messageId: String) : FlatChatItem() {
         override val key = "typing:$messageId"
         override val contentType = "typing"
@@ -642,6 +657,7 @@ internal fun buildFlatChatItems(
             is FlatChatItem.NanoMuseAvatarShare -> item.copy(messageId = "${item.messageId}#$n") // nanoMuse
             is FlatChatItem.NanoMuseAvatarConfirm -> item.copy(messageId = "${item.messageId}#$n") // nanoMuse
             is FlatChatItem.NanoMuseAllowance -> item.copy(messageId = "${item.messageId}#$n") // nanoMuse
+            is FlatChatItem.NanoMuseMeme -> item.copy(messageId = "${item.messageId}#$n") // nanoMuse
             is FlatChatItem.AssistantTyping -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantError -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantLegacyContent -> FlatChatItem.AssistantLegacyContent(
@@ -810,6 +826,67 @@ internal fun buildFlatChatItems(
 
                         segments.forEachIndexed { segIdx, segText ->
                             val isLastSeg = segIdx == segments.lastIndex
+                            // nanoMuse: detect custom meme tag (<nm:meme .../> or [表情: ...])
+                            if (io.github.nanomuse.sticker.StickerManager.hasMemeTag(segText)) {
+                                val memeMatch = io.github.nanomuse.sticker.StickerManager.findMemeMatch(segText)
+                                if (memeMatch != null) {
+                                    val before = segText.substring(0, memeMatch.range.first).trim()
+                                    val memeQuery = memeMatch.groupValues.drop(1).firstOrNull { it.isNotBlank() } ?: ""
+                                    val after = segText.substring(memeMatch.range.last + 1).trim()
+                                    val sticker = io.github.nanomuse.sticker.StickerManager.findSticker(memeQuery)
+
+                                    if (sticker != null) {
+                                        if (before.isNotEmpty()) {
+                                            out.add(dedupe(FlatChatItem.AssistantMarkdownBlock(
+                                                messageId = message.id,
+                                                parentBlockId = block.id,
+                                                rawText = before,
+                                                blockIndex = index,
+                                                isLastBlockOfMessage = false,
+                                                messageIsStreaming = false,
+                                                messageMarkdown = joinedMarkdown,
+                                                selectedAnswer = null,
+                                                leadingThinking = if (segIdx == 0) leading else null,
+                                                messageThinkingLevel = message.thinkingLevel,
+                                                clusterIndex = segIdx,
+                                                clusterSize = segments.size,
+                                                createdAt = message.createdAt,
+                                                segmentIndex = segIdx,
+                                            )))
+                                        }
+                                        out.add(dedupe(FlatChatItem.NanoMuseMeme(
+                                            messageId = message.id,
+                                            stickerId = sticker.id,
+                                            name = sticker.name,
+                                            filePath = sticker.filePath,
+                                            isGif = sticker.isGif,
+                                            clusterIndex = segIdx,
+                                            clusterSize = segments.size,
+                                            createdAt = message.createdAt,
+                                        )))
+                                        if (after.isNotEmpty()) {
+                                            out.add(dedupe(FlatChatItem.AssistantMarkdownBlock(
+                                                messageId = message.id,
+                                                parentBlockId = block.id,
+                                                rawText = after,
+                                                blockIndex = index,
+                                                isLastBlockOfMessage = isLastText && isLastSeg,
+                                                messageIsStreaming = message.isStreaming && isLastText && isLastSeg,
+                                                messageMarkdown = joinedMarkdown,
+                                                selectedAnswer = if (isLastSeg) nextUserText?.takeIf { it.isNotBlank() } else null,
+                                                leadingThinking = null,
+                                                messageThinkingLevel = message.thinkingLevel,
+                                                clusterIndex = segIdx,
+                                                clusterSize = segments.size,
+                                                createdAt = message.createdAt,
+                                                segmentIndex = segIdx,
+                                            )))
+                                        }
+                                        return@forEachIndexed
+                                    }
+                                }
+                            }
+
                             out.add(dedupe(FlatChatItem.AssistantMarkdownBlock(
                                 messageId = message.id,
                                 parentBlockId = block.id,

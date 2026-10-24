@@ -92,6 +92,9 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Android
 
+- **Native custom meme and sticker bubbles with animated GIF decoding and local QQ sticker export pipeline**
+  Added StickerManager to inject active custom meme catalogs into system prompts with strict context-driven triggering, Coil GIF decoding support for animated stickers, seamless `<nm:meme id="..."/>` multi-bubble parsing, borderless floating sticker bubble presentation, and interactive web-based QQ sticker discovery and labeling tool
+
 - **Telegram-style message bubbles with tail anchors, subtle elevation, and double checkmarks**
   User and assistant message bubbles adopt Telegram signature asymmetric corner radii with tail anchors and continuous cluster grouping; user bubbles render in soft sage green (light) and slate navy (dark) with double checkmarks beside compact bottom-right timestamps, while assistant bubbles gain subtle elevation, micro borders, adaptive multi-line tail space detection, and reinforced few-shot multi-bubble splitting without extra blank bottom rows
 
