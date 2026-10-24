@@ -9456,21 +9456,26 @@ class ChatViewModel(
             val turnReasoningContent: String? = turnReasoningBlob
                 ?: turnThinking.toString().takeIf { it.isNotEmpty() }
 
+            // nanoMuse: the bubble delimiter stays in the model's OWN history. It used to be
+            // sanitized here too, which is what made multi-bubble splitting work only on the
+            // first reply of a session: the model saw its earlier turns as plain paragraphs
+            // with the tag erased, so it imitated itself and stopped emitting it. Keeping the
+            // tag lets the format bootstrap from turn two onward — casual replies carry it,
+            // technical ones (where the prompt forbids it) still do not. The mood tag is the
+            // opposite case and is still stripped: it is device-local state the model must not
+            // read back, or it would anchor on the mood it named last turn.
             val cleanMoodTurnText = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(turnText)
-            val sanitizedTurnText = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(cleanMoodTurnText)
-            val sanitizedAssistantParts = assistantParts.map { part ->
+            val historyTurnText = cleanMoodTurnText
+            val historyAssistantParts = assistantParts.map { part ->
                 if (part is AgentContentPart.Text) {
-                    val clean = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
-                        io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text)
-                    )
-                    AgentContentPart.Text(clean)
+                    AgentContentPart.Text(io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text))
                 } else part
             }
 
             agentHistory.add(LLMMessage(
                 role = LLMMessage.Role.ASSISTANT,
-                content = sanitizedTurnText,
-                contentParts = sanitizedAssistantParts,
+                content = historyTurnText,
+                contentParts = historyAssistantParts,
                 reasoningContent = turnReasoningContent,
             ))
 
@@ -11033,9 +11038,11 @@ class ChatViewModel(
             val block = allToolBlocks[i]
             when (block.kind) {
                 "text" -> if (block.content.isNotEmpty()) {
-                    val clean = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(
-                        io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(block.content)
-                    )
+                    // nanoMuse: keep the bubble delimiter, drop the mood tag. The delimiter is
+                    // presentation the DB must hold so the split survives a reload (and so the
+                    // model reads its own tagged replies back); the mood tag is device-local
+                    // state that must never reach the DB, where sync would carry it out.
+                    val clean = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(block.content)
                     if (clean.isNotEmpty()) {
                         out.add(AgentContentPart.Text(clean))
                     }
@@ -11115,12 +11122,13 @@ class ChatViewModel(
         toolBlockMeta: Map<String, AssistantBlock> = emptyMap(),
     ): String? {
         if (parts.isEmpty()) return null
+        // nanoMuse: the bubble delimiter is written to the DB as the model produced it, so a
+        // reload re-splits the reply into the same bubbles and the model reads its own tagged
+        // turns back. Only the mood tag is removed here — it is device-local and sync would
+        // otherwise carry it to every other device of the account.
         val sanitizedParts = parts.map { part ->
             if (part is AgentContentPart.Text) {
-                val clean = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
-                    io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text)
-                )
-                AgentContentPart.Text(clean)
+                AgentContentPart.Text(io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text))
             } else part
         }
         val partsJson = buildAssistantPartsJson(sanitizedParts, toolBlockMeta)
@@ -12509,7 +12517,15 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         val text = snapshot.asReversed().firstOrNull { msg ->
             msg.role == "assistant" && msg.content.isNotBlank()
         }?.content
-        SessionActivityTracker.publishLastReply(sessionId, text)
+        // nanoMuse: the overlay shows the reply as prose. The bubble delimiter is a bubble
+        // boundary for the chat list, not a character to read, and the mood tag is device
+        // state the person never sees — both come off before the excerpt is published.
+        val clean = text?.let {
+            io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
+                io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(it)
+            )
+        }?.takeIf { it.isNotBlank() }
+        SessionActivityTracker.publishLastReply(sessionId, clean)
     }
 
     fun cancelStream() {
@@ -13514,18 +13530,19 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         }
 
         if (r == LLMMessage.Role.ASSISTANT) {
-            if (io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(textContent) || io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(textContent)) {
-                textContent = io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
-                    io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(textContent)
-                )
+            // nanoMuse: a history replayed from the DB keeps its bubble delimiters. They were
+            // erased here as well, so a session reloaded after a restart lost the split for
+            // good: the model read its own turns back as plain paragraphs and stopped emitting
+            // the tag, exactly as it did within a session. The mood tag is still stripped — the
+            // model must not read back the mood it named last turn, or it would repeat it.
+            if (io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(textContent)) {
+                textContent = io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(textContent)
             }
             for (i in contentParts.indices) {
                 val part = contentParts[i]
-                if (part is AgentContentPart.Text && (io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(part.text) || io.github.nanomuse.chat.BubbleTimeFormatter.hasBubbleTag(part.text))) {
+                if (part is AgentContentPart.Text && io.github.nanomuse.chat.BubbleTimeFormatter.hasMoodTag(part.text)) {
                     contentParts[i] = AgentContentPart.Text(
-                        io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(
-                            io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text)
-                        )
+                        io.github.nanomuse.chat.BubbleTimeFormatter.stripMoodTags(part.text)
                     )
                 }
             }

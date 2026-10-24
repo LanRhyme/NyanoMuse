@@ -117,6 +117,25 @@ class BubbleTimeFormatterTest {
         assertTrue(feedback == null || feedback.feel != "x")
     }
 
+    // The invariant the multi-bubble bootstrap rests on: the model's own turns are replayed
+    // with the mood tag removed but the bubble delimiter KEPT. Erase the delimiter too and
+    // the model reads its earlier replies back as plain paragraphs and stops emitting it,
+    // which is why splitting used to work only on the first reply of a session.
+    @Test
+    fun `stripping the mood tag leaves the bubble delimiter in place`() {
+        assertEquals(
+            "在吗<nm:bubble/>在呀",
+            BubbleTimeFormatter.stripMoodTags("在吗<nm:bubble/>在呀<nm:mood feel=\"happy\" reason=\"被叫\"/>")
+        )
+        assertEquals(
+            "第一段<nm:bubble />第二段",
+            BubbleTimeFormatter.stripMoodTags("第一段<nm:bubble />第二段<nm:mood feel=\"sulk\"/>")
+        )
+        // No mood tag at all: the text is returned untouched, delimiter included.
+        val plain = "在吗<nm:bubble/>在呀"
+        assertEquals(plain, BubbleTimeFormatter.stripMoodTags(plain))
+    }
+
     @Test
     fun `stripping a mood tag removes its wrappers but leaves real code alone`() {
         assertEquals(

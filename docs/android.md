@@ -148,7 +148,7 @@ In the main companion chat (`isMain`), the model receives volatile real-time sys
   - Emotion feedback tag protocol: model concludes turns with `<nm:mood feel="id" reason="..."/>` using one of 33 canonical lowercase IDs mapped to client-calibrated deltas
 - `[Messaging Flow Format]`: guidance on conversational rhythm, prompting short multi-bubble bursts via `<nm:bubble/>` tags instead of dense essays
 - User prompts include volatile real-time perception tags `[yyyy-MM-dd HH:mm:ss Weekday]` stripped automatically during context compaction
-- Cross-device sync transcripts and LLM history replay sanitize `<nm:bubble/>` to double newlines and strip `<nm:mood/>` tags to prevent delimiter leak across sessions and desktop
+- Cross-device sync transcripts strip `<nm:bubble/>` to double newlines and strip `<nm:mood/>` tags to prevent delimiter leak across sessions and desktop. The bubble delimiter is deliberately KEPT in the local DB and in the LLM history replay: erasing it there made the model read its own earlier turns back as plain paragraphs and stop emitting the tag, so multi-bubble splitting only ever worked on the first reply of a session
 
 The message composer stays above the floating navigation pill, and the pill is as wide as the
 composer (the same 16 dp margins; 420 dp at most, centred on a wider screen), so the two

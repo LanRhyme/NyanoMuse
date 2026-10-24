@@ -85,6 +85,17 @@ class TranscriptTest {
         assertTrue(out[1].text.contains("<question>$qJson</question>"))
     }
 
+    @Test fun `the bubble delimiter the phone renders with is not sent to another device`() {
+        // The delimiter stays in the local DB so the split survives a reload and so the
+        // model reads its own tagged turns back — but iOS renders it as literal text, so
+        // it comes off on the way out.
+        chats.addSession("s_b")
+        chats.user("s_b", "在吗")
+        chats.assistant("s_b", "在呀<nm:bubble/>怎么啦")
+        val out = items("s_b")
+        assertEquals(listOf("user" to "在吗", "assistant" to "在呀\n\n怎么啦"), out.map { it.role to it.text })
+    }
+
     @Test fun `assistant question tool call answered retains both question and user answer in transcript`() {
         chats.addSession("s_qa")
         chats.user("s_qa", "Help me choose an architecture")

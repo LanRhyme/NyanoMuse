@@ -382,7 +382,8 @@ private fun assistantSummary(partsJson: String): String = runCatching {
             }
         }
     }
-    if (tools.isNotEmpty()) "\u0001" + tools.first() else text
+    if (tools.isNotEmpty()) "\u0001" + tools.first() else
+        io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(text)
 }.getOrDefault("")
 
 private fun firstLine(text: String): String {

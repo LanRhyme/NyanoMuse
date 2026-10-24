@@ -73,6 +73,11 @@ object Transcript {
         private val rawText: String = parts.filter { it.optString("type") == "text" }
             .joinToString("\n") { systemReminder.replace(it.optString("value"), "").trim() }
             .trim()
+            // nanoMuse: the bubble delimiter is the phone's own presentation and stays in its
+            // DB (so the split survives a reload and the model reads its own tagged turns
+            // back), but it is not part of what another device should receive: iOS renders it
+            // as literal text. Strip it on the way out, the same way the mood tag is.
+            .let { io.github.nanomuse.chat.BubbleTimeFormatter.sanitizeBubbleTags(it) }
 
         val text: String = when {
             isQuestionAnswer -> rawAnswerText
