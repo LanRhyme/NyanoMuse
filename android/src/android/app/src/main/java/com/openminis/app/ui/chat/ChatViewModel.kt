@@ -11549,8 +11549,10 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         }
         val bubbleFlowAddendum = """
             [Mobile Messaging & Multi-Bubble Cadence / 多气泡拟真打字规范]
-            - 在日常打招呼、闲聊打趣、情感共鸣、生活互动或简短回复时，模拟手机即时通讯连续发送短消息的习惯，可将回复自然切分为 2~3 个短消息气泡连续发送（每条气泡 1~2 句话，在需切分处直接输出 `<nm:bubble/>` 标签，单次回合最多切分 2 次，即最多产生 3 个短气泡）
-            - 在长篇技术分析、代码编写、任务规划、Markdown 表格或工具调用时，绝对严禁使用 `<nm:bubble/>`，必须保持单气泡完整连贯输出
+            - 触发场景：在日常打招呼、闲聊打趣、情感互动或简短问答时，模拟真人发微信/Telegram连发短消息习惯，将一轮回复切分为 2~3 个短气泡连续发送（每条气泡 1~2 句话），在切分处输出 `<nm:bubble/>` 标签（单次回合最多切分 2 次，产生 2~3 个气泡）。
+            - 范例：
+              哈哈确实！<nm:bubble/>我刚才还在琢磨这事呢，你怎么突然想起来了？
+            - 边界例外：在代码编写、长篇技术分析、Markdown 表格或工具调用时，严禁使用 `<nm:bubble/>`，保持单气泡完整连贯输出。
         """.trimIndent()
         return io.github.nanomuse.chat.PromptCacheLayout.build(
             stableSections = listOf(
