@@ -113,6 +113,10 @@ interface Pending {
 const OPEN = 1
 /** How long to wait after the relay closed with `hub_paused`: its operator switched the hub off for a while. */
 const PAUSED_RETRY_MS = 120_000
+/** How long to wait after 4004 `standby`: another socket of this device took over and the
+ *  relay held this one a few seconds to say so. A short wait covers the case where this
+ *  socket was the right one to keep, without the two taking turns over the id. */
+const STANDBY_RETRY_MS = 5_000
 
 export class HubClient {
   /** The relay's list, refreshed on every `devices` frame. */
@@ -351,13 +355,18 @@ export class HubClient {
       }
       const paused = event.reason === 'hub_paused'
       if (paused) this.lastError = 'the hub is paused on the relay'
+      else if (code === 4004) this.lastError = 'another connection of this device took over'
       else if (code === 4003) this.lastError = 'another connection of this device replaced this one'
       else if (code !== 1000) this.lastError = event.reason || `closed (${code})`
       if (wasConnected) this.log('info', `hub: disconnected (${code}${event.reason ? ` ${event.reason}` : ''})`)
       // The relay said why (docs/hub.md): paused by its operator, so wait a good while;
-      // replaced by a newer connection of this device, so do not fight it; a hello it would
-      // not take or too many frames (4008), which a retry a second later would not change.
-      this.scheduleReconnect(paused ? PAUSED_RETRY_MS : code === 4003 ? 30_000 : code === 4000 || code === 4008 ? 60_000 : undefined)
+      // taken over by another socket of this device after a `standby`, so wait a few
+      // seconds and let it keep the seat; replaced outright (older relays), so do not fight
+      // it; a hello it would not take or too many frames (4008), which a retry a second
+      // later would not change.
+      this.scheduleReconnect(
+        paused ? PAUSED_RETRY_MS : code === 4004 ? STANDBY_RETRY_MS : code === 4003 ? 30_000 : code === 4000 || code === 4008 ? 60_000 : undefined,
+      )
     })
   }
 

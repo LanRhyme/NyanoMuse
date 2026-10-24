@@ -213,9 +213,15 @@ class HubClient(
                 onState(false, if (code == 4001) "bad_key" else "bad_device")
                 return
             }
-            // 4003: replaced by a newer connection of this device (wait 30 s, as the desktop
-            // does), or the operator paused the hub (`hub_paused`: two minutes, as the desktop
-            // and the iPhone wait); the row under Devices says which.
+            // 4004: another socket of this device took over (`standby` came first, so a
+            // reconnect that worked is not thrown away). 4003: replaced by a newer
+            // connection of this device (wait 30 s, as the desktop does), or the operator
+            // paused the hub (`hub_paused`: two minutes, as the desktop and the iPhone
+            // wait); the row under Devices says which.
+            if (code == 4004) {
+                scheduleReconnect("standby", atLeastMs = STANDBY_RETRY_MS)
+                return
+            }
             if (code == 4003 && reason == "hub_paused") {
                 scheduleReconnect("hub_paused", atLeastMs = HUB_PAUSED_RETRY_MS)
                 return
@@ -253,6 +259,10 @@ class HubClient(
             }
             "profile" -> runCatching { onProfile(frame) }
             "config" -> runCatching { onConfig(frame) }
+            // another socket of this device has taken over: say so and wait. The relay keeps
+            // this socket for a few seconds to deliver exactly this, so without the wait the
+            // two would keep taking the id back from each other.
+            "standby" -> scheduleReconnect("standby", atLeastMs = STANDBY_RETRY_MS)
             "sync" -> runCatching { onSync(frame) }
             "working" -> runCatching { onWorking(frame) }
             "call" -> {
@@ -355,6 +365,10 @@ class HubClient(
         private const val TAG = "HubClient"
         /** After 4003 without a reason (replaced by a newer connection): what the desktop waits too. */
         private const val REPLACED_RETRY_MS = 30_000L
+        /** After 4004 `standby` (another socket of this device took over): the relay held the
+         *  old socket for a few seconds to deliver that notice, so the other side has had time
+         *  to finish; a short wait only covers the case where this one was the wrong choice. */
+        private const val STANDBY_RETRY_MS = 5_000L
         /** After 4003 `hub_paused` (the operator paused the hub): what the desktop and the iPhone wait too. */
         private const val HUB_PAUSED_RETRY_MS = 120_000L
         /** After the relay refused the key at the handshake: what the runtime waits too. */

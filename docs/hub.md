@@ -170,6 +170,7 @@ the key in `hello` instead).
 ← profile  {rev, device}       the account's name, look or connectors changed (PUT /v1/me/profile); fetch it
 ← sync     {what:"conversations", cursor, from}   another device pushed or deleted synced conversations; pull /v1/sync/changes
 ← working  {cid, from, device_name, working, at}  another device started (true) or finished (false) a turn in that synced conversation
+← standby  {device_id}       another socket of this device took over (below); wait, do not reconnect at once
 ```
 
 Close codes: `4000` hello expected (no hello within 15 s, or a frame that is
@@ -184,10 +185,24 @@ bad device, `4003` replaced
 by a newer connection of the same device id, or, with the reason
 `hub_paused` (relay 0.22), the operator switched the hub or the whole service
 off: a client waits and reconnects later instead of retrying at once
-([cloud.md › Controls](cloud.md#controls)); `4008` too many frames (the
+([cloud.md › Controls](cloud.md#controls)); `4004` standby, the gentler form
+of `4003` (below): the socket heard `standby` first and was held for a few
+seconds so that notice could go out, then closed; a client waits a few
+seconds rather than taking the id back at once; `4008` too many frames (the
 rate limit below was ignored); and `4009` slow consumer (the relay had 512
 frames or 32 MB queued for a socket that was not reading them; the client
 reconnects with backoff like after any network close).
+
+A device keeps one socket, and a phone that moves between Wi-Fi and cellular
+opens the new one while the old one is still up. Both carry the same device
+id. The relay does not drop the old one on the spot: it sends `standby`
+ahead of whatever is queued on that socket, makes the new connection the
+account's device from its hello on, and closes the old one with `4004` when
+the notice has gone out (at most five seconds). Meanwhile a call addressed to
+the device goes to the new socket, and a caller that reaches the old one is
+answered `device_busy` rather than `device_offline`, so it retries instead of
+giving up. This is what stops two sockets of one id from taking it back from
+each other for as long as both are open.
 
 A key refused in the `Authorization` header is answered the same way as one
 refused in `hello`: the handshake completes, an `error` frame carries the

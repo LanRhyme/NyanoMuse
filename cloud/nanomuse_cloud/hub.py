@@ -24,17 +24,25 @@ From the hub:
     {"type":"pong"}
     {"type":"sync","what":"conversations","cursor","from"}  another device pushed chats; pull (0.19)
     {"type":"working","cid","from","device_name","working","at"}  a turn started or ended there (0.20)
+    {"type":"standby","device_id"}                        another socket of this device has taken over
 
 `key` in hello is for browsers, which cannot set an Authorization header. A
 `web` device is a front door only: it can call, it cannot be called. Devices of
 the other kinds are remembered per account so the console can show them while
 they are offline. Binary payloads (files, screenshots) travel base64-encoded
 inside `body`, under the frame limit.
+
+One device, one socket: a phone that moves between Wi-Fi and cellular keeps its
+device id, and while the new socket opens the old one is still up. The relay
+takes the new socket over gently (`standby`, then a close with 4004 STANDBY_S
+later) instead of dropping the old one at once, and the standby frame is queued
+ahead of anything already waiting, so it is not lost behind a backlog.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import re
@@ -73,6 +81,18 @@ FLOOD_CLOSE_AFTER = 600
 # the largest size.
 SEND_QUEUE_FRAMES = 512
 SEND_QUEUE_BYTES = 32 * 1024 * 1024
+
+# When a device opens a second socket under an id that is already connected, the old one
+# is not simply kicked. A phone that moves from Wi-Fi to cellular keeps its id, and during
+# the handover both sockets are alive for a few seconds; the old one is often still the
+# working one. So the old socket hears `standby` first (it stops retrying on its own, which
+# is what keeps the two from taking turns forever) and only a socket that stays silent for
+# this long is replaced, with the close code below. A caller whose target is in standby is
+# told `device_busy` rather than `device_offline`, so it retries instead of giving up.
+STANDBY_S = 5.0
+STANDBY_QUEUE_FRAMES = 256
+STANDBY_QUEUE_BYTES = 16 * 1024 * 1024
+STAND_DOWN = 4004  # the device went into standby: old socket, stand down and stay down
 
 
 class Bucket:
@@ -116,6 +136,7 @@ class Connection:
     # the outbound queue: send() appends, the writer task drains in order
     queue: deque[str] = field(default_factory=deque)
     queued_bytes: int = 0
+    writing: bool = False  # the writer holds a frame it has not handed to the socket yet
     wake: asyncio.Event = field(default_factory=asyncio.Event)
     writer: asyncio.Task | None = None
     overflowed: bool = False  # closed for not reading fast enough
@@ -123,6 +144,14 @@ class Connection:
     bytes: Bucket = field(default_factory=lambda: Bucket(BYTES_PER_S, 2 * BYTES_PER_S))
     dropped: int = 0  # frames dropped in a row for flooding
     warned_at: float = 0.0
+    # a newer socket of the same device is waiting to take over: calls to this one are
+    # refused as `device_busy` for STANDBY_S, by which time it is closed with 4004
+    standby_since: float | None = None
+    replaced_by: Connection | None = None
+
+    @property
+    def standby(self) -> bool:
+        return self.standby_since is not None
 
     def over_rate(self, size: int) -> bool:
         """Whether this frame is one too many (or too big a stream) for the moment."""
@@ -169,6 +198,22 @@ class Connection:
         self.queued_bytes += len(text)
         self.wake.set()
 
+    async def send_urgent(self, frame: dict) -> None:
+        """Queue a frame ahead of whatever is waiting. The standby notice has to leave now:
+        at the end of the queue it could sit behind a minute of frames, and the socket it
+        tells to stand down is closed seconds later."""
+        if self.closed:
+            return
+        text = json.dumps(frame, ensure_ascii=False, separators=(",", ":"))
+        self.queue.appendleft(text)
+        self.queued_bytes += len(text)
+        self.wake.set()
+        if len(self.queue) > STANDBY_QUEUE_FRAMES or self.queued_bytes > STANDBY_QUEUE_BYTES:
+            # the peer has not read anything in a long time: it is gone, not slow
+            self.overflowed = True
+            self.stop()
+            asyncio.get_running_loop().create_task(self._close(4009, "slow_consumer"))
+
     async def _drain(self) -> None:
         while not self.closed:
             if not self.queue:
@@ -177,17 +222,37 @@ class Connection:
                 continue
             text = self.queue.popleft()
             self.queued_bytes -= len(text)
+            self.writing = True
             try:
                 await self.ws.send_text(text)
             except Exception as e:  # the socket went away under us; the receive loop notices too
                 log.debug("send to %s failed: %s", self.device_id[:12], e)
                 self.closed = True
+            finally:
+                self.writing = False
 
     async def _close(self, code: int, reason: str) -> None:
         try:
             await self.ws.close(code=code, reason=reason)
         except Exception as e:  # already gone
             log.debug("close %s: %s", self.device_id[:12], e)
+
+    async def close_when_drained(self, code: int, reason: str, limit_s: float) -> None:
+        """Give the socket `limit_s` to send what is queued, then close it with `code`.
+        Waiting for the queue to empty is what keeps a `standby` from being cut off by the
+        close that follows it; the limit keeps a peer that has stopped reading from holding
+        the old socket open."""
+        deadline = time.monotonic() + limit_s
+        # the writer may hold the frame it took off the queue but not yet handed to the
+        # socket: closing now would lose the very notice this is waiting to deliver
+        while (not self.closed and (self.queue or self.writing)) and time.monotonic() < deadline:
+            await asyncio.sleep(0.01)
+        if not self.closed:
+            self.stop()
+        if self.writer is not None and not self.writer.done():
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await self.writer
+        await self._close(code, reason)
 
 
 @dataclass
@@ -386,6 +451,13 @@ class Hub:
             return
 
         await self._attach(conn)
+        # this socket was itself the old one of a handover: it heard `standby` and is about
+        # to be closed, so it gets no welcome and routes nothing (a call it made could only
+        # be answered on a socket that is closing, and a call to it would be lost)
+        while conn.standby and not conn.closed:
+            await asyncio.sleep(0.05)
+        if conn.standby:
+            return
         try:
             await conn.send(
                 {
@@ -468,8 +540,15 @@ class Hub:
         account = self.online.setdefault(conn.account_id, {})
         old = account.get(conn.device_id)
         if old is not None:
-            old.stop()
-            await self._close(old.ws, 4003, "replaced by a newer connection")
+            # Not a kick. Whatever is connected under this id gets a few seconds to say
+            # goodbye: it hears `standby` now and is closed with 4004 when that has gone
+            # out. A phone switching networks keeps its calls answered on the new socket
+            # in the meantime, and the old one stops retrying instead of fighting for the
+            # id, which is what two apps of one id used to do for as long as both ran.
+            old.replaced_by = conn
+            old.standby_since = time.monotonic()
+            await old.send_urgent({"type": "standby", "device_id": old.device_id})
+            asyncio.get_running_loop().create_task(self._stand_down(old), name=f"hub-standby:{old.device_id[:12]}")
         account[conn.device_id] = conn
         conn.start()
         if conn.kind != "web":
@@ -478,12 +557,17 @@ class Hub:
         # person's own words and stays out of the log
         log.info("hub: %s %s connected; account %s has %d online", conn.kind, conn.device_id[:12], conn.account_id[:8], len(account))
 
+    async def _stand_down(self, old: Connection) -> None:
+        await old.close_when_drained(STAND_DOWN, "standby", STANDBY_S)
+
     async def _detach(self, conn: Connection) -> None:
         conn.stop()
         if conn.overflowed:
             self.slow_closes += 1
         account = self.online.get(conn.account_id, {})
         if account.get(conn.device_id) is conn:
+            # a standby connection is never the account's own any more: its successor is,
+            # and that one is still here, so nothing is left to announce
             del account[conn.device_id]
             if not account:
                 self.online.pop(conn.account_id, None)
@@ -524,6 +608,11 @@ class Hub:
 
     async def route(self, conn: Connection, frame: dict) -> None:
         kind = frame.get("type")
+        if conn.standby:
+            # the old socket of a handover: it may still say goodbye, nothing else
+            if kind == "ping":
+                await conn.send({"type": "pong", "time": now()})
+            return
         if kind == "ping":
             await conn.send({"type": "pong", "time": now()})
             # every client pings; a caller with one call outstanding and nothing more to
@@ -560,7 +649,15 @@ class Hub:
             await conn.send({"type": "error", "id": call_id, "code": "bad_frame", "message": "call needs id, to and action"})
             return
         target = self.online.get(conn.account_id, {}).get(to)
-        if target is None or target.closed:
+        if target is not None and target.closed:
+            target = None
+        if target is not None and target.standby:
+            # mid-handover: the device is here, on a socket that opens in a moment
+            await conn.send(
+                {"type": "error", "id": call_id, "code": "device_busy", "message": "That device is switching connections; try again"}
+            )
+            return
+        if target is None:
             await conn.send({"type": "error", "id": call_id, "code": "device_offline", "message": "That device is not connected"})
             return
         if target.kind == "web":

@@ -95,6 +95,9 @@ final class NanoMuseHub: ObservableObject {
         case paused
         /// Close 4003: a newer connection of this device id took the seat; trying again later.
         case replaced
+        /// Close 4004: another socket of this device took over after a `standby` notice; it
+        /// waits a few seconds and lets the other one keep the seat.
+        case standby
         /// Close 4001 / 4002: the relay refused the key or the device; a new sign-in starts over.
         case refused
         /// The relay sent an `error` frame without a call id; its own sentence.
@@ -254,8 +257,9 @@ final class NanoMuseHub: ObservableObject {
 
     /// The socket ended. The relay's close code says what to do next (docs/hub.md): 4001 and
     /// 4002 are final until a new sign-in; 4003 means another connection of this device took
-    /// the seat, so wait a while; `hub_paused` means the operator switched the hub off, so
-    /// wait longer; anything else is the network, and the backoff doubles up to 30 s.
+    /// the seat, so wait a while; 4004 means it took over after a `standby`, so wait a few
+    /// seconds and let it keep the seat; `hub_paused` means the operator switched the hub
+    /// off, so wait longer; anything else is the network, and the backoff doubles up to 30 s.
     private func dropped(_ why: String) {
         let code = task?.closeCode.rawValue ?? 0
         let reason = task?.closeReason.flatMap { String(data: $0, encoding: .utf8) } ?? ""
@@ -274,6 +278,9 @@ final class NanoMuseHub: ObservableObject {
         if reason == "hub_paused" {
             state = .paused
             delay = 120
+        } else if code == 4004 {
+            state = .standby
+            delay = 5
         } else if code == 4003 {
             state = .replaced
             delay = 30

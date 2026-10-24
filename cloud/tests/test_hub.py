@@ -15,7 +15,7 @@ from starlette.websockets import WebSocketDisconnect
 from nanomuse_cloud.api import create_app
 from nanomuse_cloud.config import Settings
 from nanomuse_cloud.db import Database
-from nanomuse_cloud.hub import SEND_QUEUE_FRAMES, Connection
+from nanomuse_cloud.hub import SEND_QUEUE_FRAMES, STAND_DOWN, Connection
 from nanomuse_cloud.senders import LogSender
 from nanomuse_cloud.service import Cloud
 
@@ -294,11 +294,111 @@ async def test_a_send_never_waits_on_the_peer_and_order_is_kept():
         conn.stop()
 
 
+async def test_a_second_socket_of_one_device_takes_over_gently(monkeypatch):
+    """A phone that moves from Wi-Fi to cellular opens a second socket under the same id.
+    The old one is not kicked: it hears `standby` and is closed with 4004 once that has
+    gone out, while the new one is the account's device from hello on. A caller in
+    between hears `device_busy`, not `device_offline`."""
+    import time
+
+    import nanomuse_cloud.hub as hub_mod
+
+    monkeypatch.setattr(hub_mod, "STANDBY_S", 0.2)
+    hub = _hub()
+    old = _link("phone-1", "Pixel")
+    await hub._attach(old)
+    await old.send({"type": "welcome"})
+    await _settled(old)
+
+    new = _link("phone-1", "Pixel")
+    await hub._attach(new)
+    # the notice jumps the queue, and the old socket is still up to receive it
+    assert not old.closed and old.standby
+    assert json.loads(old.queue[0])["type"] == "standby"
+    await _settled(old)
+
+    # the id is the new socket's from hello on, and the new socket is not told to stand down
+    assert hub.online["a"]["phone-1"] is new and not new.standby
+    # a caller in the same second hears `device_busy`, not `device_offline`
+    caller = _link("pc-1", "desk", kind="computer")
+    hub.online["a"]["pc-1"] = caller
+    new.standby_since = time.monotonic()  # the instant of the handover
+    await hub._call(caller, {"type": "call", "id": "c0", "to": "phone-1", "action": "info"})
+    await _settled(caller)
+    err = json.loads(caller.ws.sent[-1])
+    assert err["code"] == "device_busy" and err["id"] == "c0"
+    new.standby_since = None
+
+    # after STANDBY_S the old socket is closed with 4004 and it left nothing behind
+    deadline = time.monotonic() + 2
+    while not old.ws.closed and time.monotonic() < deadline:
+        await asyncio.sleep(0.02)
+    assert old.ws.closed == (STAND_DOWN, "standby")
+    assert hub.online["a"]["phone-1"] is new
+    # and a call reaches the new socket now
+    await hub._call(caller, {"type": "call", "id": "c1", "to": "phone-1", "action": "info"})
+    await _settled(new)
+    assert json.loads(new.ws.sent[-1])["id"] == "c1"
+
+
+class _OpenSocket(_StalledSocket):
+    """A socket that reads at once."""
+
+    def __init__(self):
+        super().__init__()
+        self.gate.set()
+
+
+async def _settled(conn):
+    """Wait until the writer has handed everything queued to the socket."""
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if not conn.queue and not conn.writing:
+            return
+
+
+def _hub():
+    from nanomuse_cloud.hub import Hub as _H
+
+    hub = _H.__new__(_H)
+    hub.cloud = None
+
+    class _Devices:
+        def upsert_device(self, *a, **k):
+            pass
+
+        def touch_device(self, *a, **k):
+            pass
+
+    hub.db = _Devices()
+    hub.frame_limit = 4096
+    hub.online = {}
+    hub.pending = {}
+    hub.stats = lambda: {}
+    hub.dropped_total = 0
+    hub.flood_closes = 0
+    hub.slow_closes = 0
+
+    async def _noop(*a, **k):
+        return None
+
+    hub.broadcast_devices = _noop
+    hub._fail_pending_for = _noop
+    hub.devices = lambda account_id: []
+    return hub
+
+
+def _link(device_id, name, kind="phone"):
+    conn = Connection(ws=_OpenSocket(), account_id="a", key_hash="k", device_id=device_id, name=name, kind=kind)
+    conn.start()
+    return conn
+
+
 async def test_a_peer_that_stops_reading_is_closed_with_4009():
+    """The writer takes the first frame and blocks in send_text; the queue fills behind it."""
     ws = _StalledSocket()
     conn = _conn(ws)
     conn.start()
-    # the writer takes the first frame and blocks in send_text; the queue fills behind it
     for i in range(SEND_QUEUE_FRAMES + 2):
         await conn.send({"type": "event", "i": i})
     assert conn.closed and conn.overflowed

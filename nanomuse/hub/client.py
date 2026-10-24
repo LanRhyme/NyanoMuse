@@ -188,6 +188,13 @@ class HubClient:
                     # the operator switched the hub off (docs/hub.md): wait, do not hammer
                     self._set_state("disconnected", "the relay's hub is paused")
                     delay = 60.0
+                elif code == 4004:
+                    # another socket of this device took over after a `standby`: the relay
+                    # held this one a few seconds to deliver that. Wait a little longer than
+                    # it held us and let the other keep the seat, rather than the two of us
+                    # trading the id back and forth.
+                    self._set_state("disconnected", "another socket of this device took over")
+                    delay = 5.0
                 else:
                     self._set_state("disconnected", str(exc))
             except InvalidStatus as exc:

@@ -6,6 +6,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Cloud
 
+- **A device that moves between networks no longer fights itself over its id.** A phone that leaves Wi-Fi for cellular opens the new socket while the old one is still up, and both carry the same device id, so the relay used to drop one of them at once and the two took the id back from each other. The relay now hands over gently: the old socket hears a `standby` frame queued ahead of everything else waiting, calls to it are refused as `device_busy` so a caller retries instead of giving up, and the socket is closed with `4004` once the notice is out. The relay, the runtime, the desktop, the phone and the iPhone wait a few seconds on `4004` instead of reconnecting at once.
+
 - **The relay carries memory between the account's devices as operations.** `POST /v1/sync/memory/push` and `GET /v1/sync/memory/pull` take and hand back one change per call, each with an `op_id` the sender made up (a repeated id changes nothing) and a `seq` the relay assigns. Only the text and its flags are stored, so no vector or index crosses the wire, and the account's sync switch governs both.
 
 - **Side chats sync by default, so an account's conversations are the same on every device.** *Also sync side chats* under *Data controls* stays a per-device switch; turned off, only the main conversation travels and that device's side chats stay where they were written. A device upgrading from a version that has no such setting starts with it on, which sends its side chats up on the next push.

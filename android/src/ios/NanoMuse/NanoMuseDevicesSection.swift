@@ -109,7 +109,7 @@ struct NanoMuseDevicesSection: View {
         switch hub.state {
         case .connected: return AppLocalized("Connected")
         case .idle, .connecting: return AppLocalized("Connecting…")
-        case .reconnecting, .replaced: return AppLocalized("Reconnecting…")
+        case .reconnecting, .replaced, .standby: return AppLocalized("Reconnecting…")
         case .paused: return AppLocalized("Paused by the relay")
         case .refused: return AppLocalized("Sign in again")
         case .error(let message): return message.isEmpty ? AppLocalized("Connecting…") : message
