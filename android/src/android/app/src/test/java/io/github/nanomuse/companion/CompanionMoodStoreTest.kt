@@ -502,4 +502,165 @@ class CompanionMoodStoreTest {
         // Feedback tag protocol
         assertTrue("Must include tag protocol", prompt.contains("<nm:mood feel=\"心境ID\" reason=\"触发短因\"/>"))
     }
+
+    // ─── 情绪响应速度：连标递增 / 双轨印证 / 待确认估计 ─────────────────────
+
+    @Test
+    fun testStreakMultiplierTable() {
+        // Indexed by the streak length: first reply 1.0, second 1.35, third and beyond 1.7.
+        assertEquals(1.0f, CompanionMoodStore.streakMultiplier(1), 0.001f)
+        assertEquals(1.0f, CompanionMoodStore.streakMultiplier(0), 0.001f)
+        assertEquals(1.35f, CompanionMoodStore.streakMultiplier(2), 0.001f)
+        assertEquals(1.7f, CompanionMoodStore.streakMultiplier(3), 0.001f)
+        // Past the table the last step holds, so a long run does not keep accelerating.
+        assertEquals(1.7f, CompanionMoodStore.streakMultiplier(9), 0.001f)
+    }
+
+    @Test
+    fun testConsecutiveTagsOfTheSameMoodWeighMoreEachTime() {
+        // FEAR sits far below the leader, so it never takes over: the echo guard never
+        // engages and the only thing moving the score is the streak weight.
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "一", now = 1_000L)
+        assertEquals(7f + 2.0f, CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.FEAR]!!, 0.05f)
+
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "二", now = 2_000L)
+        assertEquals(7f + 2.0f + 2.0f * 1.35f, CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.FEAR]!!, 0.05f)
+
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "三", now = 3_000L)
+        assertEquals(7f + 2.0f * (1f + 1.35f + 1.7f), CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.FEAR]!!, 0.05f)
+    }
+
+    @Test
+    fun testADifferentMoodInBetweenResetsTheStreak() {
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "一", now = 1_000L)
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "二", now = 2_000L)
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "happy", reasonRaw = "插一句", now = 3_000L)
+        // Back to FEAR: this is a fresh run, not the third in a row.
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "三", now = 4_000L)
+        val fear = CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.FEAR]!!
+        assertEquals(7f + 2.0f * (1f + 1.35f + 1f), fear, 0.05f)
+    }
+
+    @Test
+    fun testAQuietStreakIsADifferentConversation() {
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "一", now = 1_000L)
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "二", now = 2_000L)
+        // Two hours later the run is over; the next tag starts at full weight again.
+        val later = 2_000L + CompanionMoodStore.STREAK_WINDOW_MS + 1_000L
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "fear", reasonRaw = "三", now = later)
+        val fear = CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.FEAR]!!
+        assertEquals(7f + 2.0f * (1f + 1.35f + 1f), fear, 0.05f)
+    }
+
+    @Test
+    fun testHeuristicAndTagNamingTheSameMoodReinforceInsteadOfCancelling() {
+        // "真棒" hits the praise branch: HAPPY +2.5 and PROUD +3.0 both land at once.
+        CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "老大夸你：真棒，太喜欢小猫了！",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = 1_000L
+        )
+        assertEquals(
+            30f + 2.5f,
+            CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.HAPPY]!!,
+            0.05f
+        )
+
+        // The model names HAPPY too. Two independent reads agreeing: the heuristic's share
+        // stays and the tag is scaled up — 2.5 kept + 2.5 × 1.4 = 6.0 this turn.
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "happy", reasonRaw = "被夸了", now = 2_000L)
+        assertEquals(
+            30f + 2.5f + 2.5f * CompanionMoodStore.CORROBORATION_MULTIPLIER,
+            CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.HAPPY]!!,
+            0.05f
+        )
+
+        // PROUD was guessed at but never confirmed by the tag, so it comes back off.
+        assertEquals(
+            12f,
+            CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.PROUD]!!,
+            0.05f
+        )
+    }
+
+    @Test
+    fun testUnconfirmedHeuristicEstimateIsCappedAndRevertsExactly() {
+        // Two praise messages in a row. The heuristic keeps applying so the face reacts,
+        // but the estimate on the books stops at the cap instead of ratcheting.
+        repeat(2) {
+            CompanionMoodStore.judgeMessage(
+                prefs = prefs,
+                userText = "老大夸你：真棒，太喜欢小猫了！",
+                sessionTurns = 1,
+                sessionErrors = 0,
+                now = 1_000L + it * 1_000L
+            )
+        }
+        assertEquals(
+            CompanionMoodStore.PENDING_CAP,
+            CompanionMoodStore.getLastInstantDelta(prefs)[CompanionMoodStore.Mood.PROUD]!!,
+            0.05f
+        )
+        // The score only ever moved by what the books can take back.
+        assertEquals(
+            12f + CompanionMoodStore.PENDING_CAP,
+            CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.PROUD]!!,
+            0.05f
+        )
+
+        // A tag naming a different mood takes the whole estimate off at once, exactly —
+        // and SULK then suppresses PROUD by its mutual-suppression share.
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "sulk", reasonRaw = "生闷气", now = 5_000L)
+        assertEquals(
+            12f - 1.2f,
+            CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.PROUD]!!,
+            0.05f
+        )
+        assertTrue(CompanionMoodStore.getLastInstantDelta(prefs).isEmpty())
+    }
+
+    @Test
+    fun testOneReplyCanFlipTheLeadButNotTeleportAMoodAcrossThePool() {
+        CompanionPrefs.setEmotionIntensity(prefs, "vivid")
+
+        fun corroborate(at: Long) {
+            CompanionMoodStore.saveInstantDelta(prefs, mapOf(CompanionMoodStore.Mood.EXCITED to CompanionMoodStore.PENDING_CAP))
+            CompanionMoodStore.applyAdjustment(prefs, mapOf(CompanionMoodStore.Mood.EXCITED to CompanionMoodStore.PENDING_CAP), now = at)
+        }
+
+        corroborate(1_000L)
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "excited", reasonRaw = "一", now = 2_000L)
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "excited", reasonRaw = "二", now = 3_000L)
+        corroborate(4_000L)
+
+        val before = CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.EXCITED]!!
+        // vivid 1.4 × streak 3 (1.7) × corroboration 1.4 × 2.5 = 8.33, which is more than one
+        // reply is allowed to move a mood.
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "excited", reasonRaw = "三", now = 5_000L)
+        val after = CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.EXCITED]!!
+
+        assertEquals(before + CompanionMoodStore.MAX_TAG_BOOST, after, 0.05f)
+        assertTrue("the cap must bite", before + 8.33f > after)
+    }
+
+    @Test
+    fun testPeriodicDecayClearsThePendingEstimateSoItIsNotSubtractedTwice() {
+        CompanionMoodStore.judgeMessage(
+            prefs = prefs,
+            userText = "老大夸你：真棒，太喜欢小猫了！",
+            sessionTurns = 1,
+            sessionErrors = 0,
+            now = 1_000L
+        )
+        CompanionMoodStore.periodicDecay(prefs, now = 2_000L)
+        // The decay already pulled PROUD toward its baseline. If the estimate survived it
+        // would be taken off a second time by the next tag and push PROUD below baseline.
+        CompanionMoodStore.applyFeedback(prefs, feelRaw = "sulk", reasonRaw = "翻旧账", now = 3_000L)
+        assertTrue(
+            "PROUD was subtracted twice",
+            CompanionMoodStore.getScores(prefs)[CompanionMoodStore.Mood.PROUD]!! > CompanionMoodStore.Mood.PROUD.baseline
+        )
+    }
 }

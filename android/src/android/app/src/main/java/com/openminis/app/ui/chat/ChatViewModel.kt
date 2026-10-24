@@ -9515,9 +9515,12 @@ class ChatViewModel(
                             sessionTurns = _messages.value.count { it.role == "user" },
                             sessionErrors = _messages.value.count { it.error != null },
                         )
-                    } else {
-                        io.github.nanomuse.companion.CompanionMoodStore.clearLastInstantDelta(context)
                     }
+                    // nanoMuse: a turn with no tag leaves the heuristic estimate on the books
+                    // on purpose. It is a guess the companion has not confirmed yet, and
+                    // clearing it here is what made the guess permanent — the next tag could
+                    // no longer take it back. applyFeedback reverts the whole estimate, capped,
+                    // when a tag finally arrives.
                     io.github.nanomuse.companion.CompanionStatus.notifyEmotionChanged()
                 }
                 // [T-error-persist-android] Empty-response hint: the model ended a

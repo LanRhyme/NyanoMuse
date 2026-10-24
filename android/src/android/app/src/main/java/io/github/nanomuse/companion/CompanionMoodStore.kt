@@ -22,6 +22,8 @@ object CompanionMoodStore {
     private const val PREFS_KEY_LAST_SWITCH_AT = "companion_mood_last_switch_at"
     private const val PREFS_KEY_LAST_SWITCH_FACTS = "companion_mood_last_switch_facts"
     private const val PREFS_KEY_LAST_PERIODIC_AT = "companion_mood_last_periodic_at"
+    /** How many replies in a row have named the same mood, and when the run started. */
+    private const val PREFS_KEY_TAG_STREAK = "companion_mood_tag_streak"
 
     /**
      * The lead a challenger needs over the worn mood before it may take over.
@@ -42,6 +44,49 @@ object CompanionMoodStore {
     const val ECHO_DAMP = 0.3f
     const val BLEND_GAP = 8.0f
     const val BLEND_MAX = 3
+
+    /**
+     * The most one reply may move a single mood.
+     *
+     * Sized against [BIG_LEAD] on purpose: a strong, corroborated, sustained turn can flip
+     * the leader outright, but no single reply can teleport a mood across the whole pool.
+     * Without this cap the amplifiers below (streak × corroboration × intensity) compound
+     * into numbers that make the face jump for ordinary conversation.
+     */
+    const val MAX_TAG_BOOST = 8.0f
+
+    /**
+     * Weight escalation for consecutive replies naming the same mood, indexed by the streak
+     * length: the first reply weighs 1.0, the second 1.35, the third and beyond 1.7.
+     *
+     * A conversation that keeps naming one mood is not noise, and the last thing it should
+     * do is crawl: the third reply in a row is worth more than the first. The last step
+     * holds past the table so a long run does not keep accelerating.
+     */
+    val STREAK_MULTIPLIER = floatArrayOf(1.0f, 1.35f, 1.7f)
+
+    /**
+     * Extra weight when the heuristic on the person's message and the model's own tag name
+     * the same mood. Two independent reads agreeing is stronger evidence than either alone,
+     * so the heuristic's share is kept instead of reverted and the tag is scaled up. When
+     * they disagree the heuristic is still discarded — the tag is the model's actual read.
+     */
+    const val CORROBORATION_MULTIPLIER = 1.4f
+
+    /**
+     * Ceiling on the unconfirmed heuristic estimate for one mood.
+     *
+     * The heuristic applies at once so the face reacts to a message, but it is a guess: it
+     * stays pending until a tag supersedes it. Uncapped, a long stretch of replies with no
+     * tag ratcheted the guess upward forever, and the revert when a tag finally arrived
+     * threw all of it back at once.
+     */
+    const val PENDING_CAP = 4.0f
+
+    /**
+     * A tag streak older than this is a different conversation, not a run: start over.
+     */
+    const val STREAK_WINDOW_MS = 2 * 3600_000L
 
     enum class Layer { BASE, COMPOSITE, MODERN }
 
@@ -316,14 +361,26 @@ object CompanionMoodStore {
     ): MoodSnapshot {
         val scores = getScores(prefs).toMutableMap()
         val text = userText.trim().lowercase()
-        val instantDeltas = mutableMapOf<Mood, Float>()
+        // The heuristic is a guess, and it is kept as a *pending* estimate rather than being
+        // written into the scores for good: it applies at once so the face reacts to the
+        // message, but it stays on the books until a tag supersedes it. Carrying it forward
+        // instead of replacing it each turn is what stops a long stretch of replies with no
+        // tag from ratcheting one direction forever — the revert in [applyFeedback] takes
+        // the whole estimate off at once. [PENDING_CAP] bounds how far a guess may run.
+        val pending = getLastInstantDelta(prefs).toMutableMap()
         val multiplier = intensityMultiplier(prefs)
 
         fun add(mood: Mood, delta: Float) {
             val scaled = delta * multiplier
+            val carried = pending[mood] ?: 0f
+            val nextPending = (carried + scaled).coerceIn(-PENDING_CAP, PENDING_CAP)
+            // The score moves by exactly what the books can take back later. Clamping the
+            // pending without clamping the score would leave a residue no revert could
+            // reach, and the mood would drift by the difference.
+            val effective = nextPending - carried
             val old = scores[mood] ?: mood.baseline
-            scores[mood] = (old + scaled).coerceIn(0f, 100f)
-            instantDeltas[mood] = (instantDeltas[mood] ?: 0f) + scaled
+            scores[mood] = (old + effective).coerceIn(0f, 100f)
+            pending[mood] = nextPending
         }
 
         // 1. Sarcasm pre-check: prevent cynical phrasing from granting praise boost
@@ -501,7 +558,7 @@ object CompanionMoodStore {
         prefs.edit().putLong(CompanionPrefs.KEY_MOOD_TIMESTAMP, now).apply()
 
         saveScores(prefs, scores)
-        saveInstantDelta(prefs, instantDeltas)
+        saveInstantDelta(prefs, pending)
         CompanionStatus.notifyEmotionChanged()
         return currentSnapshot(prefs)
     }
@@ -552,6 +609,39 @@ object CompanionMoodStore {
         clearLastInstantDelta(CompanionPrefs.prefs(context))
     }
 
+    // ─── Tag streak ────────────────────────────────────────────────────────
+    // How many replies in a row named the same mood. A conversation that keeps naming one
+    // mood is pushing somewhere, so the weight escalates instead of staying flat; a streak
+    // that has gone quiet for [STREAK_WINDOW_MS] is a different conversation and starts over.
+
+    private data class TagStreak(val mood: Mood, val count: Int, val at: Long)
+
+    private fun readStreak(prefs: SharedPreferences, now: Long): TagStreak? {
+        val raw = prefs.getString(PREFS_KEY_TAG_STREAK, null) ?: return null
+        val obj = runCatching { JSONObject(raw) }.getOrNull() ?: return null
+        val mood = Mood.fromIdOrNull(obj.optString("id")) ?: return null
+        val at = obj.optLong("at")
+        if (at <= 0L || now - at > STREAK_WINDOW_MS) return null
+        return TagStreak(mood, obj.optInt("n").coerceAtLeast(1), at)
+    }
+
+    private fun writeStreak(prefs: SharedPreferences, mood: Mood, count: Int, now: Long) {
+        val obj = JSONObject().apply {
+            put("id", mood.id)
+            put("n", count)
+            put("at", now)
+        }
+        prefs.edit().putString(PREFS_KEY_TAG_STREAK, obj.toString()).apply()
+    }
+
+    private fun clearStreak(prefs: SharedPreferences) {
+        prefs.edit().remove(PREFS_KEY_TAG_STREAK).apply()
+    }
+
+    /** Weight for the nth consecutive reply naming the same mood; flat past the table. */
+    fun streakMultiplier(streak: Int): Float =
+        STREAK_MULTIPLIER.getOrElse(streak.coerceAtLeast(1) - 1) { STREAK_MULTIPLIER.last() }
+
     /**
      * Applies assistant LLM feedback from <nm:mood feel="id" reason="..."/>
      * Reverts previous turn's instant heuristic delta (to avoid double-counting),
@@ -590,7 +680,15 @@ object CompanionMoodStore {
         // Exception: Retain partial client-side sarcasm detection (sulk) if model claimed HAPPY/PROUD,
         // since LLMs notoriously miss subtle sarcasm while client-side pattern matching detected it.
         val instantDelta = getLastInstantDelta(prefs)
+        // 1. Revert the pending heuristic estimate so a turn is never counted twice.
+        //
+        // The exception is the mood both tracks named: when the heuristic on the person's
+        // message and the model's own tag agree, that is two independent reads pointing the
+        // same way, so the heuristic's share stands instead of being thrown away. Every
+        // other guess is discarded — the tag is the model's actual read of itself.
+        val corroborated = (instantDelta[mood] ?: 0f) > 0f
         for ((m, d) in instantDelta) {
+            if (corroborated && m == mood) continue
             val curr = scores[m] ?: m.baseline
             scores[m] = (curr - d).coerceIn(0f, 100f)
         }
@@ -610,9 +708,23 @@ object CompanionMoodStore {
         // score only slightly, while naming a different one still carries full weight.
         val worn = Mood.fromId(prefs.getString(PREFS_KEY_PRIMARY, Mood.CALM.id))
         val echoDamp = if (mood == worn) ECHO_DAMP else 1.0f
-        val boost = (FEEDBACK_DELTA[mood] ?: 2.0f) * echoDamp * intensityMultiplier(prefs)
+
+        // Streak: the nth reply in a row naming this mood. A conversation that keeps naming
+        // one mood is pushing somewhere, and the third push should not weigh what the first
+        // did — otherwise a mood already within reach takes a dozen turns to arrive.
+        val previous = readStreak(prefs, now)
+        val streak = if (previous?.mood == mood) previous.count + 1 else 1
+        writeStreak(prefs, mood, streak, now)
+
+        // Corroboration: the heuristic agreed with this tag (see step 1).
+        val corroborationMul = if (corroborated) CORROBORATION_MULTIPLIER else 1.0f
+
+        val boost = (FEEDBACK_DELTA[mood] ?: 2.0f) * echoDamp * streakMultiplier(streak) *
+            corroborationMul * intensityMultiplier(prefs)
+        // One reply may flip the leader; it may not teleport a mood across the pool.
+        val cappedBoost = boost.coerceAtMost(MAX_TAG_BOOST)
         val oldScore = scores[mood] ?: mood.baseline
-        scores[mood] = (oldScore + boost).coerceIn(0f, 100f)
+        scores[mood] = (oldScore + cappedBoost).coerceIn(0f, 100f)
 
         // 3. Mutual suppression with safety cap (max configured suppression is 1.5f,
         // suppressCap guarantees any branch never suppresses an opposing mood by more than 1.5f)
@@ -729,6 +841,10 @@ object CompanionMoodStore {
             .putLong(PREFS_KEY_LAST_SWITCH_AT, now)
             .remove(PREFS_KEY_LAST_SWITCH_FACTS)
             .apply()
+        // A reset is a reset: the unconfirmed heuristic estimate and the tag streak both
+        // describe a conversation that no longer counts.
+        clearLastInstantDelta(prefs)
+        clearStreak(prefs)
         CompanionStatus.notifyEmotionChanged()
         return currentSnapshot(prefs, now = now)
     }
@@ -790,6 +906,12 @@ object CompanionMoodStore {
 
         saveScores(prefs, scores)
         prefs.edit().putLong(PREFS_KEY_LAST_PERIODIC_AT, now).apply()
+        // The decay has already pulled the scores toward baseline, so the pending heuristic
+        // estimate — which is baked into those scores — must not survive to be subtracted
+        // again by a later tag: it would be taken off twice. The streak is a different
+        // conversation by now, so it starts over too.
+        clearLastInstantDelta(prefs)
+        clearStreak(prefs)
         CompanionStatus.notifyEmotionChanged()
         return currentSnapshot(prefs)
     }
