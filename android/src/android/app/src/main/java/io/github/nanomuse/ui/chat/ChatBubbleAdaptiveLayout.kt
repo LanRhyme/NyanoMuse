@@ -1,13 +1,52 @@
 package io.github.nanomuse.ui.chat
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+/**
+ * Telegram-style double checkmark indicating delivered / read status.
+ */
+@Composable
+fun TelegramDoubleCheck(
+    modifier: Modifier = Modifier,
+    tint: Color,
+) {
+    Box(
+        modifier = modifier.size(width = 15.dp, height = 11.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier
+                .size(11.dp)
+                .offset(x = 0.dp),
+        )
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier
+                .size(11.dp)
+                .offset(x = 4.dp),
+        )
+    }
+}
 
 /**
  * Adaptive bubble layout that places content and timestamp on the same line (inline)
@@ -18,8 +57,8 @@ import androidx.compose.ui.unit.dp
 fun ChatBubbleAdaptiveLayout(
     modifier: Modifier = Modifier,
     isSingleLineCandidate: Boolean,
-    gap: Dp = 8.dp,
-    bottomSpacing: Dp = 2.dp,
+    gap: Dp = 6.dp,
+    bottomSpacing: Dp = 0.dp,
     content: @Composable () -> Unit,
     timestamp: @Composable () -> Unit,
 ) {

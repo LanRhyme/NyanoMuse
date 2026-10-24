@@ -99,16 +99,22 @@ fun NmAssistantBubble(
         content()
         return
     }
-    val topPad = if (clusterSize > 1 && clusterIndex > 0) 1.5.dp else 4.dp
-    val bottomPad = if (clusterSize > 1 && clusterIndex < clusterSize - 1) 1.5.dp else 6.dp
+    val topPad = if (clusterSize > 1 && clusterIndex > 0) 2.dp else 4.dp
+    val bottomPad = if (clusterSize > 1 && clusterIndex < clusterSize - 1) 2.dp else 6.dp
     val bubbleShape = if (clusterSize > 1) {
         when {
-            clusterIndex == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 4.dp)
-            clusterIndex == clusterSize - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
-            else -> RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 4.dp)
+            clusterIndex == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp)
+            clusterIndex == clusterSize - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp)
+            else -> RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp)
         }
     } else {
-        RoundedCornerShape(20.dp)
+        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp)
+    }
+
+    val borderColor = if (ChatColors.isDark) {
+        androidx.compose.ui.graphics.Color.White.copy(alpha = 0.06f)
+    } else {
+        androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.05f)
     }
 
     BoxWithConstraints(
@@ -117,14 +123,16 @@ fun NmAssistantBubble(
             .padding(top = topPad, bottom = bottomPad),
         contentAlignment = Alignment.TopStart
     ) {
-        val maxBubbleWidth = minOf(760.dp, this.maxWidth * 0.88f)
+        val maxBubbleWidth = minOf(760.dp, this.maxWidth * 0.86f)
         androidx.compose.material3.Surface(
             shape = bubbleShape,
             color = ChatColors.assistantBubble,
             contentColor = ChatColors.primaryText,
+            shadowElevation = 0.8.dp,
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, borderColor),
             modifier = Modifier.widthIn(max = maxBubbleWidth),
         ) {
-            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Column(modifier = Modifier.padding(start = 13.dp, end = 13.dp, top = 8.dp, bottom = 6.dp)) {
                 content()
             }
         }

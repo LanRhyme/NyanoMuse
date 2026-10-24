@@ -4594,8 +4594,8 @@ fun ChatScreen(
 
                                     io.github.nanomuse.ui.chat.ChatBubbleAdaptiveLayout(
                                         isSingleLineCandidate = isSingleLineCandidate,
-                                        gap = 8.dp,
-                                        bottomSpacing = 2.dp,
+                                        gap = 6.dp,
+                                        bottomSpacing = 0.dp,
                                         content = {
                                             Column {
                                                 if (item.leadingThinking != null) {
@@ -4642,8 +4642,9 @@ fun ChatScreen(
                                                 Text(
                                                     text = timeStr,
                                                     color = ChatColors.tertiaryText,
-                                                    fontSize = 11.sp,
-                                                    lineHeight = 12.sp,
+                                                    fontSize = 10.5.sp,
+                                                    lineHeight = 11.5.sp,
+                                                    letterSpacing = 0.2.sp,
                                                 )
                                             }
                                         },

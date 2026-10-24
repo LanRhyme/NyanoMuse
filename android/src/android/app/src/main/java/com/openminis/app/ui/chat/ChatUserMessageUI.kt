@@ -378,7 +378,20 @@ internal fun UserMessageBubble(
                         // the dark theme, inverted in light), not onSurface.
                         val textColor = if (isQueued) secondaryTextColor else ChatColors.onUserBubble
                         val bubbleBg = if (isQueued) Color.Transparent else userBubbleColor
-                        val shape = RoundedCornerShape(18.dp)
+                        // Telegram style corner radius: tail corner (4dp) at bottom-end;
+                        // when preceded by another user message, top-end is also tucked (4dp).
+                        val shape = if (precededByUser) {
+                            RoundedCornerShape(topStart = 16.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
+                        } else {
+                            RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
+                        }
+                        val isDark = ChatColors.isDark
+                        val borderColor = if (isDark) {
+                            Color.White.copy(alpha = 0.06f)
+                        } else {
+                            Color.Black.copy(alpha = 0.04f)
+                        }
+                        val bubbleElevation = if (isQueued) 0.dp else 0.8.dp
                         val dashedStroke = if (isQueued) {
                             Modifier.drawBehind {
                                 val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
@@ -387,7 +400,7 @@ internal fun UserMessageBubble(
                                         floatArrayOf(6.dp.toPx(), 4.dp.toPx()), 0f
                                     ),
                                 )
-                                val r = 18.dp.toPx()
+                                val r = 16.dp.toPx()
                                 drawRoundRect(
                                     color = secondaryTextColor.copy(alpha = 0.5f),
                                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
@@ -428,28 +441,39 @@ internal fun UserMessageBubble(
                                 val timeStr = io.github.nanomuse.chat.BubbleTimeFormatter.formatBubbleTime(message.createdAt)
                                 io.github.nanomuse.ui.chat.ChatBubbleAdaptiveLayout(
                                     modifier = bubbleModifier
+                                        .shadow(elevation = bubbleElevation, shape = shape, clip = false)
                                         .background(bubbleBg, shape)
+                                        .border(0.5.dp, if (isQueued) Color.Transparent else borderColor, shape)
                                         .clip(shape)
                                         .then(dashedStroke)
-                                        .padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 6.dp),
+                                        .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 6.dp),
                                     isSingleLineCandidate = !message.content.contains('\n') && message.content.length <= 50,
-                                    gap = 8.dp,
-                                    bottomSpacing = 2.dp,
+                                    gap = 6.dp,
+                                    bottomSpacing = 0.dp,
                                     content = {
                                         Text(
                                             text = message.content,
                                             color = textColor,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.5.sp),
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 21.sp),
                                         )
                                     },
                                     timestamp = {
                                         if (timeStr.isNotEmpty() && !isQueued) {
-                                            Text(
-                                                text = timeStr,
-                                                color = textColor.copy(alpha = 0.65f),
-                                                fontSize = 11.sp,
-                                                lineHeight = 12.sp,
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                            ) {
+                                                Text(
+                                                    text = timeStr,
+                                                    color = textColor.copy(alpha = 0.65f),
+                                                    fontSize = 10.5.sp,
+                                                    lineHeight = 11.5.sp,
+                                                    letterSpacing = 0.2.sp,
+                                                )
+                                                io.github.nanomuse.ui.chat.TelegramDoubleCheck(
+                                                    tint = textColor.copy(alpha = 0.7f),
+                                                )
+                                            }
                                         }
                                     },
                                 )

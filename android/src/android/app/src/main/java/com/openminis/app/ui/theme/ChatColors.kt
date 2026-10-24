@@ -74,11 +74,10 @@ val LightChatPalette = ChatPalette(
     secondaryText = Color(0x993C3C43),
     tertiaryText = Color(0x4D3C3C43),
     disabledText = Color(0x2E3C3C43),
-    // nanoMuse: the user's own message is a black pill with white ink (white
-    // pill, black ink in the dark theme below). scripts/rebrand.py writes these.
-    userBubble = Color(0xFF000000),
-    onUserBubble = Color(0xFFFFFFFF),
-    assistantBubble = Color(0xFFF2F2F7),
+    // nanoMuse: Telegram-style bubble palette (soft sage green for user bubble, crisp elevated card for assistant)
+    userBubble = Color(0xFFE2F4D9),
+    onUserBubble = Color(0xFF162A1B),
+    assistantBubble = Color(0xFFF4F5F7),
     toolBg = Color(0xFFF2F2F7),
     toolBorder = Color(0x14000000),
     toolCapsuleBg = Color(0xFFF2F2F7),
@@ -124,10 +123,10 @@ val DarkChatPalette = ChatPalette(
     secondaryText = Color(0x99EBEBF5),
     tertiaryText = Color(0x4DEBEBF5),
     disabledText = Color(0x2EEBEBF5),
-    // nanoMuse: in dark mode, user bubble is a comfortable dark container with crisp white ink.
-    userBubble = Color(0xFF1E3A5F),
+    // nanoMuse: Telegram-style dark bubble palette (deep slate navy for user bubble, elevated dark card for assistant)
+    userBubble = Color(0xFF2B5278),
     onUserBubble = Color(0xFFFFFFFF),
-    assistantBubble = Color(0xFF1C1C1E),
+    assistantBubble = Color(0xFF202327),
     toolBg = Color(0xFF3A3A3F),
     toolBorder = Color(0x40545458),
     toolCapsuleBg = Color(0xFF28282C),
