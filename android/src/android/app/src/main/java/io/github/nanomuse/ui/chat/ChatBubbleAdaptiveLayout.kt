@@ -57,6 +57,7 @@ fun TelegramDoubleCheck(
 fun ChatBubbleAdaptiveLayout(
     modifier: Modifier = Modifier,
     isSingleLineCandidate: Boolean,
+    lastLineHasSpace: Boolean = false,
     gap: Dp = 6.dp,
     bottomSpacing: Dp = 0.dp,
     content: @Composable () -> Unit,
@@ -141,13 +142,26 @@ fun ChatBubbleAdaptiveLayout(
                 val timeX = contentPlaceable.width + gapPx
                 timePlaceable.placeRelative(timeX, timeY)
             }
-        } else {
+        } else if (lastLineHasSpace) {
+            // Telegram multi-line pattern: the last line has remaining space on the right,
+            // so place the timestamp in the bottom-right corner without expanding bubble height.
             val totalWidth = maxOf(contentPlaceable.width, timePlaceable.width)
-            val totalHeight = contentPlaceable.height + bottomSpacingPx + timePlaceable.height
+            val totalHeight = contentPlaceable.height
+            val timeX = totalWidth - timePlaceable.width
+            val timeY = maxOf(0, contentPlaceable.height - timePlaceable.height)
+            layout(totalWidth, totalHeight) {
+                contentPlaceable.placeRelative(0, 0)
+                timePlaceable.placeRelative(timeX, timeY)
+            }
+        } else {
+            // Last line is full: place timestamp tightly below, tucking 2dp into the paragraph bottom padding
+            val totalWidth = maxOf(contentPlaceable.width, timePlaceable.width)
+            val tuckPx = 2.dp.roundToPx()
+            val timeY = maxOf(0, contentPlaceable.height - tuckPx)
+            val totalHeight = timeY + timePlaceable.height
             layout(totalWidth, totalHeight) {
                 contentPlaceable.placeRelative(0, 0)
                 val timeX = totalWidth - timePlaceable.width
-                val timeY = contentPlaceable.height + bottomSpacingPx
                 timePlaceable.placeRelative(timeX, timeY)
             }
         }

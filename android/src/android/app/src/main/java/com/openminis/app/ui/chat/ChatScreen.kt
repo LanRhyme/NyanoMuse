@@ -4586,14 +4586,39 @@ fun ChatScreen(
                                     }
                                     val showTimestamp = isClusterTail && !item.isStreaming && timeStr.isNotEmpty()
                                     val isSingleLineCandidate = !cleanText.contains('\n') &&
-                                        cleanText.length <= 50 &&
                                         item.leadingThinking == null &&
                                         questionData == null &&
                                         !item.isStreaming &&
                                         cleanText.isNotEmpty()
 
+                                    val density = LocalDensity.current
+                                    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+                                    val lastLineHasSpace = remember(cleanText, item.isStreaming, item.leadingThinking, questionData) {
+                                        if (item.isStreaming || cleanText.isEmpty() || item.leadingThinking != null || questionData != null || cleanText.length > 800) false
+                                        else {
+                                            try {
+                                                val maxPx = with(density) { 760.dp.roundToPx() }
+                                                val result = textMeasurer.measure(
+                                                    text = androidx.compose.ui.text.AnnotatedString(cleanText),
+                                                    style = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
+                                                    constraints = androidx.compose.ui.unit.Constraints(maxWidth = maxPx),
+                                                )
+                                                val lineCount = result.lineCount
+                                                if (lineCount <= 1) false
+                                                else {
+                                                    val lastLineWidth = result.getLineRight(lineCount - 1)
+                                                    val timeNeededPx = with(density) { 46.dp.roundToPx() }
+                                                    (lastLineWidth + timeNeededPx <= result.size.width)
+                                                }
+                                            } catch (_: Throwable) {
+                                                false
+                                            }
+                                        }
+                                    }
+
                                     io.github.nanomuse.ui.chat.ChatBubbleAdaptiveLayout(
                                         isSingleLineCandidate = isSingleLineCandidate,
+                                        lastLineHasSpace = lastLineHasSpace,
                                         gap = 6.dp,
                                         bottomSpacing = 0.dp,
                                         content = {

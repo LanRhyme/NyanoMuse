@@ -439,6 +439,30 @@ internal fun UserMessageBubble(
                                 stableKey = "user:${message.id}",
                             ) {
                                 val timeStr = io.github.nanomuse.chat.BubbleTimeFormatter.formatBubbleTime(message.createdAt)
+                                val density = LocalDensity.current
+                                val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+                                val lastLineHasSpace = remember(message.content) {
+                                    if (message.content.isEmpty() || message.content.length > 800) false
+                                    else {
+                                        try {
+                                            val maxPx = with(density) { 600.dp.roundToPx() }
+                                            val result = textMeasurer.measure(
+                                                text = androidx.compose.ui.text.AnnotatedString(message.content),
+                                                style = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, lineHeight = 21.sp),
+                                                constraints = androidx.compose.ui.unit.Constraints(maxWidth = maxPx),
+                                            )
+                                            val lineCount = result.lineCount
+                                            if (lineCount <= 1) false
+                                            else {
+                                                val lastLineWidth = result.getLineRight(lineCount - 1)
+                                                val timeNeededPx = with(density) { 54.dp.roundToPx() }
+                                                (lastLineWidth + timeNeededPx <= result.size.width)
+                                            }
+                                        } catch (_: Throwable) {
+                                            false
+                                        }
+                                    }
+                                }
                                 io.github.nanomuse.ui.chat.ChatBubbleAdaptiveLayout(
                                     modifier = bubbleModifier
                                         .shadow(elevation = bubbleElevation, shape = shape, clip = false)
@@ -447,7 +471,8 @@ internal fun UserMessageBubble(
                                         .clip(shape)
                                         .then(dashedStroke)
                                         .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 5.dp),
-                                    isSingleLineCandidate = !message.content.contains('\n') && message.content.length <= 50,
+                                    isSingleLineCandidate = !message.content.contains('\n'),
+                                    lastLineHasSpace = lastLineHasSpace,
                                     gap = 6.dp,
                                     bottomSpacing = 0.dp,
                                     content = {

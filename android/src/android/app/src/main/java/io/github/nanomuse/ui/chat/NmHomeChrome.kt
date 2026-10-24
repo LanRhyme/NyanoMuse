@@ -132,7 +132,7 @@ fun NmAssistantBubble(
             border = androidx.compose.foundation.BorderStroke(0.5.dp, borderColor),
             modifier = Modifier.widthIn(max = maxBubbleWidth),
         ) {
-            Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp, bottom = 4.dp)) {
+            Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp, bottom = 2.dp)) {
                 content()
             }
         }
