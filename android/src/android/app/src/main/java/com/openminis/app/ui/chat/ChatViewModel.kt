@@ -1581,6 +1581,7 @@ class ChatViewModel(
         val isDeepSeek: Boolean = false,
         val balance: String? = null,
         val todayCost: Double = 0.0,
+        val period: io.github.nanomuse.chat.DeepSeekTracker.PeriodInfo = io.github.nanomuse.chat.DeepSeekTracker.getCurrentPeriod(),
     ) {
         val displayText: String? get() {
             if (!isDeepSeek) return null
@@ -1646,8 +1647,9 @@ class ChatViewModel(
             )
             _deepSeekStatus.value = DeepSeekStatus(
                 isDeepSeek = true,
-                balance = balance,
+                balance = balance ?: _deepSeekStatus.value.balance,
                 todayCost = todayCost,
+                period = io.github.nanomuse.chat.DeepSeekTracker.getCurrentPeriod(),
             )
         }
     }

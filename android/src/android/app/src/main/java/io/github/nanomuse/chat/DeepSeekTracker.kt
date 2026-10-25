@@ -33,26 +33,69 @@ object DeepSeekTracker {
         return candidates.any { it.contains("deepseek", ignoreCase = true) }
     }
 
+    data class PeriodInfo(
+        val isOffPeak: Boolean,
+        val label: String,
+        val timeRange: String,
+        val detail: String,
+    )
+
+    fun getCurrentPeriod(nowMs: Long = System.currentTimeMillis()): PeriodInfo {
+        val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT+8"), Locale.CHINA).apply {
+            timeInMillis = nowMs
+        }
+        val hour = cal.get(Calendar.HOUR_OF_DAY)
+        val minute = cal.get(Calendar.MINUTE)
+        val minuteOfDay = hour * 60 + minute
+
+        // Beijing Time (UTC+8): 00:30 (30 min) to 08:30 (510 min) is Off-Peak (低谷期，5折优惠)
+        val isOffPeak = minuteOfDay in 30 until 510
+        return if (isOffPeak) {
+            PeriodInfo(
+                isOffPeak = true,
+                label = "低谷期",
+                timeRange = "00:30-08:30",
+                detail = "低谷期 00:30-08:30 (5折)"
+            )
+        } else {
+            PeriodInfo(
+                isOffPeak = false,
+                label = "高峰期",
+                timeRange = "08:30-00:30",
+                detail = "高峰期 08:30-00:30"
+            )
+        }
+    }
+
     /**
      * DeepSeek Official Pricing (in CNY ¥ per token):
+     * Off-Peak (00:30 - 08:30 UTC+8) offers 50% discount.
+     *
      * Reasoner / R1:
-     *   - Cache hit: ¥1.00 / 1M tokens
-     *   - Cache miss (Input): ¥4.00 / 1M tokens
-     *   - Output: ¥16.00 / 1M tokens
+     *   - Cache hit: ¥1.00 / 1M tokens (Off-peak ¥0.50)
+     *   - Cache miss (Input): ¥4.00 / 1M tokens (Off-peak ¥2.00)
+     *   - Output: ¥16.00 / 1M tokens (Off-peak ¥8.00)
      *
      * V3 / Chat / V4 / Default:
-     *   - Cache hit: ¥0.10 / 1M tokens
-     *   - Cache miss (Input): ¥1.00 / 1M tokens
-     *   - Output: ¥2.00 / 1M tokens
+     *   - Cache hit: ¥0.10 / 1M tokens (Off-peak ¥0.05)
+     *   - Cache miss (Input): ¥1.00 / 1M tokens (Off-peak ¥0.50)
+     *   - Output: ¥2.00 / 1M tokens (Off-peak ¥1.00)
      */
-    fun calculateCost(modelId: String?, inputTokens: Long, outputTokens: Long, cacheReadTokens: Long): Double {
+    fun calculateCost(
+        modelId: String?,
+        inputTokens: Long,
+        outputTokens: Long,
+        cacheReadTokens: Long,
+        timestampMs: Long = System.currentTimeMillis()
+    ): Double {
         val mid = (modelId ?: "").lowercase(Locale.US)
         val isReasoner = mid.contains("reasoner") || mid.contains("r1")
+        val discount = if (getCurrentPeriod(timestampMs).isOffPeak) 0.5 else 1.0
 
         val (inputRate, cacheHitRate, outputRate) = if (isReasoner) {
-            Triple(4.0 / 1_000_000.0, 1.0 / 1_000_000.0, 16.0 / 1_000_000.0)
+            Triple(4.0 / 1_000_000.0 * discount, 1.0 / 1_000_000.0 * discount, 16.0 / 1_000_000.0 * discount)
         } else {
-            Triple(1.0 / 1_000_000.0, 0.10 / 1_000_000.0, 2.0 / 1_000_000.0)
+            Triple(1.0 / 1_000_000.0 * discount, 0.10 / 1_000_000.0 * discount, 2.0 / 1_000_000.0 * discount)
         }
 
         val effectiveInput = maxOf(0L, inputTokens)
@@ -89,7 +132,7 @@ object DeepSeekTracker {
             val output = usage.optLong("outputTokens", 0)
             val cacheRead = usage.optLong("cacheReadTokens", usage.optLong("cacheReadInputTokens", 0))
 
-            totalCost += calculateCost(record.modelId, input, output, cacheRead)
+            totalCost += calculateCost(record.modelId, input, output, cacheRead, record.createdAt)
         }
         totalCost
     }

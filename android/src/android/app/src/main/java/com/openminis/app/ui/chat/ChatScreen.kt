@@ -3423,32 +3423,64 @@ fun ChatScreen(
                     val deepSeekText = deepSeekStatus.displayText
                     if (deepSeekText != null) {
                         Spacer(Modifier.height(2.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                             modifier = Modifier
-                                .clip(CircleShape)
-                                .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
+                                .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     viewModel.refreshDeepSeekStatus(forceRefreshBalance = true)
                                     showTokenUsageSheet = true
                                 }
-                                .padding(horizontal = 7.dp, vertical = 2.dp),
+                                .padding(horizontal = 6.dp, vertical = 1.dp),
                         ) {
-                            Box(
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier
-                                    .size(5.dp)
-                                    .background(Color(0xFF007AFF), CircleShape),
-                            )
-                            Text(
-                                text = deepSeekText,
-                                fontSize = 10.sp,
-                                lineHeight = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = ChatColors.primaryText.copy(alpha = 0.85f),
-                                maxLines = 1,
-                                style = noFontPad,
-                            )
+                                    .clip(CircleShape)
+                                    .background(ChatColors.secondaryBg.copy(alpha = 0.85f))
+                                    .padding(horizontal = 7.dp, vertical = 2.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .background(Color(0xFF007AFF), CircleShape),
+                                )
+                                Text(
+                                    text = deepSeekText,
+                                    fontSize = 10.sp,
+                                    lineHeight = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = ChatColors.primaryText.copy(alpha = 0.85f),
+                                    maxLines = 1,
+                                    style = noFontPad,
+                                )
+                            }
+                            // nanoMuse: Peak / Off-peak period indicator below balance
+                            val period = deepSeekStatus.period
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .background(
+                                            if (period.isOffPeak) Color(0xFF34C759) else Color(0xFFFF9500),
+                                            CircleShape
+                                        ),
+                                )
+                                Text(
+                                    text = if (period.isOffPeak) "低谷期 00:30-08:30 (5折)" else "高峰期 08:30-00:30",
+                                    fontSize = 9.sp,
+                                    lineHeight = 10.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = if (period.isOffPeak) Color(0xFF34C759) else ChatColors.secondaryText,
+                                    maxLines = 1,
+                                    style = noFontPad,
+                                )
+                            }
                         }
                     }
                 }
@@ -3464,12 +3496,12 @@ fun ChatScreen(
                 // the avatar disc plus mood status below without clipping. Side chats and hidden
                 // avatar keep the compact title bar.
                 expandedHeight = when {
-                    nmHome == null -> if (deepSeekStatus.displayText != null) 64.dp else 52.dp
+                    nmHome == null -> if (deepSeekStatus.displayText != null) 74.dp else 52.dp
                     isMainChat && nmAvatarSize.shown -> {
                         val avatarDp = nmAvatarSize.disc ?: 56.dp
                         (avatarDp + 36.dp).coerceAtLeast(76.dp)
                     }
-                    else -> if (nmHideModelRows) (if (deepSeekStatus.displayText != null) 64.dp else 50.dp) else 64.dp
+                    else -> if (nmHideModelRows) (if (deepSeekStatus.displayText != null) 74.dp else 50.dp) else 64.dp
                 },
             )
 

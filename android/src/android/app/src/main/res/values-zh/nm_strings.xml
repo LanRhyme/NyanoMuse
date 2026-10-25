@@ -414,6 +414,7 @@
     <string name="nm_stickers_all">全部</string>
     <string name="nm_stickers_add_group">新建分组</string>
     <string name="nm_stickers_group_name">分组名称</string>
+    <string name="nm_stickers_sticker_name">表情名称</string>
     <string name="nm_stickers_add_sticker">添加表情</string>
     <string name="nm_stickers_delete_confirm">确定删除此表情？</string>
     <string name="nm_stickers_delete_group_confirm">确定删除该表情分组？</string>

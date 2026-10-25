@@ -421,6 +421,7 @@
     <string name="nm_stickers_all">Alle</string>
     <string name="nm_stickers_add_group">Neue Gruppe</string>
     <string name="nm_stickers_group_name">Gruppenname</string>
+    <string name="nm_stickers_sticker_name">Stickername</string>
     <string name="nm_stickers_add_sticker">Sticker hinzufügen</string>
     <string name="nm_stickers_delete_confirm">Diesen Sticker löschen?</string>
     <string name="nm_stickers_delete_group_confirm">Diese Stickergruppe löschen?</string>

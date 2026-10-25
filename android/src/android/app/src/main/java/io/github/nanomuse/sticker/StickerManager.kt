@@ -447,6 +447,31 @@ object StickerManager {
         return true
     }
 
+    fun updateStickerName(sticker: StickerItem, newName: String, context: Context? = appContext): Boolean {
+        val file = File(sticker.filePath)
+        val packDir = file.parentFile ?: return false
+        val manifestFile = File(packDir, "manifest.json")
+        if (!manifestFile.exists()) return false
+
+        return try {
+            val root = JSONObject(manifestFile.readText(Charsets.UTF_8))
+            val arr = root.optJSONArray("stickers") ?: return false
+            val trimmed = newName.trim()
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                if (obj.optString("filename", "") == sticker.filename) {
+                    obj.put("name", trimmed)
+                    break
+                }
+            }
+            manifestFile.writeText(root.toString(2), Charsets.UTF_8)
+            invalidateCache()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun deletePack(packId: String, context: Context? = appContext): Boolean {
         val packs = getPacks(context)
         val pack = packs.firstOrNull { it.id == packId } ?: return false

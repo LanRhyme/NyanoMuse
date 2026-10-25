@@ -422,6 +422,7 @@
     <string name="nm_stickers_all">Tous</string>
     <string name="nm_stickers_add_group">Nouveau groupe</string>
     <string name="nm_stickers_group_name">Nom du groupe</string>
+    <string name="nm_stickers_sticker_name">Nom de l\'autocollant</string>
     <string name="nm_stickers_add_sticker">Ajouter un autocollant</string>
     <string name="nm_stickers_delete_confirm">Supprimer cet autocollant ?</string>
     <string name="nm_stickers_delete_group_confirm">Supprimer ce groupe d\'autocollants ?</string>

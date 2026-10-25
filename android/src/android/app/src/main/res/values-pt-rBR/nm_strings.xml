@@ -422,6 +422,7 @@
     <string name="nm_stickers_all">Todos</string>
     <string name="nm_stickers_add_group">Novo grupo</string>
     <string name="nm_stickers_group_name">Nome do grupo</string>
+    <string name="nm_stickers_sticker_name">Nome da figurinha</string>
     <string name="nm_stickers_add_sticker">Adicionar figurinha</string>
     <string name="nm_stickers_delete_confirm">Excluir esta figurinha?</string>
     <string name="nm_stickers_delete_group_confirm">Excluir este grupo de figurinhas?</string>

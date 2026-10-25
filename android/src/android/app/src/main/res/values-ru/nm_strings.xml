@@ -427,6 +427,7 @@
     <string name="nm_stickers_all">Все</string>
     <string name="nm_stickers_add_group">Новая группа</string>
     <string name="nm_stickers_group_name">Название группы</string>
+    <string name="nm_stickers_sticker_name">Название стикера</string>
     <string name="nm_stickers_add_sticker">Добавить стикер</string>
     <string name="nm_stickers_delete_confirm">Удалить этот стикер?</string>
     <string name="nm_stickers_delete_group_confirm">Удалить эту группу стикеров?</string>

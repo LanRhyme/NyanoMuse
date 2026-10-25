@@ -418,6 +418,7 @@
     <string name="nm_stickers_all">Semua</string>
     <string name="nm_stickers_add_group">Grup baru</string>
     <string name="nm_stickers_group_name">Nama grup</string>
+    <string name="nm_stickers_sticker_name">Nama stiker</string>
     <string name="nm_stickers_add_sticker">Tambah stiker</string>
     <string name="nm_stickers_delete_confirm">Hapus stiker ini?</string>
     <string name="nm_stickers_delete_group_confirm">Hapus grup stiker ini?</string>

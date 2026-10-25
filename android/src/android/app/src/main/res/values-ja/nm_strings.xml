@@ -418,6 +418,7 @@
     <string name="nm_stickers_all">すべて</string>
     <string name="nm_stickers_add_group">グループ作成</string>
     <string name="nm_stickers_group_name">グループ名</string>
+    <string name="nm_stickers_sticker_name">スタンプ名</string>
     <string name="nm_stickers_add_sticker">スタンプ追加</string>
     <string name="nm_stickers_delete_confirm">このスタンプを削除しますか？</string>
     <string name="nm_stickers_delete_group_confirm">このスタンプグループを削除しますか？</string>

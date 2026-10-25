@@ -418,6 +418,7 @@
     <string name="nm_stickers_all">전체</string>
     <string name="nm_stickers_add_group">새 그룹</string>
     <string name="nm_stickers_group_name">그룹 이름</string>
+    <string name="nm_stickers_sticker_name">스티커 이름</string>
     <string name="nm_stickers_add_sticker">스티커 추가</string>
     <string name="nm_stickers_delete_confirm">이 스티커를 삭제하시겠습니까?</string>
     <string name="nm_stickers_delete_group_confirm">이 스티커 그룹을 삭제하시겠습니까?</string>

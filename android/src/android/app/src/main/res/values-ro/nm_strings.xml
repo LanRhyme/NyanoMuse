@@ -424,6 +424,7 @@
     <string name="nm_stickers_all">Toate</string>
     <string name="nm_stickers_add_group">Grup nou</string>
     <string name="nm_stickers_group_name">Nume grup</string>
+    <string name="nm_stickers_sticker_name">Nume autocolant</string>
     <string name="nm_stickers_add_sticker">Adaugă autocolant</string>
     <string name="nm_stickers_delete_confirm">Ștergeți acest autocolant?</string>
     <string name="nm_stickers_delete_group_confirm">Ștergeți acest grup de autocolante?</string>

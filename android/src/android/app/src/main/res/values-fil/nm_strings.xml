@@ -421,6 +421,7 @@
     <string name="nm_stickers_all">Lahat</string>
     <string name="nm_stickers_add_group">Bagong pangkat</string>
     <string name="nm_stickers_group_name">Pangalan ng pangkat</string>
+    <string name="nm_stickers_sticker_name">Pangalan ng sticker</string>
     <string name="nm_stickers_add_sticker">Magdagdag ng sticker</string>
     <string name="nm_stickers_delete_confirm">Tanggalin ang sticker na ito?</string>
     <string name="nm_stickers_delete_group_confirm">Tanggalin ang pangkat na ito?</string>

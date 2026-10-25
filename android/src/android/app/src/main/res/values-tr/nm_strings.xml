@@ -421,6 +421,7 @@
     <string name="nm_stickers_all">Tümü</string>
     <string name="nm_stickers_add_group">Yeni grup</string>
     <string name="nm_stickers_group_name">Grup adı</string>
+    <string name="nm_stickers_sticker_name">Çıkartma adı</string>
     <string name="nm_stickers_add_sticker">Çıkartma ekle</string>
     <string name="nm_stickers_delete_confirm">Bu çıkartma silinsin mi?</string>
     <string name="nm_stickers_delete_group_confirm">Bu çıkartma grubu silinsin mi?</string>

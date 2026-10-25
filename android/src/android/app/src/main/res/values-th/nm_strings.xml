@@ -418,6 +418,7 @@
     <string name="nm_stickers_all">ทั้งหมด</string>
     <string name="nm_stickers_add_group">กลุ่มใหม่</string>
     <string name="nm_stickers_group_name">ชื่อกลุ่ม</string>
+    <string name="nm_stickers_sticker_name">ชื่อสติกเกอร์</string>
     <string name="nm_stickers_add_sticker">เพิ่มสติกเกอร์</string>
     <string name="nm_stickers_delete_confirm">ลบสติกเกอร์นี้?</string>
     <string name="nm_stickers_delete_group_confirm">ลบกลุ่มสติกเกอร์นี้?</string>

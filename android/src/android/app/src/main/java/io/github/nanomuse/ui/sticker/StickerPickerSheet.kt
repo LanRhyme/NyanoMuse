@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -67,7 +68,6 @@ import coil.request.ImageRequest
 import com.openminis.app.R
 import io.github.nanomuse.sticker.StickerItem
 import io.github.nanomuse.sticker.StickerManager
-import io.github.nanomuse.sticker.StickerPack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -75,7 +75,7 @@ import java.io.File
 
 /**
  * Bottom picker panel for multi-pack memes & stickers.
- * Supports groups (QQ, Dafeiyu, custom packs), searching, adding stickers, and creating groups.
+ * Supports groups (QQ, Dafeiyu, custom packs), searching, adding stickers with custom names, and creating groups.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -93,9 +93,16 @@ fun StickerPickerSheet(
     var searchQuery by remember { mutableStateOf("") }
     var filterGifOnly by remember { mutableStateOf(false) }
 
+    // Dialog states
     var showCreatePackDialog by remember { mutableStateOf(false) }
     var newPackName by remember { mutableStateOf("") }
 
+    var pendingStickerUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingStickerName by remember { mutableStateOf("") }
+
+    var selectedStickerMenu by remember { mutableStateOf<StickerItem?>(null) }
+    var stickerToRename by remember { mutableStateOf<StickerItem?>(null) }
+    var renameStickerText by remember { mutableStateOf("") }
     var stickerToDelete by remember { mutableStateOf<StickerItem?>(null) }
     var showDeletePackDialog by remember { mutableStateOf(false) }
 
@@ -121,30 +128,13 @@ fun StickerPickerSheet(
         }
     }
 
-    // Photo picker for adding new stickers
+    // Single Image Picker for adding sticker with defined name
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
-    ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            scope.launch {
-                withContext(Dispatchers.IO) {
-                    val targetPackId = selectedPackId ?: packs.firstOrNull()?.id ?: "custom_qq"
-                    for (uri in uris) {
-                        try {
-                            context.contentResolver.openInputStream(uri)?.use { stream ->
-                                val origName = uri.lastPathSegment ?: "sticker.png"
-                                StickerManager.addStickerToPack(
-                                    packId = targetPackId,
-                                    inputStream = stream,
-                                    originalName = origName,
-                                    context = context,
-                                )
-                            }
-                        } catch (_: Exception) {}
-                    }
-                }
-                refreshKey++
-            }
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            pendingStickerUri = uri
+            pendingStickerName = ""
         }
     }
 
@@ -161,7 +151,7 @@ fun StickerPickerSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // Header: title, group action, filter, close
+            // Header: title, group delete, filter, close
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -368,7 +358,7 @@ fun StickerPickerSheet(
                             .clip(RoundedCornerShape(10.dp))
                             .combinedClickable(
                                 onClick = { onPickSticker(s) },
-                                onLongClick = { stickerToDelete = s }
+                                onLongClick = { selectedStickerMenu = s }
                             )
                             .padding(4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -424,6 +414,178 @@ fun StickerPickerSheet(
                 }
             }
         }
+    }
+
+    // Dialog: Add Sticker (Define Name & Preview)
+    pendingStickerUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { pendingStickerUri = null },
+            title = { Text(stringResource(R.string.nm_stickers_add_sticker)) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = uri,
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize().padding(6.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = pendingStickerName,
+                        onValueChange = { pendingStickerName = it },
+                        label = { Text(stringResource(R.string.nm_stickers_sticker_name)) },
+                        placeholder = { Text("例如：猫猫抱抱") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val targetPackId = selectedPackId ?: packs.firstOrNull()?.id ?: "custom_qq"
+                        val customName = pendingStickerName.trim()
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                                        val origName = uri.lastPathSegment ?: "sticker.png"
+                                        StickerManager.addStickerToPack(
+                                            packId = targetPackId,
+                                            inputStream = stream,
+                                            originalName = origName,
+                                            displayName = customName,
+                                            context = context,
+                                        )
+                                    }
+                                } catch (_: Exception) {}
+                            }
+                            pendingStickerUri = null
+                            refreshKey++
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.nm_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingStickerUri = null }) {
+                    Text(stringResource(R.string.nm_cancel))
+                }
+            }
+        )
+    }
+
+    // Dialog: Long-press Menu on Sticker (Rename / Delete)
+    selectedStickerMenu?.let { stk ->
+        AlertDialog(
+            onDismissRequest = { selectedStickerMenu = null },
+            title = { Text(stk.name.ifEmpty { stk.filename }) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(90.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(File(stk.filePath))
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = stk.name,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize().padding(4.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        TextButton(
+                            onClick = {
+                                renameStickerText = stk.name
+                                stickerToRename = stk
+                                selectedStickerMenu = null
+                            }
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(stringResource(R.string.nm_stickers_rename))
+                        }
+                        TextButton(
+                            onClick = {
+                                stickerToDelete = stk
+                                selectedStickerMenu = null
+                            }
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(stringResource(R.string.nm_delete), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { selectedStickerMenu = null }) {
+                    Text(stringResource(R.string.nm_cancel))
+                }
+            }
+        )
+    }
+
+    // Dialog: Rename Sticker
+    stickerToRename?.let { stk ->
+        AlertDialog(
+            onDismissRequest = { stickerToRename = null },
+            title = { Text(stringResource(R.string.nm_stickers_rename)) },
+            text = {
+                OutlinedTextField(
+                    value = renameStickerText,
+                    onValueChange = { renameStickerText = it },
+                    label = { Text(stringResource(R.string.nm_stickers_sticker_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val newName = renameStickerText.trim()
+                        if (newName.isNotEmpty()) {
+                            StickerManager.updateStickerName(stk, newName, context)
+                            refreshKey++
+                        }
+                        stickerToRename = null
+                    }
+                ) {
+                    Text(stringResource(R.string.nm_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { stickerToRename = null }) {
+                    Text(stringResource(R.string.nm_cancel))
+                }
+            }
+        )
     }
 
     // Dialog: Create New Group
