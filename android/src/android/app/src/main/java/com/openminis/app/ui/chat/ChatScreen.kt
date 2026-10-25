@@ -3472,7 +3472,7 @@ fun ChatScreen(
                                         ),
                                 )
                                 Text(
-                                    text = if (period.isOffPeak) "低谷期 00:30-08:30 (5折)" else "高峰期 08:30-00:30",
+                                    text = period.detail,
                                     fontSize = 9.sp,
                                     lineHeight = 10.sp,
                                     fontWeight = FontWeight.Normal,

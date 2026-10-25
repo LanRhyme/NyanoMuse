@@ -1596,61 +1596,68 @@ class ChatViewModel(
     private val _deepSeekStatus = MutableStateFlow(DeepSeekStatus())
     val deepSeekStatus: StateFlow<DeepSeekStatus> = _deepSeekStatus.asStateFlow()
 
+    suspend fun updateDeepSeekStatus(forceRefreshBalance: Boolean = false): DeepSeekStatus {
+        val entryId = _activeEntryId.value
+        val config = providerRepository.config.value
+        val entry = entryId?.let { id -> config.modelEntries.find { it.id == id } }
+            ?: currentModel?.id?.let { mid -> config.modelEntries.find { it.model.id == mid } }
+            ?: _modelName.value.takeIf { it.isNotEmpty() }?.let { name -> config.modelEntries.find { it.model.displayName.equals(name, ignoreCase = true) } }
+
+        val modelId = entry?.model?.id ?: currentModel?.id ?: currentProvider?.model?.id
+        val instance = entry?.let { e -> config.instances.find { it.id == e.providerInstanceId } }
+        val baseUrl = instance?.customBaseURL
+
+        val isDeepSeek = io.github.nanomuse.chat.DeepSeekTracker.isDeepSeekModel(
+            modelId = modelId,
+            displayName = entry?.model?.displayName ?: _modelName.value,
+            providerName = _providerName.value,
+            baseUrl = baseUrl,
+        )
+        if (!isDeepSeek) {
+            val status = DeepSeekStatus(isDeepSeek = false)
+            _deepSeekStatus.value = status
+            return status
+        }
+
+        val todayCost = io.github.nanomuse.chat.DeepSeekTracker.getTodayDeepSeekCost(chatRepository.dao)
+        var apiKey = instance?.let { inst -> providerRepository.usableApiKey(inst) }
+        var targetBaseUrl = baseUrl
+
+        // If the active instance is a relay or doesn't have an official key, try finding the official DeepSeek instance in config
+        if (targetBaseUrl?.contains("api.deepseek.com", ignoreCase = true) != true || apiKey.isNullOrBlank()) {
+            val officialInstance = config.instances.firstOrNull { inst ->
+                inst.isEnabled && (
+                    inst.customBaseURL?.contains("api.deepseek.com", ignoreCase = true) == true ||
+                    inst.label.contains("deepseek", ignoreCase = true)
+                )
+            }
+            if (officialInstance != null) {
+                val officialKey = providerRepository.usableApiKey(officialInstance)
+                if (!officialKey.isNullOrBlank()) {
+                    apiKey = officialKey
+                    targetBaseUrl = officialInstance.customBaseURL
+                }
+            }
+        }
+
+        val balance = io.github.nanomuse.chat.DeepSeekTracker.fetchOfficialBalance(
+            apiKey = apiKey,
+            baseUrl = targetBaseUrl,
+            forceRefresh = forceRefreshBalance,
+        )
+        val status = DeepSeekStatus(
+            isDeepSeek = true,
+            balance = balance ?: _deepSeekStatus.value.balance,
+            todayCost = todayCost,
+            period = io.github.nanomuse.chat.DeepSeekTracker.getCurrentPeriod(),
+        )
+        _deepSeekStatus.value = status
+        return status
+    }
+
     fun refreshDeepSeekStatus(forceRefreshBalance: Boolean = false) {
         viewModelScope.launch {
-            val entryId = _activeEntryId.value
-            val config = providerRepository.config.value
-            val entry = entryId?.let { id -> config.modelEntries.find { it.id == id } }
-                ?: currentModel?.id?.let { mid -> config.modelEntries.find { it.model.id == mid } }
-                ?: _modelName.value.takeIf { it.isNotEmpty() }?.let { name -> config.modelEntries.find { it.model.displayName.equals(name, ignoreCase = true) } }
-
-            val modelId = entry?.model?.id ?: currentModel?.id ?: currentProvider?.model?.id
-            val instance = entry?.let { e -> config.instances.find { it.id == e.providerInstanceId } }
-            val baseUrl = instance?.customBaseURL
-
-            val isDeepSeek = io.github.nanomuse.chat.DeepSeekTracker.isDeepSeekModel(
-                modelId = modelId,
-                displayName = entry?.model?.displayName ?: _modelName.value,
-                providerName = _providerName.value,
-                baseUrl = baseUrl,
-            )
-            if (!isDeepSeek) {
-                _deepSeekStatus.value = DeepSeekStatus(isDeepSeek = false)
-                return@launch
-            }
-
-            val todayCost = io.github.nanomuse.chat.DeepSeekTracker.getTodayDeepSeekCost(chatRepository.dao)
-            var apiKey = instance?.let { inst -> providerRepository.usableApiKey(inst) }
-            var targetBaseUrl = baseUrl
-
-            // If the active instance is a relay or doesn't have an official key, try finding the official DeepSeek instance in config
-            if (targetBaseUrl?.contains("api.deepseek.com", ignoreCase = true) != true || apiKey.isNullOrBlank()) {
-                val officialInstance = config.instances.firstOrNull { inst ->
-                    inst.isEnabled && (
-                        inst.customBaseURL?.contains("api.deepseek.com", ignoreCase = true) == true ||
-                        inst.label.contains("deepseek", ignoreCase = true)
-                    )
-                }
-                if (officialInstance != null) {
-                    val officialKey = providerRepository.usableApiKey(officialInstance)
-                    if (!officialKey.isNullOrBlank()) {
-                        apiKey = officialKey
-                        targetBaseUrl = officialInstance.customBaseURL
-                    }
-                }
-            }
-
-            val balance = io.github.nanomuse.chat.DeepSeekTracker.fetchOfficialBalance(
-                apiKey = apiKey,
-                baseUrl = targetBaseUrl,
-                forceRefresh = forceRefreshBalance,
-            )
-            _deepSeekStatus.value = DeepSeekStatus(
-                isDeepSeek = true,
-                balance = balance ?: _deepSeekStatus.value.balance,
-                todayCost = todayCost,
-                period = io.github.nanomuse.chat.DeepSeekTracker.getCurrentPeriod(),
-            )
+            updateDeepSeekStatus(forceRefreshBalance)
         }
     }
 
@@ -10307,6 +10314,7 @@ class ChatViewModel(
             com.openminis.app.tools.NativeSystemTools.TOOL_SCREEN_CAPTURE -> executeScreenCaptureTool(argsJson)
             com.openminis.app.tools.NativeSystemTools.TOOL_IMAGE_GENERATE -> com.openminis.app.tools.NativeSystemTools.executeImageGenerate(argsJson, context)
             com.openminis.app.tools.AgentTools.TOOL_ASK_USER_QUESTION, "ask_user_question", "ask_question", "ask_user", "ask" -> executeAskUserQuestion(toolId, argsJson)
+            com.openminis.app.tools.NativeSystemTools.TOOL_MODEL_QUOTA, "get_model_quota", "model_quota", "deepseek_status", "check_quota" -> executeModelQuotaTool(argsJson)
             else -> ToolExecutionResult("Unknown tool: $name", false)
         }
 
@@ -10343,6 +10351,45 @@ class ChatViewModel(
 
     fun answerQuestion(toolId: String, answer: String) {
         pendingQuestionDeferreds[toolId]?.complete(answer)
+    }
+
+    // nanoMuse: execute tool for querying model quota, balance, and billing period
+    private suspend fun executeModelQuotaTool(argsJson: String): ToolExecutionResult {
+        val json = try { JSONObject(argsJson) } catch (_: Exception) { JSONObject() }
+        val toolTitle = json.optString("tool_title", "Query Model Quota")
+        val forceRefresh = json.optBoolean("force_refresh", false)
+
+        val status = updateDeepSeekStatus(forceRefreshBalance = forceRefresh)
+        val period = io.github.nanomuse.chat.DeepSeekTracker.getCurrentPeriod()
+        val modelName = _modelName.value.ifBlank { currentModel?.id ?: "Unknown" }
+
+        val sb = StringBuilder()
+        sb.append("### Model Quota & Billing Status\n\n")
+        sb.append("- **Current Model**: $modelName\n")
+        sb.append("- **Is DeepSeek Provider**: ${status.isDeepSeek}\n")
+
+        if (status.isDeepSeek) {
+            if (!status.balance.isNullOrBlank()) {
+                sb.append("- **Account Balance**: ¥${status.balance}\n")
+            } else {
+                sb.append("- **Account Balance**: 未配置官方直连 API 密钥或中转未返回余额\n")
+            }
+            val costStr = if (status.todayCost == 0.0) "¥0.00" else String.format(java.util.Locale.US, "¥%.3f", status.todayCost)
+            sb.append("- **Today's Cost**: $costStr\n")
+            sb.append("- **Current Billing Period**: ${period.label} (${if (period.isOffPeak) "5折优惠" else "常规计费"})\n")
+            sb.append("- **Period Details**: ${period.detail}\n")
+            sb.append("- **Peak Hours Rule**: 工作日 09:00-12:00, 14:00-18:00 (常规价格)\n")
+            sb.append("- **Off-Peak Hours Rule**: 工作日 12:00-14:00, 18:00-09:00 及周末/法定节假日全天 (5折优惠)\n")
+        } else {
+            sb.append("- **Current Billing Period**: ${period.label} (${period.detail})\n")
+            sb.append("- **Note**: 官方余额与峰谷优惠实时查询主要适用于 DeepSeek 官方接口。当前模型今日调用已正常记录至用量统计。\n")
+        }
+
+        return ToolExecutionResult(
+            output = sb.toString(),
+            success = true,
+            toolTitle = toolTitle,
+        )
     }
 
     /**

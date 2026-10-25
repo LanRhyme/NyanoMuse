@@ -38,31 +38,85 @@ object DeepSeekTracker {
         val label: String,
         val timeRange: String,
         val detail: String,
+        val isWeekend: Boolean = false,
+        val isHoliday: Boolean = false,
     )
 
+    private val STATUTORY_HOLIDAYS = setOf(
+        // 2026 Statutory Holidays (China General Office arrangement)
+        "2026-01-01", "2026-01-02", "2026-01-03", // New Year
+        "2026-02-15", "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-21", "2026-02-22", "2026-02-23", // Spring Festival
+        "2026-04-04", "2026-04-05", "2026-04-06", // Tomb Sweeping Day
+        "2026-05-01", "2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05", // Labor Day
+        "2026-06-19", "2026-06-20", "2026-06-21", // Dragon Boat Festival
+        "2026-09-25", "2026-09-26", "2026-09-27", // Mid-Autumn Festival
+        "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06", "2026-10-07", // National Day
+    )
+
+    /**
+     * DeepSeek Official Peak / Off-Peak rule (referencing dsh-cost-meter):
+     * Timezone: Asia/Shanghai (UTC+8).
+     *
+     * 1. Weekends (Saturday & Sunday) and Chinese statutory public holidays are 100% full-day off-peak (50% discount).
+     * 2. Weekdays:
+     *    - Peak hours (100% standard price): 09:00 - 12:00, 14:00 - 18:00
+     *    - Off-peak hours (50% discount): 00:00 - 09:00, 12:00 - 14:00, 18:00 - 24:00
+     */
     fun getCurrentPeriod(nowMs: Long = System.currentTimeMillis()): PeriodInfo {
         val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT+8"), Locale.CHINA).apply {
             timeInMillis = nowMs
         }
-        val hour = cal.get(Calendar.HOUR_OF_DAY)
-        val minute = cal.get(Calendar.MINUTE)
-        val minuteOfDay = hour * 60 + minute
+        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+        val isWeekend = (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY)
 
-        // Beijing Time (UTC+8): 00:30 (30 min) to 08:30 (510 min) is Off-Peak (低谷期，5折优惠)
-        val isOffPeak = minuteOfDay in 30 until 510
-        return if (isOffPeak) {
-            PeriodInfo(
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            timeZone = java.util.TimeZone.getTimeZone("GMT+8")
+        }
+        val dateKey = sdf.format(java.util.Date(nowMs))
+        val isHoliday = STATUTORY_HOLIDAYS.contains(dateKey)
+
+        if (isWeekend) {
+            return PeriodInfo(
                 isOffPeak = true,
                 label = "低谷期",
-                timeRange = "00:30-08:30",
-                detail = "低谷期 00:30-08:30 (5折)"
+                timeRange = "周末全天",
+                detail = "低谷期 · 周末全天 (5折)",
+                isWeekend = true,
+                isHoliday = false,
             )
-        } else {
+        }
+
+        if (isHoliday) {
+            return PeriodInfo(
+                isOffPeak = true,
+                label = "低谷期",
+                timeRange = "节假日全天",
+                detail = "低谷期 · 节假日全天 (5折)",
+                isWeekend = false,
+                isHoliday = true,
+            )
+        }
+
+        val hour = cal.get(Calendar.HOUR_OF_DAY)
+        val isPeak = (hour in 9 until 12) || (hour in 14 until 18)
+
+        return if (isPeak) {
             PeriodInfo(
                 isOffPeak = false,
                 label = "高峰期",
-                timeRange = "08:30-00:30",
-                detail = "高峰期 08:30-00:30"
+                timeRange = "09:00-12:00, 14:00-18:00",
+                detail = "高峰期 (09:00-12:00, 14:00-18:00)",
+                isWeekend = false,
+                isHoliday = false,
+            )
+        } else {
+            PeriodInfo(
+                isOffPeak = true,
+                label = "低谷期",
+                timeRange = "12:00-14:00, 18:00-09:00",
+                detail = "低谷期 (5折)",
+                isWeekend = false,
+                isHoliday = false,
             )
         }
     }

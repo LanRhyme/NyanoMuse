@@ -130,7 +130,7 @@ fun TokenUsageSheet(
                     val costStr = if (deepSeekStatus.todayCost == 0.0) "¥0.00" else String.format(Locale.US, "¥%.3f", deepSeekStatus.todayCost)
                     StatRow("今日花费", costStr)
                     val period = deepSeekStatus.period
-                    StatRow("计费时段", if (period.isOffPeak) "低谷期 (00:30-08:30 · 5折)" else "高峰期 (08:30-00:30)")
+                    StatRow("计费时段", "${period.label} (${period.timeRange}${if (period.isOffPeak) " · 5折" else ""})")
                 }
             }
 

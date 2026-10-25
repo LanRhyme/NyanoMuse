@@ -60,6 +60,7 @@ object NativeSystemTools {
     const val TOOL_SYSTEM_NOTIFY = "system_notify"
     const val TOOL_SCREEN_CAPTURE = "screen_capture"
     const val TOOL_IMAGE_GENERATE = "image_generate"
+    const val TOOL_MODEL_QUOTA = "model_quota"
 
     const val CHANNEL_ID = "nanomuse_agent_notifications"
     private const val CHANNEL_NAME = "NyanoMuse Notifications"
@@ -68,7 +69,7 @@ object NativeSystemTools {
     private var isTorchOn: Boolean = false
 
     fun isReadOnly(name: String): Boolean = when (name) {
-        TOOL_DEVICE_INFO, TOOL_FOREGROUND_APP, TOOL_SCREEN_CAPTURE, FileReadTool.NAME, "memory_get", ReadImageTool.NAME -> true
+        TOOL_DEVICE_INFO, TOOL_FOREGROUND_APP, TOOL_SCREEN_CAPTURE, FileReadTool.NAME, "memory_get", ReadImageTool.NAME, TOOL_MODEL_QUOTA, "get_model_quota", "deepseek_status", "check_quota" -> true
         else -> false
     }
 
@@ -82,6 +83,7 @@ object NativeSystemTools {
         systemNotifyDefinition(),
         screenCaptureDefinition(),
         imageGenerateDefinition(),
+        modelQuotaDefinition(),
     )
 
     fun deviceControlDefinition(): AgentToolDefinition = AgentToolDefinition(
@@ -210,6 +212,19 @@ object NativeSystemTools {
         ),
         required = listOf("tool_title"),
         propertyOrdering = listOf("tool_title", "prompt"),
+    )
+
+    // nanoMuse: expose model quota & peak/off-peak billing status query tool to AI
+    fun modelQuotaDefinition(): AgentToolDefinition = AgentToolDefinition(
+        name = TOOL_MODEL_QUOTA,
+        description = "Query the current AI model account quota, remaining balance, today's token consumption/cost, and peak/off-peak billing period status. " +
+            "Call this tool when the user asks about remaining balance, quota, token costs, or peak/off-peak pricing.",
+        parameters = mapOf(
+            "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does."),
+            "force_refresh" to AgentToolParam("boolean", "Whether to bypass local cache and query the official API directly (default: false)."),
+        ),
+        required = emptyList(),
+        propertyOrdering = listOf("tool_title", "force_refresh"),
     )
 
     fun executeForegroundApp(argsJson: String, context: Context): ToolExecutionResult {
@@ -420,7 +435,11 @@ object NativeSystemTools {
             }
             sb.append("**Network**:\n")
             sb.append("- Connected: $isConnected\n")
-            sb.append("- Active Transport: $transport\n")
+            sb.append("- Active Transport: $transport\n\n")
+
+            // 7. AI Billing & Quota Period
+            val period = io.github.nanomuse.chat.DeepSeekTracker.getCurrentPeriod()
+            sb.append("**AI Billing Period**: ${period.label} (${period.detail})\n")
 
             ToolExecutionResult(
                 output = sb.toString(),
