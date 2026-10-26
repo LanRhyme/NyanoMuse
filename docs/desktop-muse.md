@@ -36,10 +36,21 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   them; a task's details, a narrow column at the top right, moves its tabs down below the
   caption buttons instead. Full screen and the split pane, whose bars start lower, get no
   extra space.
-- The chats column: a *Search* field with a *···* menu (archived chats), **Main chat**
-  (one session that stays at the top, the first one or the one you chose with *Make
-  main chat*) and **Side chats** with a *+*: every other session, pinned first, each
-  with a *···* for *Make main chat*, *Pin*, *Rename* (inline), *Archive*. A blank
+- The chats column opens with the folder the agent works in: one row with a folder
+  glyph, the folder's name and a chevron. That is the **workspace switcher**. Its menu
+  lists *All chats* (the column ungrouped, as it starts), every workspace with its path
+  and a check on the current one, *Add a folder…* and *Remove this workspace*; removing
+  asks for a second click, and it takes the registration away only, never the folder or
+  a chat log. Picking a folder groups the list: the main chat, then that folder's chats
+  under its own name, then *Other chats*. A new chat starts in the current folder, so
+  the agent's reads and commands run there, and the choice is kept in
+  `$DSH_HOME/nanomuse/workspace.json`, so the next start opens on the same one. The
+  folders themselves are the harness's own registry; *Add a folder…* asks the host for
+  its folder chooser and falls back to a path field where there is none.
+- Under it a *Search* field with a *···* menu (archived chats), a quiet **New chat** row,
+  and the list: **Main chat** (one session that stays at the top, the first one or the
+  one you chose with *Make main chat*) first, then every other session, pinned first,
+  each with a *···* for *Make main chat*, *Pin*, *Rename* (inline), *Archive*. A blank
   session reads *New chat*; a dot marks a running one, a mark one that waits for you.
   It collapses to the rail alone. The column shows the account that is signed in: a
   synced conversation remembers the account it came from, so another account's
@@ -53,8 +64,8 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   the name reads *connected* / *not signed in* / *thinking…* / *Hands · step N · what it is
   doing* / *Reach · step N · on Laptop B: …* / *waiting for you* and tints while the agent
   works and while it waits; idle, the bar is the phone's single line. The thread starts a
-  breath below the bar, so no message is drawn behind the face, and the bar has no rule
-  under it: the phone lets the chat dissolve into it. Clicking the face opens the profile
+  breath below the bar, so no message is drawn behind the face, and the bar ends in a
+  hairline, so the thread has a top edge. Clicking the face opens the profile
   panel. The harness's own title row, tabs (*Conversation* / *Trace*) and session actions
   are hidden: the chat rows carry rename, pin and archive.
 - The conversation keeps the phone's shapes: your messages are pills on the right in the

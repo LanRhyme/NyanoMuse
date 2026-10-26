@@ -53,6 +53,10 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Desktop
 
+- **The desktop has workspaces: a folder the agent works in, switchable from the column.** The chats column now opens with the folder's name and a chevron; the menu lists every workspace with its path, *Add a folder…* (the host's own folder chooser, or a path field where it has none), *Remove this workspace* behind a second click, and *All chats*. Picking one groups the list (the main chat, that folder's chats under its name, then *Other chats*), and a new chat starts in it, so the agent's reads and commands run there. The folders are the harness's own registry; which one is current is kept in `$DSH_HOME/nanomuse/workspace.json`, so the next start opens on the same one, and a folder deleted elsewhere reads as none instead of being started in.
+
+- **The window is quieter.** One scale for spacing, radius, type and elevation now runs through the rail, the column, the chat and the composer. The column's two full-width grey slabs became one workspace row, a search field, a quiet *New chat* row and a list; the three capsules beside the name in the header share one shape; the bar ends in a hairline; message bubbles take the phone's tail corner and one text size; and over a wallpaper the composer and the agent's cards are panes you can read through, not windows into the picture.
+
 - **A chat deleted on another device no longer comes back.** The harness has no delete, so the session stayed in the log and the next push minted a fresh conversation id for its whole history, which every other device then re-created as a new chat. A conversation deleted elsewhere is remembered as retired: its words stay on this computer and it never syncs again.
 
 - **A push the connection dropped no longer posts the same turn twice.** Each line's `mid` is now written before the request (as `pending`) and reused by the retry, and a failed push puts its sessions back in the queue instead of waiting for the next turn; the relay knows a `mid`, so the turn lands once whatever happened to the connection.

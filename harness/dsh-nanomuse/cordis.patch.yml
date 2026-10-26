@@ -94,3 +94,10 @@
     # /nanomuse/mood/*; the preset row `nanomuse-chat-style` carries the prompt.
     - id: nanomuse-mood
       name: dsh-nanomuse/mood
+
+    # Workspaces: the harness keeps the list of folders and their chats
+    # (`ctx.workspaceRegistry`); this row keeps which one new chats start in,
+    # in $DSH_HOME/nanomuse/workspace.json, served under /nanomuse/workspace.
+    # The column's switcher is the browser half.
+    - id: nanomuse-workspace
+      name: dsh-nanomuse/workspace

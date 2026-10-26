@@ -51,6 +51,28 @@ html[data-nanomuse] {
   --nm-header-top: 0px;
   --nm-radius: 14px;
   --nm-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  /* One scale for everything this plugin draws: the rail, the column, the chat and
+     the composer share it, so a 34px row is 34px everywhere and a hairline is one
+     colour. Four steps of spacing, four of radius, four of type; nothing below
+     reads a magic number of its own. */
+  --nm-s1: 4px;
+  --nm-s2: 8px;
+  --nm-s3: 12px;
+  --nm-s4: 16px;
+  --nm-s5: 24px;
+  --nm-r-sm: 8px;
+  --nm-r-md: 12px;
+  --nm-r-lg: 16px;
+  --nm-r-xl: 20px;
+  --nm-r-pill: 999px;
+  --nm-fs-xs: 11px;
+  --nm-fs-sm: 12.5px;
+  --nm-fs-md: 13.5px;
+  --nm-fs-lg: 15px;
+  --nm-dur: 140ms;
+  --nm-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --nm-shadow-1: 0 1px 2px rgb(0 0 0 / 0.1);
+  --nm-shadow-2: 0 10px 30px rgb(0 0 0 / 0.22);
 }
 /* Light: the phone's Morandi palette (ThemePalette.kt, MorandiLightColorScheme and
    MorandiLightChatPalette): warm paper #f3f1ec, cards a shade lighter, the sage primary for
@@ -152,7 +174,7 @@ html[data-nanomuse] body { font-family: var(--nm-font); }
 
 /* ---- sidebar: icon rail + chats column -------------------------------- */
 .nm-sidebar { display: flex; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary); background: var(--nm-base); }
-.nm-rail { width: var(--nm-rail); flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 12px; box-sizing: border-box; }
+.nm-rail { width: var(--nm-rail); flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 12px; box-sizing: border-box; border-right: 1px solid color-mix(in srgb, var(--nm-divider) 70%, transparent); }
 .nm-rail-top { height: 12px; flex: none; }
 html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-rail-top { height: 78px; }
 .nm-rail-face { display: inline-flex; border-radius: 50%; overflow: hidden; }
@@ -205,9 +227,9 @@ html[data-nm-platform='win32']:not([data-nm-fullscreen]) [data-testid="task-mana
 html[data-nm-platform='win32']:not([data-nm-fullscreen]) [data-sidebar-right-panel] [data-dockkit-strip]:has(> [data-dockkit-strip-chrome]) { padding-inline-end: calc(6px + var(--nm-caption-inset)); }
 .nm-rail-avatar { width: 44px; height: 44px; margin: 2px 0 10px; border: 0; padding: 0; border-radius: 50%; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .nm-rail-avatar:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: 2px; }
-.nm-rail-btn { position: relative; width: 44px; height: 44px; border: 0; padding: 0; border-radius: 13px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 120ms, color 120ms; }
+.nm-rail-btn { position: relative; width: 42px; height: 42px; border: 0; padding: 0; border-radius: var(--nm-r-md); background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 120ms, color 120ms; }
 .nm-rail-btn:hover { background: var(--nm-hover); color: var(--dsw-alias-label-primary); }
-.nm-rail-btn[aria-current], .nm-rail-btn[aria-expanded="true"] { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); }
+.nm-rail-btn[aria-current], .nm-rail-btn[aria-expanded="true"] { background: var(--nm-selected); color: var(--dsw-alias-label-primary); }
 .nm-rail-btn:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: -2px; }
 .nm-rail-dot { position: absolute; top: 9px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--nm-accent); box-shadow: 0 0 0 2px var(--nm-base); }
 .nm-rail-spacer { flex: 1; }
@@ -224,13 +246,17 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 .nm-col-foot:empty { display: none; }
 
 .nm-chats { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.nm-chats-head { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px; }
-.nm-chats-new-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 36px; border: 1px solid var(--nm-divider); border-radius: 10px; background: color-mix(in srgb, var(--nm-blue, #58a6ff) 12%, transparent); color: var(--nm-blue, #58a6ff); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; transition: all 150ms ease; }
-.nm-chats-new-btn:hover { background: color-mix(in srgb, var(--nm-blue, #58a6ff) 22%, transparent); border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 40%, transparent); }
-.nm-chats-main-btn { display: inline-flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; height: 36px; padding: 0 12px; box-sizing: border-box; border: 1px solid var(--nm-divider); border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-bg-layer-2, #888) 35%, transparent); color: var(--dsw-alias-label-primary); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; transition: all 150ms ease; }
-.nm-chats-main-btn:hover { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2, #888) 55%, transparent); }
-.nm-chats-main-btn.nm-selected { background: var(--nm-selected); border-color: color-mix(in srgb, var(--nm-blue, #58a6ff) 50%, transparent); font-weight: 600; }
-.nm-chats-main-icon { display: flex; align-items: center; justify-content: center; opacity: 0.85; }
+.nm-chats-head { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 0 8px 6px; }
+/* New chat is a row, not a slab: the accent glyph carries it, the label stays quiet. */
+.nm-chats-new { display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px; box-sizing: border-box; border: 0; border-radius: var(--nm-r-sm); background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: var(--nm-fs-md); text-align: left; cursor: pointer; transition: background var(--nm-dur) var(--nm-ease), color var(--nm-dur) var(--nm-ease); }
+.nm-chats-new:hover { background: var(--nm-hover); color: var(--dsw-alias-label-primary); }
+.nm-chats-new svg { color: var(--nm-accent); flex: none; }
+/* A section of the list: Main chat, the folder's chats, the ones outside it. */
+.nm-chats-label { padding: 12px 8px 4px; font-size: var(--nm-fs-xs); font-weight: 500; color: var(--dsw-alias-label-tertiary); }
+.nm-chats-label:first-child { padding-top: 2px; }
+/* The one long conversation: a row like the others, with the house glyph where a state dot goes. */
+.nm-chat-main { display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; padding: 0 8px; box-sizing: border-box; border: 0; border-radius: var(--nm-r-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: var(--nm-fs-md); text-align: left; cursor: pointer; }
+.nm-chat-icon { display: inline-flex; align-items: center; color: var(--dsw-alias-label-secondary); flex: none; }
 .nm-chats-search-row { display: flex; align-items: center; gap: 4px; width: 100%; }
 .nm-chats-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 9px; background: var(--nm-field); border: 1px solid var(--nm-field-border); color: var(--dsw-alias-label-tertiary); cursor: text; }
 .nm-chats-search:focus-within { border-color: var(--nm-blue); }
@@ -240,12 +266,14 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 .nm-chats-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 2px; }
 .nm-chats-section { display: none; }
 .nm-chats-empty { padding: 12px 10px; font-size: 12.5px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); text-align: center; }
-.nm-chat-row { position: relative; display: flex; align-items: center; border-radius: 9px; min-height: 34px; transition: background 120ms; }
+.nm-chat-row { position: relative; display: flex; align-items: center; border-radius: var(--nm-r-sm); min-height: 34px; transition: background var(--nm-dur) var(--nm-ease); }
 .nm-chat-row:hover { background: var(--nm-hover); }
+.nm-chat-row:hover .nm-chat-open { color: var(--dsw-alias-label-primary); }
+.nm-chat-row.nm-selected .nm-chat-open { color: var(--dsw-alias-label-primary); font-weight: 500; }
 .nm-chat-row.nm-selected { background: var(--nm-selected); }
 .nm-chat-row.nm-pinned { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 65%, transparent); }
 .nm-chat-pin-mark { font-size: 11px; opacity: 0.7; flex: none; margin-right: 2px; }
-.nm-chat-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px 0 10px; border: 0; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: 14px; text-align: left; cursor: pointer; border-radius: 9px; }
+.nm-chat-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: var(--nm-fs-md); text-align: left; cursor: pointer; border-radius: var(--nm-r-sm); }
 .nm-chat-open:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: -2px; }
 .nm-chat-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nm-chat-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--nm-accent); flex: none; }
@@ -256,6 +284,31 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 .nm-chat-more:hover { background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); }
 .nm-chat-row:hover .nm-chat-title { padding-right: 22px; }
 .nm-chat-edit { flex: 1; min-width: 0; height: 30px; margin: 2px 4px; padding: 0 8px; border: 1px solid var(--nm-blue); border-radius: 7px; background: var(--nm-field); color: var(--dsw-alias-label-primary); font: inherit; font-size: 14px; outline: none; }
+/* ---- the workspace switcher (WorkspaceSwitcher.tsx) -------------------- */
+/* The column's title row: the folder the agent works in, and the way to another.
+   It is the loudest line of the column on purpose — which folder a chat starts in
+   is the one setting a person changes here — and it is still one 34px row. */
+.nm-ws { flex: none; }
+.nm-ws-btn { display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; padding: 0 8px; box-sizing: border-box; border: 0; border-radius: var(--nm-r-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: var(--nm-fs-lg); font-weight: 600; text-align: left; cursor: pointer; transition: background var(--nm-dur) var(--nm-ease); }
+.nm-ws-btn:hover, .nm-ws-btn.nm-open { background: var(--nm-hover); }
+.nm-ws-btn:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: -2px; }
+.nm-ws-btn > svg { flex: none; color: var(--dsw-alias-label-secondary); }
+.nm-ws-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-ws-chevron { opacity: 0.55; }
+.nm-ws-menu { min-width: 248px; max-width: min(380px, calc(100vw - 24px)); }
+.nm-ws-item { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: var(--nm-r-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: var(--nm-fs-md); text-align: left; cursor: pointer; }
+.nm-ws-item:hover, .nm-ws-item:focus-visible { background: var(--nm-hover); outline: none; }
+.nm-ws-item.nm-active { font-weight: 500; }
+.nm-ws-item-icon { width: 16px; flex: none; display: inline-flex; justify-content: center; padding-top: 1px; color: var(--nm-accent); }
+.nm-ws-item-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.nm-ws-item-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-ws-item-hint { font-size: var(--nm-fs-xs); color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.nm-ws-form { display: flex; align-items: center; gap: 6px; padding: 4px; }
+.nm-ws-input { flex: 1; min-width: 0; height: 30px; padding: 0 8px; box-sizing: border-box; border: 1px solid var(--nm-field-border); border-radius: var(--nm-r-sm); background: var(--nm-field); color: var(--dsw-alias-label-primary); font: inherit; font-size: var(--nm-fs-md); outline: none; }
+.nm-ws-input:focus { border-color: var(--nm-blue); }
+.nm-ws-error { padding: 4px 8px 2px; font-size: var(--nm-fs-xs); line-height: 1.4; color: var(--dsw-alias-state-error-primary, #b42318); }
+.nm-menu-item.nm-danger, .nm-menu-item.nm-danger svg { color: var(--dsw-alias-state-error-primary, #b42318); }
+
 /* a turn of the conversation written on another device of the account (C8): the person's bubble on the
    right like the harness's own, the Muse's on the left, "From Pixel 8" under either (RemoteBubbles.ts) */
 .nm-remote { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
@@ -292,7 +345,7 @@ header[data-window-drag]:has(.nm-header) { position: relative; min-height: var(-
    scroll body), so nothing is ever drawn behind the face. The bar is a pane of the canvas, not a
    floating sticker: it takes the canvas colour at 82 percent over whatever is behind it, so a
    wallpaper still reads through it without the text losing its ground. */
-html[data-nm-muse] header[data-window-drag]:has(.nm-header) { position: absolute; top: var(--nm-header-top, 0px); left: 0; right: 0; z-index: 6; height: var(--nm-header-h); box-sizing: border-box; border-bottom: 0; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--nm-canvas) 72%, transparent) 0%, color-mix(in srgb, var(--nm-canvas) 34%, transparent) 62%, transparent 100%); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+html[data-nm-muse] header[data-window-drag]:has(.nm-header) { position: absolute; top: var(--nm-header-top, 0px); left: 0; right: 0; z-index: 6; height: var(--nm-header-h); box-sizing: border-box; border-bottom: 1px solid color-mix(in srgb, var(--nm-divider) 60%, transparent); pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--nm-canvas) 88%, transparent) 0%, color-mix(in srgb, var(--nm-canvas) 62%, transparent) 70%, transparent 100%); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 html[data-nm-muse] header[data-window-drag]:has(.nm-header) :is(button, a, input, [role="tab"], [role="dialog"], [role="menu"], .nm-header, .nm-header-drag) { pointer-events: auto; }
 html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] { background: var(--nm-canvas); --dsw-alias-bg-base: var(--nm-canvas); }
 html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] > [data-conversation-scroll] { padding-top: calc(var(--nm-header-top, 0px) + var(--nm-header-h) + 8px); }
@@ -304,13 +357,13 @@ html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-con
 .nm-header { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 0 12px; box-sizing: border-box; z-index: 2; pointer-events: auto; }
 .nm-header-group { grid-column: 2; justify-self: center; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .nm-header-back { grid-column: 1; justify-self: start; }
-.nm-header-face { position: relative; width: 30px; height: 30px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 300ms; }
+.nm-header-face { position: relative; width: 28px; height: 28px; flex: none; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 300ms; }
 .nm-header-face.nm-live { box-shadow: 0 0 0 1.5px var(--nm-accent); }
 .nm-header-face.nm-wait { box-shadow: 0 0 0 1.5px var(--dsw-alias-state-warn-primary, #d98c1f); }
 .nm-header-face:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: 2px; }
 .nm-header-titles { display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; flex: 1 1 auto; }
-.nm-header-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.nm-header-name { font-size: 15px; font-weight: 600; line-height: 17px; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.nm-header-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: nowrap; }
+.nm-header-name { font-size: var(--nm-fs-lg); font-weight: 600; line-height: 18px; letter-spacing: -0.01em; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .nm-header-actions { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px; flex: none; }
 .nm-header-status { display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 13px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .nm-header-status.nm-live { color: var(--dsw-alias-label-secondary); }
@@ -340,7 +393,7 @@ html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-con
    filter here those popovers were laid out against the 712 px card instead of the window, so the
    list opened full width over the pill instead of under the "+". The card's own fill carries the
    look; the blur belongs to elements that hold no popovers. */
-html[data-nm-muse] [data-composer-card] { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: flex-end; gap: 2px 4px; padding: 6px 8px 6px 10px !important; border-radius: 26px !important; background: var(--nm-field) !important; box-shadow: 0 0 0 1px var(--nm-field-border), 0 8px 28px rgba(0,0,0,0.18) !important; transition: box-shadow 180ms ease, border-color 180ms ease; }
+html[data-nm-muse] [data-composer-card] { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: flex-end; gap: 2px 4px; padding: 6px 8px 6px 10px !important; border-radius: var(--nm-r-xl) !important; background: var(--nm-field) !important; box-shadow: 0 0 0 1px var(--nm-field-border), 0 8px 28px rgba(0,0,0,0.18) !important; transition: box-shadow 180ms ease, border-color 180ms ease; }
 html[data-nm-muse] [data-composer-card]:focus-within { box-shadow: 0 0 0 1.5px var(--nm-blue), 0 10px 32px rgba(0,0,0,0.22) !important; }
 html[data-nm-muse] [data-composer-card] > [data-input-scroll] { flex: 1 1 120px; min-width: 0; order: 0; margin: 0 !important; }
 html[data-nm-muse] [data-composer-card] > [data-input-scroll] [contenteditable] { min-height: 34px !important; padding: 5px 6px 5px 8px !important; }
@@ -416,14 +469,14 @@ html[data-nm-muse] [data-chat-flow-kind="turn-tail"] [class*="_timeEnd"] { font-
 /* The user's words: the ink pill on the right (black with white text in the light, white with black
    in the dark). The agent's: a quiet grey one a step off the canvas. A link inside your pill keeps the
    pill's text colour, underlined, and a selection on it is a translucent wash of that colour. */
-html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] { background: var(--nm-user-bubble) !important; color: var(--nm-user-bubble-fg) !important; border-radius: 18px !important; padding: 8px 14px !important; font-size: 16px !important; line-height: 1.5 !important; box-shadow: none; }
+html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] { background: var(--nm-user-bubble) !important; color: var(--nm-user-bubble-fg) !important; border-radius: 18px 18px 6px 18px !important; padding: 9px 14px !important; font-size: var(--nm-fs-lg) !important; line-height: 1.55 !important; box-shadow: none; }
 html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] a { color: inherit; text-decoration: underline; }
 html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] ::selection { background: var(--nm-user-bubble-selection); color: var(--nm-user-bubble-fg); }
-html[data-nm-muse] .nm-remote-user .nm-remote-bubble { background: var(--nm-user-bubble); color: var(--nm-user-bubble-fg); border-radius: 18px; padding: 8px 14px; font-size: 16px; line-height: 1.5; }
+html[data-nm-muse] .nm-remote-user .nm-remote-bubble { background: var(--nm-user-bubble); color: var(--nm-user-bubble-fg); border-radius: 18px 18px 6px 18px; padding: 9px 14px; font-size: var(--nm-fs-lg); line-height: 1.55; }
 html[data-nm-muse] .nm-remote-user .nm-remote-bubble ::selection { background: var(--nm-user-bubble-selection); color: var(--nm-user-bubble-fg); }
 /* The agent's words are a card on the left, the phone's shape: a large-radius pane of the
    card colour, a step off the canvas, as wide as the column so long replies read as one block. */
-html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] { width: 100%; max-width: 100%; box-sizing: border-box; background: var(--nm-agent-bubble); border-radius: 20px; padding: 12px 16px; box-shadow: none; }
+html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] { width: 100%; max-width: 100%; box-sizing: border-box; background: var(--nm-agent-bubble); border-radius: 18px 18px 18px 6px; padding: 12px 16px; font-size: var(--nm-fs-lg); line-height: 1.72; box-shadow: none; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"]:empty { display: none; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] > :first-child { margin-top: 0; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] > :last-child { margin-bottom: 0; }
@@ -1266,8 +1319,8 @@ body[data-ds-dark-theme] .nm-mem-cat-custom { background: rgba(127, 110, 149, 0.
 .nm-avatar-waiting { animation: nm-hop 3.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .nm-avatar-idle, .nm-avatar-working, .nm-avatar-waiting { animation: none; } }
 /* ---- menus we draw ---------------------------------------------------- */
-.nm-menu { position: fixed; z-index: 80; min-width: 200px; padding: 6px; border-radius: 12px; background: var(--dsw-alias-bg-layer-3, var(--nm-base)); color: var(--dsw-alias-label-primary); box-shadow: 0 12px 40px rgba(0,0,0,0.28), 0 0 0 1px var(--nm-divider); display: flex; flex-direction: column; gap: 1px; }
-.nm-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; text-align: left; padding: 8px 10px; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 13.5px; cursor: pointer; }
+.nm-menu { position: fixed; z-index: 80; min-width: 200px; padding: 6px; border-radius: var(--nm-r-md); background: var(--dsw-alias-bg-layer-3, var(--nm-base)); color: var(--dsw-alias-label-primary); box-shadow: 0 12px 40px rgba(0,0,0,0.28), 0 0 0 1px var(--nm-divider); display: flex; flex-direction: column; gap: 1px; }
+.nm-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; text-align: left; padding: 8px 10px; border-radius: var(--nm-r-sm); background: transparent; color: inherit; font: inherit; font-size: 13.5px; cursor: pointer; }
 .nm-menu-item:hover, .nm-menu-item:focus-visible { background: var(--nm-hover); outline: none; }
 .nm-menu-item svg { color: var(--dsw-alias-label-secondary); flex: none; }
 .nm-menu-item-label { flex: 1; min-width: 0; }
@@ -1718,27 +1771,34 @@ html[data-nm-muse] [data-conversation-scroll]:has(> .nm-intro-host) [class*="_co
 
 /* The balance capsule sits beside the name, as the phone's DeepSeek chip does: a dot and the
    figure on the secondary background, not a tinted outline of its own. */
-.nm-header-balance-pill {
+/* One capsule for the three figures beside the name (balance, billing window, mood):
+   the same height, the same quiet fill, one 11px line. They used to be three
+   different shapes with three different weights, which is what made the bar noisy. */
+.nm-header-balance-pill, .nm-billing-chip, .nm-mood-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--dsw-alias-bg-layer-2);
-  font-size: 10.5px;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--nm-r-pill);
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent);
+  font-size: var(--nm-fs-xs);
   font-weight: 500;
-  color: var(--dsw-alias-label-primary);
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+  flex: none;
   cursor: default;
   user-select: none;
-  flex: none;
-  line-height: 14px;
-  opacity: 0.9;
 }
+.nm-mood-pill { cursor: pointer; }
+.nm-header-balance-pill { font-variant-numeric: tabular-nums; }
 .nm-balance-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #007aff;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 45%, transparent);
   flex: none;
 }
 
@@ -1822,7 +1882,7 @@ html[data-nm-wallpaper] .nm-rail {
 }
 /* the bar over a picture: a pane, not a scrim, so the status line keeps its ground */
 html[data-nm-wallpaper] header[data-window-drag]:has(.nm-header) {
-  background: color-mix(in srgb, var(--nm-canvas) 72%, transparent) !important;
+  background: color-mix(in srgb, var(--nm-canvas) 88%, transparent) !important;
   border-bottom-color: color-mix(in srgb, var(--dsw-alias-label-primary) 10%, transparent);
 }
 /* your pill: the theme's own user colour at 86 percent, blurred behind, no hard edge */
@@ -1835,12 +1895,18 @@ html[data-nm-wallpaper] .nm-remote-user .nm-remote-bubble {
 }
 /* the composer floats on the picture as a pane of the field colour */
 html[data-nm-wallpaper] [data-composer-card] {
-  background: color-mix(in srgb, var(--nm-field) 82%, transparent) !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nm-field-border) 80%, transparent), 0 10px 34px rgba(0, 0, 0, 0.24) !important;
+  background: color-mix(in srgb, var(--nm-field) 96%, transparent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nm-field-border) 90%, transparent), 0 10px 34px rgba(0, 0, 0, 0.24) !important;
 }
-/* the agent's reply keeps the picture behind it: a soft wash under the text only, no card */
-html[data-nm-wallpaper] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] {
-  text-shadow: 0 1px 2px color-mix(in srgb, var(--nm-canvas) 55%, transparent);
+/* The agent's reply over a picture is still a card, a shade more solid than on the bare
+   canvas: text on a photograph with only a shadow under it was the least readable part of
+   the window, and the thread lost its left edge. The split bubbles and the other devices'
+   turns take the same pane, so a turn looks the same whichever way it arrived. */
+html[data-nm-wallpaper] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"],
+html[data-nm-wallpaper] .nm-bubble-seg,
+html[data-nm-wallpaper] .nm-remote-assistant .nm-remote-bubble {
+  background: color-mix(in srgb, var(--nm-agent-bubble) 92%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dsw-alias-label-primary) 8%, transparent);
 }
 
 /* Slim modern Morandi scrollbars */
@@ -1898,7 +1964,7 @@ html[data-nanomuse] [data-tool="ask_user_question"] {
 .nm-bubble-seg {
   max-width: min(760px, 86%);
   padding: 10px 16px;
-  border-radius: 16px 16px 16px 4px;
+  border-radius: 18px 18px 18px 6px;
   background: var(--nm-agent-bubble);
   color: var(--dsw-alias-label-primary);
   font-size: var(--dsh-content-font-size, 14px);
@@ -1908,8 +1974,8 @@ html[data-nanomuse] [data-tool="ask_user_question"] {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
-.nm-bubble-seg.nm-bubble-first { border-top-left-radius: 16px; }
-.nm-bubble-seg:not(.nm-bubble-first) { border-radius: 4px 16px 16px 4px; }
+.nm-bubble-seg.nm-bubble-first { border-top-left-radius: 18px; }
+.nm-bubble-seg:not(.nm-bubble-first) { border-radius: 6px 18px 18px 6px; }
 .nm-bubble-seg > :first-child { margin-top: 0; }
 .nm-bubble-seg > :last-child { margin-bottom: 0; }
 .nm-bubble-seg p { margin: 0 0 6px; }
@@ -2031,23 +2097,7 @@ html[data-ds-dark-theme] .nm-sticker-panel { background: var(--dsw-alias-bg-elev
 
 /* The mood pill in the header and the compass behind it. */
 .nm-mood-anchor { display: inline-flex; }
-.nm-mood-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 20px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 10px;
-  background: rgb(127 127 127 / 0.12);
-  color: var(--dsw-alias-label-primary);
-  font-size: 11px;
-  cursor: pointer;
-  max-width: 190px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.nm-mood-pill { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 .nm-mood-dot { width: 6px; height: 6px; border-radius: 3px; background: var(--nm-accent, #4e5e59); flex: none; }
 .nm-mood-happy .nm-mood-dot { background: #34c759; }
 .nm-mood-working .nm-mood-dot { background: #0a84ff; }
@@ -2110,17 +2160,7 @@ html[data-ds-dark-theme] .nm-mood-sheet { background: var(--dsw-alias-bg-elevate
 .nm-mood-row.nm-lead .nm-mood-bar span { background: var(--nm-accent, #4e5e59); }
 
 /* The DeepSeek billing window beside the balance: green while the half-price window is on. */
-.nm-billing-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  background: rgb(127 127 127 / 0.12);
-  white-space: nowrap;
-}
+.nm-billing-chip { font-variant-numeric: tabular-nums; }
 .nm-billing-dot { width: 6px; height: 6px; border-radius: 3px; flex: none; }
 .nm-billing-off { color: #1f8f3d; }
 .nm-billing-off .nm-billing-dot { background: #34c759; }

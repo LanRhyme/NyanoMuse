@@ -116,6 +116,10 @@ speaking as nanoMuse through the `nanomuse` preset, with:
   chats of their own (goals, with the harness's schedule plugin for their automations;
   Library creations under `~/nanoMuse/Library`), plus memory: what it remembers about
   you, read into every chat ([desktop-muse.md](desktop-muse.md#rail-rooms));
+- **workspaces**: the harness's own registry of folders, one row per project, surfaced as
+  the chats column's switcher. A new chat starts in the folder the person picked, so the
+  agent's reads and commands run there; which folder that is lives in
+  `nanomuse/workspace.json` on this computer ([desktop-muse.md](desktop-muse.md#the-window));
 - **Reach**: this computer on the account's device list over the [hub](hub.md); the
   tools `devices`, `device_screen`, `device_shell`, `device_files`, `device_open`,
   `device_notify` and `delegate` for the phone and the other computers; the phone's

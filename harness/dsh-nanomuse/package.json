@@ -55,6 +55,10 @@
       "types": "./lib/types/mood.d.ts",
       "default": "./lib/mood.js"
     },
+    "./workspace": {
+      "types": "./lib/types/workspace.d.ts",
+      "default": "./lib/workspace.js"
+    },
     "./chat-style": {
       "types": "./lib/types/chat-style.d.ts",
       "default": "./lib/chat-style.js"

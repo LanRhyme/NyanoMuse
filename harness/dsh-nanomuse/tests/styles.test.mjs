@@ -197,9 +197,10 @@ test('in the Muse look the header is the phone\'s bar, and the thread starts und
   const bar = rule(header)
   assert.match(bar, /position:\s*absolute/)
   assert.match(bar, /height:\s*var\(--nm-header-h\)/)
-  // the phone draws no rule under its bar: a short scrim that clears before the thread starts
-  assert.match(bar, /border-bottom:\s*0/)
-  assert.match(bar, /linear-gradient\(to bottom, color-mix\(in srgb, var\(--nm-canvas\) 72%, transparent\) 0%, color-mix\(in srgb, var\(--nm-canvas\) 34%, transparent\) 62%, transparent 100%\)/)
+  // the bar ends in a hairline (the thread gets a top edge; the phone had none, and the
+  // thread used to bleed into the bar's fade), and its scrim clears before the thread starts
+  assert.match(bar, /border-bottom:\s*1px solid color-mix\(in srgb, var\(--nm-divider\) 60%, transparent\)/)
+  assert.match(bar, /linear-gradient\(to bottom, color-mix\(in srgb, var\(--nm-canvas\) 88%, transparent\) 0%, color-mix\(in srgb, var\(--nm-canvas\) 62%, transparent\) 70%, transparent 100%\)/)
   assert.match(bar, /pointer-events:\s*none/)
   // the controls in it still take clicks, and the drag strip still drags
   const controls = css.split('\n').find((l) => l.startsWith(`${header} :is(`) && l.includes('pointer-events: auto'))

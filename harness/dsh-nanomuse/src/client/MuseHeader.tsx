@@ -198,8 +198,8 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
         h('button', {
           type: 'button',
           className: 'nm-header-icon-btn',
-          title: '个性化聊天背景与壁纸设置',
-          'aria-label': '个性化聊天背景与壁纸设置',
+          title: t('wallpaperOpen'),
+          'aria-label': t('wallpaperOpen'),
           onClick: () => wallpaperBus.open(),
         }, h(IconPalette, { size: 17 })))))
 }

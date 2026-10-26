@@ -18,7 +18,8 @@
  */
 import { createElement as h, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { call, type Translate } from './api.ts'
-import { IconHome, IconMore, IconPlus, IconSearch } from './icons.tsx'
+import { IconMore, IconPlus, IconSearch } from './icons.tsx'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher.tsx'
 import { composing } from './keys.ts'
 import { useLive } from './live.ts'
 import { useRooms } from './rooms.ts'
@@ -77,7 +78,28 @@ export interface ChatStatus {
 }
 export type UseSessionList = <S>(selector: (state: ChatListState) => S) => S
 export type UseStatusMap = <S>(selector: (snapshot: ReadonlyMap<string, ChatStatus>) => S) => S
-export type UseWorkspaceList = <S>(selector: (snapshot: { archivedSessionIds: readonly string[]; pinnedSessionIds: readonly string[] }) => S) => S
+/** One workspace as the harness's client reports it (`WorkspaceView`). */
+export interface WorkspaceItem {
+  workspaceId: string
+  title: string
+  path: string
+  sessionIds: readonly string[]
+}
+export type UseWorkspaceList = <S>(selector: (snapshot: { archivedSessionIds: readonly string[]; pinnedSessionIds: readonly string[]; items: readonly WorkspaceItem[] }) => S) => S
+/** The folder the column is grouped by, as `workspace.ts` keeps it. */
+export interface WorkspaceChoice {
+  current?: string | undefined
+  supported: boolean
+  ids: readonly string[]
+}
+export type UseWorkspaceState = <S>(selector: (state: WorkspaceChoice) => S) => S
+/** What the switcher does: the host's folder chooser, and the harness's own workspace calls. */
+export interface WorkspaceActions {
+  browse(): Promise<string | null>
+  add(path: string): Promise<void>
+  remove(id: string): Promise<void>
+  pick(id: string | undefined): void
+}
 
 export interface ChatActions {
   openSession(id: string): void
@@ -94,6 +116,9 @@ export interface MuseChatsProps {
   useSessions: UseSessionList
   useSessionStatus?: UseStatusMap | undefined
   useWorkspaces?: UseWorkspaceList | undefined
+  /** The folder the column is grouped by (`workspace.ts`); absent on a harness without workspaces. */
+  useWorkspace?: UseWorkspaceState | undefined
+  workspaceActions?: WorkspaceActions | undefined
   actions: ChatActions
   /** The search field is focused from outside (the rail's Search). */
   searchRef?: ((el: HTMLInputElement | null) => void) | undefined
@@ -214,10 +239,13 @@ function ChatRow({ t, chat, label, pinned, selected, useSessionStatus, actions }
     menuAnchor ? h(RowMenu, { anchor: menuAnchor, items, onClose: () => setMenuAnchor(null) }) : null)
 }
 
-export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, actions, searchRef }: MuseChatsProps): ReactNode {
+export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, useWorkspace, workspaceActions, actions, searchRef }: MuseChatsProps): ReactNode {
   const state = useSessions((s) => s)
-  const archived = typeof useWorkspaces === 'function' ? useWorkspaces((w) => w.archivedSessionIds) : []
-  const pinned = typeof useWorkspaces === 'function' ? useWorkspaces((w) => w.pinnedSessionIds) : []
+  const board = typeof useWorkspaces === 'function' ? useWorkspaces((w) => w) : undefined
+  const archived = board?.archivedSessionIds ?? []
+  const pinned = board?.pinnedSessionIds ?? []
+  const items = board?.items ?? []
+  const choice = typeof useWorkspace === 'function' ? useWorkspace((s) => s) : undefined
   const [query, setQuery] = useState('')
   const [mainStored, setMainStored] = useState<string | undefined>(readMain)
   useEffect(() => {
@@ -237,7 +265,7 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
   const visible = state.ids
     .map((id) => state.byId[id])
     .filter((s): s is ChatSummary => s !== undefined && s.origin !== 'subagent' && !s.parentId && !archivedSet.has(s.id) && !sync.foreign.has(s.id) && !batches.has(s.id))
-  const current = Object.values(state.byId).find((s) => (s.retainedBy.mainView ?? 0) > 0)?.id
+  const selected = Object.values(state.byId).find((s) => (s.retainedBy.mainView ?? 0) > 0)?.id
 
   // Under the hood, keep a main session mapped for cloud relay sync compatibility
   let mainId = sync.mainSession && visible.some((s) => s.id === sync.mainSession) ? sync.mainSession : undefined
@@ -267,7 +295,7 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
 
   const q = query.trim().toLowerCase()
   const chats = visible
-    .filter((s) => s.id !== mainId && (!s.blank || s.id === current || sync.sessions.has(s.id)))
+    .filter((s) => s.id !== mainId && (!s.blank || s.id === selected || sync.sessions.has(s.id)))
     .filter((s) => q === '' || s.displayTitle.toLowerCase().includes(q))
     .sort((a, b) => {
       const pa = pinnedSet.has(a.id) ? 1 : 0
@@ -285,39 +313,72 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
     { id: 'archived', label: t('chArchived'), onSelect: actions.openArchived },
   ]
 
+  // The folder the column is grouped by. The list is the harness's own (`useWorkspaces`),
+  // so a workspace added or renamed anywhere is here on the next frame; `choice` only says
+  // which one it is, and is validated against that list so a deleted folder groups nothing.
+  const folder = choice?.current ? items.find((w) => w.workspaceId === choice.current) : undefined
+  const folderIds = new Set(folder?.sessionIds ?? [])
+  const switcher = workspaceActions && choice?.supported !== false
+    ? h(WorkspaceSwitcher, {
+        t,
+        current: folder?.workspaceId,
+        workspaces: items.map((w) => ({ id: w.workspaceId, title: w.title, path: w.path })),
+        browse: () => workspaceActions.browse(),
+        add: (path: string) => workspaceActions.add(path),
+        pick: (id: string | undefined) => { workspaceActions.pick(id) },
+        remove: (id: string) => workspaceActions.remove(id),
+      })
+    : null
+
+  const label = (key: string, text: string): ReactNode => h('div', { key, className: 'nm-chats-label' }, text)
+  const rows = (list: readonly ChatSummary[]): ReactNode[] => list.map((chat) => h(ChatRow, {
+    key: chat.id,
+    t,
+    chat,
+    label: chat.blank && !sync.sessions.has(chat.id) ? t('chBlank') : chat.displayTitle || t('chBlank'),
+    pinned: pinnedSet.has(chat.id),
+    selected: selected === chat.id,
+    useSessionStatus,
+    actions,
+  }))
+  const body: ReactNode[] = []
+  // The main chat leads the list as a row of its own, not as a labelled section: a heading
+  // that repeats the row's own name reads as a duplicate, and with no folder picked the
+  // column is then just the long conversation and the side chats, as it always was.
+  if (mainId && (q === '' || t('chMainChat').toLowerCase().includes(q))) {
+    body.push(h('button', {
+      key: 'main',
+      type: 'button',
+      className: `nm-chat-row nm-chat-main${selected === mainId ? ' nm-selected' : ''}`,
+      onClick: () => { if (mainId) actions.openSession(mainId) },
+      title: t('chMainChat'),
+    },
+      h('span', { className: 'nm-chat-title' }, t('chMainChat')),
+      selected === mainId ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null))
+  }
+  if (folder) {
+    const mine = chats.filter((chat) => folderIds.has(chat.id))
+    const rest = chats.filter((chat) => !folderIds.has(chat.id))
+    if (mine.length) { body.push(label('label-folder', folder.title)); body.push(...rows(mine)) }
+    if (rest.length) { body.push(label('label-other', t('wsOther'))); body.push(...rows(rest)) }
+  } else {
+    body.push(...rows(chats))
+  }
+
   return h('div', { className: 'nm-chats' },
     h('div', { className: 'nm-chats-head' },
-      h('button', { type: 'button', className: 'nm-chats-new-btn', onClick: handleNewChat, title: t('chNewSide') },
-        h(IconPlus, { size: 15 }),
-        h('span', null, t('chNewSide'))),
-      mainId && (q === '' || t('chMainChat').toLowerCase().includes(q))
-        ? h('button', {
-            type: 'button',
-            className: `nm-chats-main-btn${current === mainId ? ' nm-selected' : ''}`,
-            onClick: () => { if (mainId) actions.openSession(mainId) },
-            title: t('chMainChat'),
-          },
-            h('span', { className: 'nm-chats-main-icon' }, h(IconHome, { size: 16 })),
-            h('span', { className: 'nm-chat-title' }, t('chMainChat')),
-            current === mainId ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null)
-        : null,
+      switcher,
       h('div', { className: 'nm-chats-search-row' },
         h('label', { className: 'nm-chats-search' },
           h(IconSearch, { size: 15 }),
           h('input', { ref: searchRef, type: 'search', value: query, placeholder: t('chSearch'), 'aria-label': t('chSearch'), onChange: (e: FormEvent<HTMLInputElement>) => setQuery(e.currentTarget.value) })),
         h('button', { type: 'button', className: 'nm-icon-btn', 'aria-label': t('chMore'), 'aria-haspopup': 'menu', 'aria-expanded': headMenu !== null, ref: (el: HTMLButtonElement | null): void => { headMore.current = el }, onClick: () => setHeadMenu((c) => (c ? null : headMore.current)) }, h(IconMore, { size: 18 })),
-        headMenu ? h(RowMenu, { anchor: headMenu, items: headItems, onClose: () => setHeadMenu(null) }) : null)),
+        headMenu ? h(RowMenu, { anchor: headMenu, items: headItems, onClose: () => setHeadMenu(null) }) : null),
+      h('button', { type: 'button', className: 'nm-chats-new', onClick: handleNewChat, title: t('chNewSide') },
+        h(IconPlus, { size: 16 }),
+        h('span', null, t('chNewSide')))),
     h('div', { className: 'nm-chats-list' },
-      chats.length === 0
+      body.length === 0
         ? h('div', { className: 'nm-chats-empty' }, q === '' ? t('chEmpty') : t('chNoMatch'))
-        : chats.map((chat) => h(ChatRow, {
-            key: chat.id,
-            t,
-            chat,
-            label: chat.blank && !sync.sessions.has(chat.id) ? t('chBlank') : chat.displayTitle || t('chBlank'),
-            pinned: pinnedSet.has(chat.id),
-            selected: current === chat.id,
-            useSessionStatus,
-            actions,
-          }))))
+        : body))
 }

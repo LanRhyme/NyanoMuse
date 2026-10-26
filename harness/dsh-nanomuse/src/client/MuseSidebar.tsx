@@ -19,7 +19,7 @@ import { bridge, openLink } from './bridge.ts'
 import { IconBulb, IconCalendar, IconChat, IconClose, IconFeed, IconDoc, IconMenu, IconPanelLeft, IconPin, IconPlus, IconPuzzle, IconSearch, IconShapes, IconTarget, IconBug, IconDownload, IconInfo, IconKeyboard, IconSettings } from './icons.tsx'
 import { openShortcutsReference, pressSettingsChord } from './keys.ts'
 import { useLive } from './live.ts'
-import { MuseChats, type ChatActions, type UseSessionList, type UseStatusMap, type UseWorkspaceList } from './MuseChats.tsx'
+import { MuseChats, type ChatActions, type UseSessionList, type UseStatusMap, type UseWorkspaceList, type UseWorkspaceState, type WorkspaceActions } from './MuseChats.tsx'
 import { FEED_PANEL, GOALS_PANEL, IDEAS_PANEL, LIBRARY_PANEL, REPO_URL, ROOM_PANELS } from './panels.ts'
 import { useRooms } from './rooms.ts'
 import { usePrefs } from './prefs.ts'
@@ -66,6 +66,9 @@ export interface MuseSidebarProps {
   useSessions?: UseSessionList | undefined
   useSessionStatus?: UseStatusMap | undefined
   useWorkspaces?: UseWorkspaceList | undefined
+  /** The folder the chats column is grouped by, and the calls that change it. */
+  useWorkspace?: UseWorkspaceState | undefined
+  workspaceActions?: WorkspaceActions | undefined
 }
 
 interface RailButtonProps {
@@ -133,7 +136,7 @@ function CornerMenu({ anchor, items, onClose }: { anchor: HTMLElement; items: (M
 }
 
 export function MuseSidebar(props: MuseSidebarProps): ReactNode {
-  const { collapsed, width, t, renderSlot, startSession, toggleSidebar, selectPanel, openSettings: openSettingsHook, openProfile, openSearch, issuesUrl, chatActions, usePanels, usePanelInfo, useShortcuts, useSessions, useSessionStatus, useWorkspaces } = props
+  const { collapsed, width, t, renderSlot, startSession, toggleSidebar, selectPanel, openSettings: openSettingsHook, openProfile, openSearch, issuesUrl, chatActions, usePanels, usePanelInfo, useShortcuts, useSessions, useSessionStatus, useWorkspaces, useWorkspace, workspaceActions } = props
   const live = useLive()
   const update = useWindowsUpdates()
   const updateView = update ? updatePresentation(update, t) : null
@@ -283,7 +286,7 @@ export function MuseSidebar(props: MuseSidebarProps): ReactNode {
                   h('button', { type: 'button', className: 'nm-icon-btn', title: t('railNew'), 'aria-label': t('railNew'), onClick: startSession }, h(IconPlus, { size: 18 })))),
               renderSlot('sidebar.workspaces', { wide: true, expandSidebar: () => { if (collapsed) toggleSidebar() } }))
           : h('div', { className: 'nm-col-body' },
-              h(MuseChats, { t, useSessions, useSessionStatus, useWorkspaces, actions: chatActions, searchRef: (el) => { searchField.current = el } })),
+              h(MuseChats, { t, useSessions, useSessionStatus, useWorkspaces, useWorkspace, workspaceActions, actions: chatActions, searchRef: (el) => { searchField.current = el } })),
         h('div', { className: 'nm-col-foot' }, renderSlot('sidebar.footer.action', { wide: true })))
     : null
 

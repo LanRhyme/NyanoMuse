@@ -44,7 +44,7 @@ import { IconPanelLeft, IconPlus } from './icons.tsx'
 import { makeInviteButton } from './Invite.tsx'
 import { useLive } from './live.ts'
 import { en, zh } from './locales.ts'
-import type { ChatActions } from './MuseChats.tsx'
+import type { ChatActions, WorkspaceActions } from './MuseChats.tsx'
 import { MuseHeader, type UseSessionStatus } from './MuseHeader.tsx'
 import { CONNECTORS_SECTION, makeConnectorsSection } from './Connectors.tsx'
 import { DICTATION_SECTION, FILES_SECTION, makeDictationSection, makeFilesSection, makePermissionsSection, PERMISSIONS_SECTION } from './Pages.tsx'
@@ -65,6 +65,7 @@ import { ensureStyles, setAccent, setMuseMode } from './styles.ts'
 import { initWallpaper } from './wallpaper.ts'
 import { WallpaperModal } from './WallpaperModal.tsx'
 import { useWin, win } from './win.ts'
+import { currentWorkspaceId, pickWorkspace, refreshWorkspace, workspaceStore } from './workspace.ts'
 
 export const name = 'nanomuse-client'
 /** Required services: slots, the locale table, the frame, the workspace UI's session actions, shortcuts. */
@@ -99,6 +100,8 @@ interface WorkspaceNavigation {
 }
 interface WorkspacesService {
   create(input: { path: string }): Promise<{ workspaceId: string }>
+  /** Drop the registration; the folder and its chats stay. */
+  delete(workspaceId: string): Promise<void>
 }
 interface ShortcutsService {
   catalog: unknown
@@ -164,6 +167,9 @@ export function apply(ctx: ClientContext): void {
   const shortcuts = (ctx as unknown as { shortcuts: ShortcutsService }).shortcuts
   const getService = (name: string): unknown => (ctx as unknown as { get(name: string): unknown }).get(name)
   const shell = createShellStore()
+  // Which folder new chats start in, from the host's store (`workspace.ts`); the column's
+  // switcher writes it back. Read once here, so the first click on + already lands right.
+  void refreshWorkspace().catch(() => undefined)
 
   ctx.effect(() => locale.register('nanomuse', { en, zh }), 'nanomuse: dictionaries')
   const t = locale.bind('nanomuse') as Translate
@@ -269,6 +275,13 @@ export function apply(ctx: ClientContext): void {
   }
   ctx.effect(() => slots.subscribe('sidebar.panellist', syncPanels), 'nanomuse: panel entries')
   ctx.effect(() => locale.subscribe(syncPanels), 'nanomuse: panel labels')
+  // A new chat starts in the folder the person picked (the column's switcher), so the agent's
+  // reads and commands run there; with none picked the harness's own choice stands.
+  const startSession = (): void => {
+    const folder = currentWorkspaceId()
+    if (folder === undefined) workspaces.startSession()
+    else workspaces.startSession(folder)
+  }
   const renameSession = async (sessionId: string, title: string): Promise<void> => {
     const sessions = getService('sessions') as SessionsService | undefined
     if (!sessions) return
@@ -280,7 +293,7 @@ export function apply(ctx: ClientContext): void {
   }
   const chatActions: ChatActions = {
     openSession: (id) => { workspaces.openSession(id) },
-    startSession: () => { workspaces.startSession() },
+    startSession,
     archiveSession: (id) => workspaces.archiveSession(id, { stopActivity: true }),
     pinSession: (id) => workspaces.pinSession(id),
     unpinSession: (id) => workspaces.unpinSession(id),
@@ -293,8 +306,26 @@ export function apply(ctx: ClientContext): void {
     win.split(null)
     layout.selectPanel(id)
   }
+  // The column's workspace switcher: the host's folder chooser, the harness's own
+  // create/delete (its list is what the column draws), and our store for the choice.
+  const workspaceActions: WorkspaceActions = {
+    browse: () => workspaces.pickDirectory(),
+    add: async (path: string) => {
+      const service = getService('workspaces') as WorkspacesService | undefined
+      if (!service) throw new Error('no workspaces service')
+      const created = await service.create({ path })
+      await pickWorkspace(created.workspaceId)
+    },
+    remove: async (id: string) => {
+      const service = getService('workspaces') as WorkspacesService | undefined
+      if (!service) throw new Error('no workspaces service')
+      await service.delete(id)
+      if (currentWorkspaceId() === id) await pickWorkspace(undefined)
+    },
+    pick: (id: string | undefined) => { void pickWorkspace(id).catch(() => undefined) },
+  }
   const sidebarInjected = () => ({
-    startSession: () => { workspaces.startSession() },
+    startSession,
     toggleSidebar: () => { layout.toggleSidebar() },
     selectPanel,
     openSettings,
@@ -303,7 +334,8 @@ export function apply(ctx: ClientContext): void {
     openSearch: () => { win.search(true) },
     issuesUrl: ISSUES_URL,
     chatActions,
-    hooks: { panels, shortcuts: shortcuts.catalog },
+    workspaceActions,
+    hooks: { panels, shortcuts: shortcuts.catalog, workspace: workspaceStore },
   })
   slots.inject('sidebar', () => slots.register({
     name: 'sidebar',
@@ -332,7 +364,7 @@ export function apply(ctx: ClientContext): void {
   let activePanel: string | null = null
   roomsNav.openSession = (id) => { workspaces.openSession(id) }
   roomsNav.showChats = () => { selectPanel(null) }
-  roomsNav.startSession = () => { workspaces.startSession() }
+  roomsNav.startSession = () => { startSession() }
   roomsNav.activePanel = () => activePanel
   roomsNav.prefill = prefillComposer
   // The split: the chat takes the main area, the room docks at the right.
@@ -432,7 +464,7 @@ export function apply(ctx: ClientContext): void {
       if (result && result.ok === false) throw new Error(result.error?.message ?? 'prompt refused')
     })
   }
-  const TurnError = makeTurnError(t, { retry: resend, newChat: () => { workspaces.startSession() } })
+  const TurnError = makeTurnError(t, { retry: resend, newChat: () => { startSession() } })
   slots.inject('conversation.chat.node', () =>
     slots.register({ name: 'conversation.chat.node', key: 'turn-error', priority: -1, locale: 'nanomuse' }, TurnError))
   // The 80 % heads-up above the composer, once per pool size (the phones' one-line heads-up in the chat).
@@ -644,7 +676,7 @@ export function apply(ctx: ClientContext): void {
   // The quick-chat key (the shell's ⌥ Space): a fresh chat with the composer focused.
   const quickChatOff = bridge()?.onQuickChat?.(() => {
     layout.selectPanel(null)
-    workspaces.startSession()
+    startSession()
     window.setTimeout(() => (document.querySelector('[contenteditable="true"]') as HTMLElement | null)?.focus(), 200)
   })
   if (quickChatOff) ctx.effect(() => quickChatOff, 'nanomuse: quick chat')
