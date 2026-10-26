@@ -510,6 +510,13 @@ export interface SyncState {
   /** Sessions whose conversation was deleted elsewhere: the browser half archives them (the host has no archive) and reports back. */
   toArchive: string[]
   /**
+   * The mid a line was given for a push the relay has not confirmed yet (keyed by the line's
+   * own id). Written before the request, so a dropped connection or a crash between the push
+   * and the save retries with the same mid: the relay knows a mid, so the turn is stored once
+   * instead of twice.
+   */
+  pending?: Record<string, string>
+  /**
    * Sessions whose conversation was deleted on another device. The harness has no delete, so
    * the words stay in the log here; they must not go back up, though, or the device would
    * mint a new conversation id on its next push and the whole deleted chat would reappear on
@@ -542,6 +549,13 @@ export function migrate(state: SyncState | undefined): SyncState {
     next.hidden = []
     next.toArchive = []
   next.retired = Array.isArray((next as Partial<SyncState>).retired) ? (next.retired as unknown[]).filter((id): id is string => typeof id === 'string') : []
+  if (next.pending && typeof next.pending === 'object') {
+    const kept: Record<string, string> = {}
+    for (const [lineId, mid] of Object.entries(next.pending)) if (typeof mid === 'string' && mid) kept[lineId] = mid
+    next.pending = kept
+  } else {
+    delete next.pending
+  }
   }
   if (!state.owners && state.accountId) {
     for (const sessionId of Object.keys(next.cids)) next.owners[sessionId] = state.accountId
@@ -1069,7 +1083,10 @@ export class SyncEngine {
             again.add(sessionId)
             break
           }
-          const mid = randomUUID()
+          // a line that was already handed a mid (a push that failed) keeps it: the relay
+          // knows a mid, so the turn lands once whatever happened to the connection
+          const mid = this.state.pending?.[line.id] ?? randomUUID()
+          this.state.pending = { ...(this.state.pending ?? {}), [line.id]: mid }
           messages.push({ mid, cid, role: line.role, text: line.text, created_at: Math.floor(line.at / 1000) })
           pending.push({ sessionId, line, mid })
         }
@@ -1082,7 +1099,18 @@ export class SyncEngine {
         ids.splice(0, ids.length, ...ids.filter((sid) => again.has(sid)))
         break
       }
-      const out = await this.options.relay.push(token, device, conversations, messages)
+      // the mids are on disk before the request: a crash after it cannot mint new ones
+      if (pending.length > 0) await this.save()
+      let out: PushResult
+      try {
+        out = await this.options.relay.push(token, device, conversations, messages)
+      } catch (error: unknown) {
+        // the connection dropped: the lines stay dirty (and keep their mids), and the next
+        // debounce sends them again; the relay stores each mid once
+        for (const sid of touched) this.dirty.add(sid)
+        this.pushSoon(2_000)
+        throw error
+      }
       // the relay took the round: an ownerless session is the signed-in account's from now on (C10)
       for (const sid of touched) this.adopt(sid)
       const redirect = new Map<string, string>()
@@ -1102,6 +1130,7 @@ export class SyncEngine {
       const refused = new Map(out.rejected.filter((r) => r.mid && r.reason !== 'main_exists').map((r) => [r.mid!, r.reason]))
       const redirected = new Set(out.rejected.filter((r) => r.mid && r.reason === 'main_exists').map((r) => r.mid!))
       for (const p of pending) {
+        if (this.state.pending) delete this.state.pending[p.line.id]
         if (redirected.has(p.mid)) continue
         // a refused row stays refused: it is not sent again and again
         this.state.mids[p.line.id] = refused.has(p.mid) ? `refused:${refused.get(p.mid)}` : p.mid

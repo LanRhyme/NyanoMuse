@@ -959,3 +959,29 @@ test('main chat isolation: side chats cannot become main and are decoupled on pu
 
 
 
+
+test('a push that the connection drops is retried with the same mid, so the turn lands once', async () => {
+  const relay = fakeRelay()
+  relay.add('c9', 'main', 'Main chat')
+  const sessions = fakeSessions()
+  sessions.add('s9', 'Main chat', [{ id: 'u9', role: 'user', text: 'only once', at: 1738000000000 }])
+  const { engine: e } = engine(relay, sessions)
+  await e.setMain('s9')
+  // the first push of a message never reaches the relay: the fetch itself fails
+  const real = relay.fetch
+  let dropped = 0
+  relay.fetch = async (url, init = {}) => {
+    if (String(url).includes('/v1/sync/changes') && (init.method ?? 'GET') === 'POST' && dropped === 0) {
+      dropped += 1
+      throw new TypeError('fetch failed')
+    }
+    return real(url, init)
+  }
+  e.messageSent('s9')
+  await until(() => [...relay.msgs.values()].some((m) => m.text === 'only once'), 4000)
+  // one row, not two: the retry carried the mid the first attempt was given
+  assert.equal([...relay.msgs.values()].filter((m) => m.text === 'only once').length, 1)
+  assert.ok(e.state.mids['u9'], 'the line is known by the mid the relay confirmed')
+  assert.equal(e.state.pending?.['u9'], undefined)
+  e.stop()
+})

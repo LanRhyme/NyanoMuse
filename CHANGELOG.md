@@ -55,6 +55,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 - **A chat deleted on another device no longer comes back.** The harness has no delete, so the session stayed in the log and the next push minted a fresh conversation id for its whole history, which every other device then re-created as a new chat. A conversation deleted elsewhere is remembered as retired: its words stay on this computer and it never syncs again.
 
+- **A push the connection dropped no longer posts the same turn twice.** Each line's `mid` is now written before the request (as `pending`) and reused by the retry, and a failed push puts its sessions back in the queue instead of waiting for the next turn; the relay knows a `mid`, so the turn lands once whatever happened to the connection.
+
 - **Turning side-chat sync back on brings the history, not just the newest 300 turns.** The switch pulled from zero with the fresh-device tail, which leaves everything older than the newest 300 behind (the device's cursor had already passed the side chats it never saw). It now pages from zero until the relay has nothing left.
 
 - **A saved own-key row picks up a capability the catalogue gained after it was saved.** OpenCode Zen and OpenCode Go now declare `vision` (their `minimax-m3` and `kimi-k3` take an image on the OpenAI shape; the free `nemotron-3.5-super-vl-free` does too), and a row saved before that keeps its old capabilities, so the hands never saw the pictures. The host re-derives each saved row's capabilities and each chat model's sight from the catalogue at start, writes the row back and re-writes the model adapter's entry.
