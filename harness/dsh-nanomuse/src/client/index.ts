@@ -28,6 +28,9 @@ import { interceptComposer, makeAvatarChat } from './AvatarChat.tsx'
 import { makeCapsule } from './Capsule.tsx'
 import { prefillComposer } from './composer.ts'
 import { makeMicButton, makeQuoteAction } from './ComposerExtras.tsx'
+import { makeComposerExpand } from './ComposerExpand.tsx'
+import { installMarkup } from './Markup.ts'
+import { makeStickerButton } from './StickerPicker.tsx'
 import { makeDocEditor } from './DocEditor.tsx'
 import { renderTrajectory } from './Trajectory.tsx'
 import { makeCloudSection } from './CloudSection.tsx'
@@ -165,6 +168,9 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => locale.register('nanomuse', { en, zh }), 'nanomuse: dictionaries')
   const t = locale.bind('nanomuse') as Translate
   ctx.effect(() => ensureStyles(), 'nanomuse: stylesheet')
+  // The three tags of a Muse reply, drawn in the harness's chat: the bubble split, the
+  // stickers, and the hidden mood tag (`Markup.ts`).
+  ctx.effect(() => installMarkup(t), 'nanomuse: chat markup')
   // The Muse composer and column unless the Developer switch asks for the harness's own.
   ctx.effect(() => {
     const apply = () => setMuseMode(!getPrefs().showHarness, t('cpPlaceholder'), getPrefs().showSteps)
@@ -400,6 +406,14 @@ export function apply(ctx: ClientContext): void {
     slots.register({ name: 'shell.overlay', id: 'nanomuse.avatar-chat', locale: 'nanomuse' }, AvatarChat))
   ctx.effect(() => interceptComposer(), 'nanomuse: avatar words')
   // The microphone at the right of the composer; "reply with a quote" beside Copy.
+  // The sticker panel sits beside the microphone, as on the phone's composer.
+  const StickerButton = makeStickerButton(t)
+  slots.inject('conversation.input.left', () =>
+    slots.register({ name: 'conversation.input.left', id: 'nanomuse.stickers', order: 10, locale: 'nanomuse' }, StickerButton))
+  // The composer's tall writing view (dsh-composer-expand's idea), beside the microphone.
+  const ComposerExpand = makeComposerExpand(t)
+  slots.inject('conversation.input.right', () =>
+    slots.register({ name: 'conversation.input.right', id: 'nanomuse.expand', order: 9, locale: 'nanomuse' }, ComposerExpand))
   const MicButton = makeMicButton(t, () => { shell.openSection(DICTATION_SECTION) })
   slots.inject('conversation.input.right', () =>
     slots.register({ name: 'conversation.input.right', id: 'nanomuse.mic', order: 10, locale: 'nanomuse' }, MicButton))

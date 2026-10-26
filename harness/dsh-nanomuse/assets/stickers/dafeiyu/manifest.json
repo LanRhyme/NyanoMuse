@@ -1,0 +1,200 @@
+{
+  "id": "dafeiyu",
+  "name": "大肥鱼",
+  "description": "DeepSeek 鲸鱼娘 chibi 表情包",
+  "count": 24,
+  "stickers": [
+    {
+      "id": "dfy_deyi",
+      "filename": "deyi.jpg",
+      "format": "jpg",
+      "name": "得意",
+      "caption": "得意闭眼拳头，好耶，小鲸鱼娘很满意",
+      "keywords": "得意 好耶 满意 拳头 开心 大肥鱼"
+    },
+    {
+      "id": "dfy_ganfan",
+      "filename": "ganfan.jpg",
+      "format": "jpg",
+      "name": "干饭",
+      "caption": "捧着蓝碗干饭，星星眼吃得很香",
+      "keywords": "干饭 吃饭 饿 香 日常 大肥鱼"
+    },
+    {
+      "id": "dfy_shengqi",
+      "filename": "shengqi.jpg",
+      "format": "jpg",
+      "name": "生气",
+      "caption": "气鼓鼓叉腰，额头怒气符号，蒸汽直冒",
+      "keywords": "生气 愤怒 哼 叉腰 大肥鱼"
+    },
+    {
+      "id": "dfy_wenhao",
+      "filename": "wenhao.jpg",
+      "format": "jpg",
+      "name": "问号",
+      "caption": "疑惑举手，头顶大问号",
+      "keywords": "疑惑 问号 困惑 懵 大肥鱼"
+    },
+    {
+      "id": "dfy_xia",
+      "filename": "xia.jpg",
+      "format": "jpg",
+      "name": "惊吓",
+      "caption": "吓到大叫，拳头握紧，感叹号",
+      "keywords": "惊吓 震惊 啊 大叫 大肥鱼"
+    },
+    {
+      "id": "dfy_yun",
+      "filename": "yun.jpg",
+      "format": "jpg",
+      "name": "晕倒",
+      "caption": "晕了，螺旋眼捂脸，脑子打结",
+      "keywords": "晕 崩溃 受不了 难过 大肥鱼"
+    },
+    {
+      "id": "dfy_bixin",
+      "filename": "bixin.jpg",
+      "format": "jpg",
+      "name": "比心",
+      "caption": "双手比心卖萌，星星眼超开心",
+      "keywords": "比心 喜欢 卖萌 可爱 开心 大肥鱼"
+    },
+    {
+      "id": "dfy_haixiu",
+      "filename": "haixiu.jpg",
+      "format": "jpg",
+      "name": "害羞",
+      "caption": "害羞捂脸，脸红红的",
+      "keywords": "害羞 腼腆 脸红 不好意思 大肥鱼"
+    },
+    {
+      "id": "dfy_huachi",
+      "filename": "huachi.jpg",
+      "format": "jpg",
+      "name": "花痴",
+      "caption": "爱心眼花痴，双手托腮",
+      "keywords": "花痴 心动 喜欢 爱心眼 大肥鱼"
+    },
+    {
+      "id": "dfy_shuijiao",
+      "filename": "shuijiao.jpg",
+      "format": "jpg",
+      "name": "睡觉",
+      "caption": "抱小枕头睡觉，嘴角口水 zzz",
+      "keywords": "睡觉 困 晚安 熬夜 大肥鱼"
+    },
+    {
+      "id": "dfy_zaoshanghao",
+      "filename": "zaoshanghao.jpg",
+      "format": "jpg",
+      "name": "早上好",
+      "caption": "早上好挥手打招呼，笑得很亮",
+      "keywords": "早上好 打招呼 你好 欢迎 大肥鱼"
+    },
+    {
+      "id": "dfy_tangping",
+      "filename": "tangping.jpg",
+      "format": "jpg",
+      "name": "躺平",
+      "caption": "摸鱼躺平，半睁眼摊着不想动",
+      "keywords": "摸鱼 躺平 下班 不想干活 大肥鱼"
+    },
+    {
+      "id": "dfy_wuyu",
+      "filename": "wuyu.jpg",
+      "format": "jpg",
+      "name": "无语",
+      "caption": "无语死鱼脸，黑线加汗滴",
+      "keywords": "无语 无奈 叹气 黑线 大肥鱼"
+    },
+    {
+      "id": "dfy_qiurao",
+      "filename": "qiurao.jpg",
+      "format": "jpg",
+      "name": "求饶",
+      "caption": "哭着双手合十求饶",
+      "keywords": "求饶 哭 委屈 对不起 大肥鱼"
+    },
+    {
+      "id": "dfy_xianqi",
+      "filename": "xianqi.jpg",
+      "format": "jpg",
+      "name": "嫌弃",
+      "caption": "侧目嫌弃挥手，不想理你",
+      "keywords": "嫌弃 哼 傻瓜 吐槽 大肥鱼"
+    },
+    {
+      "id": "dfy_jiaban",
+      "filename": "jiaban.jpg",
+      "format": "jpg",
+      "name": "加班",
+      "caption": "加班崩溃，电脑加咖啡，黑眼圈",
+      "keywords": "加班 工作 累 咖啡 卡了 大肥鱼"
+    },
+    {
+      "id": "dfy_zhenjing",
+      "filename": "zhenjing.jpg",
+      "format": "jpg",
+      "name": "震惊",
+      "caption": "惊吓跳起，眼睛圆圆嘴巴大张",
+      "keywords": "惊吓 震惊 看到了 哇 大肥鱼"
+    },
+    {
+      "id": "dfy_jiazai",
+      "filename": "jiazai.jpg",
+      "format": "jpg",
+      "name": "加载中",
+      "caption": "托腮思考，头顶加载圈，脑子转不动",
+      "keywords": "思考 加载 卡顿 困惑 cpu 大肥鱼"
+    },
+    {
+      "id": "dfy_ok",
+      "filename": "ok.jpg",
+      "format": "jpg",
+      "name": "点赞OK",
+      "caption": "眨眼竖大拇指 OK，超有信心",
+      "keywords": "点赞 ok 好的 自信 开心 大肥鱼"
+    },
+    {
+      "id": "dfy_buyao",
+      "filename": "buyao.jpg",
+      "format": "jpg",
+      "name": "不要",
+      "caption": "双手交叉摇头不行，拒绝",
+      "keywords": "不行 拒绝 不要 摇头 大肥鱼"
+    },
+    {
+      "id": "dfy_toukan",
+      "filename": "toukan.jpg",
+      "format": "jpg",
+      "name": "偷看",
+      "caption": "躲在鲸鱼尾巴后面偷看，害羞",
+      "keywords": "偷看 害羞 腼腆 藏起来 大肥鱼"
+    },
+    {
+      "id": "dfy_piaole",
+      "filename": "piaole.jpg",
+      "format": "jpg",
+      "name": "飘了",
+      "caption": "被夸飘了，闭眼伸手星星环绕",
+      "keywords": "得意 被夸 飘了 开心 大肥鱼"
+    },
+    {
+      "id": "dfy_maozhua",
+      "filename": "maozhua.jpg",
+      "format": "jpg",
+      "name": "猫爪卖萌",
+      "caption": "猫爪手势卖萌，小虎牙嘿嘿",
+      "keywords": "卖萌 猫爪 可爱 meow 大肥鱼"
+    },
+    {
+      "id": "dfy_yaoqian",
+      "filename": "yaoqian.jpg",
+      "format": "jpg",
+      "name": "求打赏",
+      "caption": "捧着小钱包亮晶晶期待，求零食钱",
+      "keywords": "求打赏 钱包 给钱 期待 大肥鱼"
+    }
+  ]
+}

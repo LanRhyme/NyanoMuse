@@ -17,6 +17,7 @@ export const inject = ['tools', 'nanomuseRooms', 'nanomuseCloud']
 
 export function apply(ctx: Context): void {
   const rooms = ctx.nanomuseRooms
+  const cloud = ctx.nanomuseCloud
 
   ctx.effect(
     () =>
@@ -178,6 +179,55 @@ export function apply(ctx: Context): void {
         }),
       ),
     'nanomuse rooms: draw_new_look',
+  )
+
+  // What the account has left and what the hour costs. The phone answers the same
+  // question from the same DeepSeek rule (`billing.ts`), so the two agree.
+  ctx.effect(
+    () =>
+      ctx.tools.register(
+        defineTool({
+          name: 'model_quota',
+          description: "How much is left to spend and what the current hour costs: the DeepSeek key's balance, the account's allowance and spend, and whether this is DeepSeek's half-price window (off-peak on weekends, public holidays, and outside 09:00-12:00 and 14:00-18:00 Beijing time). Call it when the person asks how much is left, whether a task is expensive, or whether to wait for the cheaper window.",
+          parameters: {},
+          output: {
+            schema: {
+              type: 'object',
+              properties: {
+                signedIn: { type: 'boolean' },
+                balance: { type: 'string' },
+                currency: { type: 'string' },
+                offPeak: { type: 'boolean' },
+                detail: { type: 'string' },
+                remaining: { type: 'number' },
+                spent: { type: 'number' },
+              },
+              additionalProperties: false,
+            },
+            render: (_args, value) => [{
+              type: 'text',
+              text: [
+                value.balance ? `DeepSeek key balance: ¥${value.balance}` : 'No DeepSeek key balance to read.',
+                `Billing: ${value.detail}`,
+                typeof value.remaining === 'number' ? `Allowance left: ¥${(value.remaining / 1_000_000).toFixed(2)}` : '',
+              ].filter(Boolean).join('\n'),
+            }],
+          },
+          async execute() {
+            const quota = await cloud.quota()
+            return {
+              signedIn: quota.signedIn,
+              ...(quota.balance ? { balance: quota.balance } : {}),
+              ...(quota.currency ? { currency: quota.currency } : {}),
+              offPeak: quota.window.offPeak,
+              detail: quota.window.detail,
+              ...(quota.tokens ? { remaining: quota.tokens.remaining, spent: quota.tokens.used } : {}),
+            }
+          },
+          presentCall: () => ({ card: 'generic', title: 'Check the model quota', kind: 'other', rawInput: {} }),
+        }),
+      ),
+    'nanomuse rooms: model_quota',
   )
 
   ctx.inject(['systemPrompt'], (ctx) => {

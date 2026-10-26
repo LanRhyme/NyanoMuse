@@ -14,6 +14,7 @@ import { Avatar, motionStatus, type Mood } from './Avatar.tsx'
 import { describeCall } from './Capsule.tsx'
 import { IconCheck, IconChevronLeft, IconHeart, IconMenu, IconPalette, IconSpinner } from './icons.tsx'
 import { useLive } from './live.ts'
+import { BillingChip, MoodPill, useMoodState } from './MoodPanel.tsx'
 import { mainChatId } from './MuseChats.tsx'
 import { usePrefs } from './prefs.ts'
 import { statusWords } from './ProfileDrawer.tsx'
@@ -111,6 +112,9 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
     return () => window.clearTimeout(timer)
   }, [prefs.approvals.length])
 
+  // While nothing is running or waiting, the face wears the companion's mood: the same
+  // 33-way state the compass shows, settled onto one of the five faces this desktop has.
+  const companion = useMoodState().mood
   const calls = live.hands.calls
   const hands = calls.length ? calls[calls.length - 1] : undefined
   let mood: Mood = 'idle'
@@ -152,6 +156,7 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
+  if (!running && !waiting && companion?.enabled) mood = companion.face as Mood
   // a side chat carries a way back to the main chat at its top left; beside a room
   // (the split) the chat column is headed "≡ 聊天" instead, which brings the chats back.
   // The back control is the bar's navigation seat, as the phone puts its menu there.
@@ -173,10 +178,12 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
         h('div', { className: 'nm-header-titles' },
           h('div', { className: 'nm-header-name-row' },
             h('span', { className: 'nm-header-name' }, live.profile.name || t('brand')),
-            balance ? h('span', { className: 'nm-header-balance-pill', title: 'DeepSeek 官方账户余额' },
+            balance ? h('span', { className: 'nm-header-balance-pill', title: t('balanceTitle') },
               h('span', { className: 'nm-balance-dot' }),
-              h('span', null, `余额: ¥${balance}`),
-            ) : null),
+              h('span', null, `¥${balance}`),
+            ) : null,
+            h(BillingChip, { t }),
+            h(MoodPill, { t })),
         toast
           ? h('div', { className: 'nm-header-status nm-header-toast' }, h(IconCheck, { size: 12 }), h('span', { className: 'nm-header-line' }, t('statusApproved', { n: toast.n })))
           : starAsk

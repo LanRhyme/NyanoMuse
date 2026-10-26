@@ -64,7 +64,51 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   on hover only; a link inside your pill keeps the pill's text colour, underlined. An empty chat has no greeting and no
   workspace or preset chips: the composer waits at the bottom and opens the workspace
   picker itself when a workspace is needed.
-- The composer is one pill: *+* (attach), *Message*, the send disc (the stop square
+- The chat takes the phone's three tags. A reply may arrive as two or three short
+  bubbles (`<nm:bubble/>`), drawn as separate cards with the phone's geometry: the first
+  keeps its rounded top-left, the rest tuck that corner, and the harness's own body is
+  hidden behind a stack built from a clone of it, so code, links and lists survive the
+  split. A sticker sits among them as a bare picture (`<nm:meme id="…"/>`, 80 to 160 px,
+  no frame), and a tag that names nothing stays as text, as on the phone. Long code
+  blocks fold to 420 px with a *Show the whole block* button. The composer's tool row
+  gains a sticker panel beside the microphone: the packs as chips (*All*, each pack with
+  its count, *New group*), a search field, a grid of pictures, and *Add sticker* which
+  takes one picture from this computer. Tapping one writes its tag into the draft; the
+  pencil and the cross on a tile rename or remove it. The packs live in
+  `$DSH_HOME/nanomuse/stickers/packs/`, one `manifest.json` and its pictures each, the
+  same layout the phone uses; the 大肥鱼 pack ships and is copied in on the first run.
+- The composer also opens to a 70vh writing view from the button beside the microphone, for
+  a long draft. The switch is remembered on this computer and the harness's own Enter and
+  send behaviour stays as it was.
+- The companion's mood is on this desktop too: 33 moods with a score each, moved at once
+  by what the person says (a compliment lifts 得意, a cold 随便你 closes 生闷气 in) and
+  settled by the hidden `<nm:mood feel="…" reason="…"/>` tag the model writes at the end
+  of a reply, which takes the guess back and boosts the mood it actually named. Scores
+  drift to their own baselines every three hours, the time of day tilts what is shown
+  (late night is heavy, early morning light), and the leader is held for a few minutes so
+  the face does not flicker. A pill in the header names the mood and opens the compass:
+  the leading mood with its two companions, the last shift and what moved it, the
+  intensity switch (restrained, natural, vivid), a reset to baseline, and all 33 with
+  their scores and baselines. The face wears the mood whenever nothing is running or
+  waiting. It stays on this computer: the tag is never sent to another device. Thirty
+  minutes after a phrase about self-harm or deep despair, the prompt drops the mood and
+  the character for the crisis override.
+- Beside the balance the header says which DeepSeek billing window is on, with the time
+  to the next change: half price on weekends, China's public holidays and outside
+  09:00-12:00 and 14:00-18:00 Beijing time, full price inside them. The `model_quota`
+  tool answers the model the same way, with the key's balance and the account's
+  allowance.
+- *Operating the screen* offers the own-key models that take pictures: a row saved before
+  its vendor declared `vision` (OpenCode Zen and Go, whose `minimax-m3` and `kimi-k3` take an
+  image) is brought up to the catalogue at the next start, so its picture models appear
+  without saving the key again.
+- *Settings → Models → Use your own key* lists the catalogue's vendors in the phone's order:
+  the region's first pick, the ones that sign in with a plan you already pay for, the rest
+  that work here, then *Elsewhere*, the vendors that only sign up and bill outside your
+  region (OpenCode Zen and OpenCode Go for a mainland person). Each row opens its form with
+  the endpoint, the key page and what that vendor covers; the catalogue is the same file the
+  phones read, so the two ends offer the same set.
+
   while a turn runs); the send disc and the harness's scroll-to-latest disc take the sage
   in the light and the ink in the dark, with the glyph inverted on them. It is docked at
   the foot of the window: a short thread pushes it down, a long one scrolls under it with

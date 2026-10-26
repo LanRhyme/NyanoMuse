@@ -1887,6 +1887,267 @@ html[data-nanomuse] [class*="Mbwy4a_footerActions"] button {
 html[data-nanomuse] [data-tool="ask_user_question"] {
   border-radius: 14px !important;
 }
+
+/* ── the Muse reply: bubbles, stickers, the mood compass, the billing window ────────── */
+
+/* A reply cut into the bubbles it was written as (Markup.ts): the harness's body is hidden
+   and a stack of clones stands in its place, so Markdown survives the split. The corner
+   that is 4px is the tail, as on the phone: bottom-start on the first bubble, both start
+   corners on the ones after it. */
+.nm-bubble-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 100%; }
+.nm-bubble-seg {
+  max-width: min(760px, 86%);
+  padding: 10px 16px;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--nm-agent-bubble);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsh-content-font-size, 14px);
+  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  border: 0.5px solid var(--nm-bubble-border, rgb(0 0 0 / 0.05));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.nm-bubble-seg.nm-bubble-first { border-top-left-radius: 16px; }
+.nm-bubble-seg:not(.nm-bubble-first) { border-radius: 4px 16px 16px 4px; }
+.nm-bubble-seg > :first-child { margin-top: 0; }
+.nm-bubble-seg > :last-child { margin-bottom: 0; }
+.nm-bubble-seg p { margin: 0 0 6px; }
+.nm-bubble-seg p:last-child { margin-bottom: 0; }
+.nm-bubble-seg pre { margin: 6px 0; padding: 8px 10px; border-radius: 10px; background: rgb(127 127 127 / 0.14); font-size: 12px; overflow-x: auto; }
+html[data-ds-dark-theme] .nm-bubble-seg { border-color: rgb(255 255 255 / 0.06); }
+
+/* A sticker: a bare picture on the left, no bubble frame, 80-160px as on the phone. */
+.nm-meme { display: block; margin: 4px 0; }
+.nm-meme img {
+  display: block;
+  min-width: 80px;
+  min-height: 80px;
+  max-width: 160px;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 14px;
+}
+
+/* The sticker panel, above the composer. */
+.nm-sticker-anchor { position: relative; display: inline-flex; }
+.nm-sticker-panel {
+  position: fixed;
+  left: 50%;
+  bottom: 108px;
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(480px, calc(100vh - 180px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-base, #fff);
+  color: var(--dsw-alias-label-primary);
+  border: 0.5px solid var(--nm-bubble-border, rgb(0 0 0 / 0.08));
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.22);
+  z-index: 60;
+}
+html[data-ds-dark-theme] .nm-sticker-panel { background: var(--dsw-alias-bg-elevated, #23262b); }
+.nm-sticker-head { display: flex; align-items: center; gap: 8px; }
+.nm-sticker-title { font-size: 14px; font-weight: 600; }
+.nm-sticker-count { font-size: 12px; opacity: 0.6; }
+.nm-sticker-head .nm-icon-btn { margin-left: auto; }
+.nm-sticker-packs { display: flex; flex-wrap: wrap; gap: 6px; }
+.nm-sticker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 13px;
+  background: rgb(127 127 127 / 0.12);
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.nm-sticker-chip.nm-on { background: var(--nm-accent, #4e5e59); color: #fff; }
+.nm-sticker-chip.nm-add { color: var(--nm-accent, #4e5e59); background: transparent; border: 0.5px dashed currentColor; }
+.nm-sticker-chip-wrap { display: inline-flex; align-items: center; gap: 2px; }
+.nm-sticker-chip-x { border: none; background: transparent; color: var(--dsw-alias-state-error-primary, #b42318); cursor: pointer; font-size: 14px; line-height: 1; }
+.nm-sticker-new { display: inline-flex; align-items: center; gap: 6px; }
+.nm-sticker-new input, .nm-sticker-search input {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 0.5px solid var(--nm-bubble-border, rgb(0 0 0 / 0.12));
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.nm-sticker-search { display: flex; align-items: center; gap: 6px; opacity: 0.9; }
+.nm-sticker-search input { flex: 1; height: 30px; }
+.nm-sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.nm-sticker-tile { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.nm-sticker-pick {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 4px;
+  border: none;
+  border-radius: 10px;
+  background: rgb(127 127 127 / 0.1);
+  cursor: pointer;
+  overflow: hidden;
+}
+.nm-sticker-pick img { width: 100%; height: 100%; object-fit: contain; }
+.nm-sticker-gif { position: absolute; top: 3px; right: 3px; font-size: 8px; font-weight: 700; padding: 1px 3px; border-radius: 3px; background: rgb(0 0 0 / 0.55); color: #fff; }
+.nm-sticker-name { font-size: 10px; opacity: 0.75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nm-sticker-tools { position: absolute; top: 2px; left: 2px; display: none; gap: 2px; }
+.nm-sticker-tile:hover .nm-sticker-tools { display: flex; }
+.nm-sticker-tools button { width: 20px; height: 20px; padding: 0; border: none; border-radius: 10px; background: rgb(0 0 0 / 0.55); color: #fff; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.nm-sticker-add {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px dashed var(--nm-accent, #4e5e59);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--nm-accent, #4e5e59);
+  font-size: 9px;
+  cursor: pointer;
+}
+.nm-sticker-empty { grid-column: 1 / -1; padding: 12px 0; font-size: 12px; opacity: 0.6; text-align: center; }
+.nm-sticker-error { font-size: 12px; color: var(--dsw-alias-state-error-primary, #b42318); }
+
+/* The mood pill in the header and the compass behind it. */
+.nm-mood-anchor { display: inline-flex; }
+.nm-mood-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 10px;
+  background: rgb(127 127 127 / 0.12);
+  color: var(--dsw-alias-label-primary);
+  font-size: 11px;
+  cursor: pointer;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nm-mood-dot { width: 6px; height: 6px; border-radius: 3px; background: var(--nm-accent, #4e5e59); flex: none; }
+.nm-mood-happy .nm-mood-dot { background: #34c759; }
+.nm-mood-working .nm-mood-dot { background: #0a84ff; }
+.nm-mood-waiting .nm-mood-dot { background: #ff9500; }
+.nm-mood-idle .nm-mood-dot { background: #8e8e93; }
+.nm-mood-distressed .nm-mood-dot { background: #ff3b30; }
+.nm-mood-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.32);
+  padding: 24px;
+}
+.nm-mood-sheet {
+  width: min(520px, 100%);
+  max-height: min(680px, 88vh);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px 20px;
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-base, #fff);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.3);
+  overflow: hidden;
+}
+html[data-ds-dark-theme] .nm-mood-sheet { background: var(--dsw-alias-bg-elevated, #23262b); }
+.nm-mood-head { display: flex; align-items: flex-start; gap: 12px; }
+.nm-mood-heading { font-size: 16px; font-weight: 600; }
+.nm-mood-sub { font-size: 12px; opacity: 0.65; margin-top: 2px; }
+.nm-mood-head-actions { margin-left: auto; display: flex; gap: 4px; }
+.nm-mood-lead { display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; border-radius: 14px; background: rgb(127 127 127 / 0.1); }
+.nm-mood-lead-name { font-size: 20px; font-weight: 650; }
+.nm-mood-lead-zh { font-size: 13px; opacity: 0.7; }
+.nm-mood-lead-score { font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.7; }
+.nm-mood-lead-tendency { font-size: 12px; opacity: 0.8; }
+.nm-mood-facts { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 12px; opacity: 0.85; }
+.nm-mood-facts-time { font-variant-numeric: tabular-nums; opacity: 0.7; }
+.nm-mood-facts-why { color: var(--nm-accent, #4e5e59); }
+.nm-mood-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.nm-mood-intensity { display: flex; align-items: center; gap: 6px; }
+.nm-mood-control-label { font-size: 12px; opacity: 0.7; }
+.nm-mood-chip { height: 24px; padding: 0 10px; border: none; border-radius: 12px; background: rgb(127 127 127 / 0.12); color: inherit; font-size: 12px; cursor: pointer; }
+.nm-mood-chip.nm-on { background: var(--nm-accent, #4e5e59); color: #fff; }
+.nm-mood-switch { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; opacity: 0.85; }
+.nm-mood-tabs { display: flex; gap: 6px; }
+.nm-mood-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; padding-right: 4px; }
+.nm-mood-row { display: flex; flex-direction: column; gap: 3px; padding: 7px 10px; border-radius: 10px; background: rgb(127 127 127 / 0.07); }
+.nm-mood-row.nm-lead { background: rgb(127 127 127 / 0.16); }
+.nm-mood-row-head { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.nm-mood-row-name { font-weight: 600; }
+.nm-mood-row-layer { font-size: 10px; opacity: 0.55; }
+.nm-mood-badge { font-size: 10px; padding: 0 5px; border-radius: 6px; background: var(--nm-accent, #4e5e59); color: #fff; }
+.nm-mood-row-score { margin-left: auto; font-variant-numeric: tabular-nums; opacity: 0.7; }
+.nm-mood-bar { height: 5px; border-radius: 3px; background: rgb(127 127 127 / 0.18); overflow: hidden; }
+.nm-mood-bar span { display: block; height: 100%; border-radius: 3px; background: var(--nm-accent, #4e5e59); }
+.nm-mood-row.nm-lead .nm-mood-bar span { background: var(--nm-accent, #4e5e59); }
+
+/* The DeepSeek billing window beside the balance: green while the half-price window is on. */
+.nm-billing-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: rgb(127 127 127 / 0.12);
+  white-space: nowrap;
+}
+.nm-billing-dot { width: 6px; height: 6px; border-radius: 3px; flex: none; }
+.nm-billing-off { color: #1f8f3d; }
+.nm-billing-off .nm-billing-dot { background: #34c759; }
+.nm-billing-peak { color: #b26a00; }
+.nm-billing-peak .nm-billing-dot { background: #ff9500; }
+.nm-billing-left { opacity: 0.7; font-variant-numeric: tabular-nums; }
+
+/* The composer's tall writing view (ComposerExpand.tsx): the same card, allowed to grow to
+   70vh, and the thread above it keeps its own scroll. */
+html[data-nm-composer-expand] [data-composer-seat] { --dsh-composer-text-max-height: 70vh; }
+html[data-nm-composer-expand] [data-input-scroll] { max-height: 70vh; overflow-y: auto; }
+html[data-nm-composer-expand] [data-composer-card] { max-height: 76vh; }
+
+/* A long code block folds to 420px with a button that opens it (Markup.ts). */
+.nm-code-fold { max-height: 420px; overflow: hidden; position: relative; }
+.nm-code-fold::after { content: ''; position: absolute; inset: auto 0 0 0; height: 56px; background: linear-gradient(to bottom, transparent, var(--dsw-alias-bg-base, #fff)); pointer-events: none; }
+.nm-code-more {
+  display: block;
+  margin: -4px 0 8px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 8px;
+  background: rgb(127 127 127 / 0.14);
+  color: var(--dsw-alias-label-secondary, #6b6b6b);
+  font-size: 12px;
+  cursor: pointer;
+}
 `
 
 /** Put the stylesheet in the head once and mark the document as ours. */

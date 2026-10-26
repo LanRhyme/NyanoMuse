@@ -79,3 +79,18 @@
     # client per connection in every chat.
     - id: nanomuse-connectors
       name: dsh-nanomuse/connectors
+
+    # The person's stickers (表情包): packs under $DSH_HOME/nanomuse/stickers/packs/,
+    # the shipped 大肥鱼 set copied in on the first run, served under
+    # /nanomuse/stickers/*. The composer's panel and the bubbles are the browser
+    # half; the preset row `nanomuse-chat-style` gives the model the numbered
+    # catalogue and the rule for sending one.
+    - id: nanomuse-stickers
+      name: dsh-nanomuse/stickers
+
+    # The companion's mood (33 心境): scores that drift back to their own
+    # baselines, a day/night rhythm, and the model's own `<nm:mood/>` tag as the
+    # other track. One store in $DSH_HOME/nanomuse/mood.json, served under
+    # /nanomuse/mood/*; the preset row `nanomuse-chat-style` carries the prompt.
+    - id: nanomuse-mood
+      name: dsh-nanomuse/mood

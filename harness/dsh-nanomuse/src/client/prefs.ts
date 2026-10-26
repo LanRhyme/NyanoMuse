@@ -18,6 +18,8 @@ export interface Prefs {
   approvals: ApprovalRecord[]
   /** The Feed's "About the feed" card was read ("Got it"); it stays away after. */
   feedIntroSeen: boolean
+  /** The composer opens tall (70vh) for a long draft; Enter then writes a new line. */
+  composerExpand: boolean
 }
 
 export interface ApprovalRecord {
@@ -28,7 +30,7 @@ export interface ApprovalRecord {
 }
 
 const KEY = 'nanomuse.prefs'
-const DEFAULTS: Prefs = { showHarness: false, keepAwake: true, showSteps: true, approvals: [], feedIntroSeen: false }
+const DEFAULTS: Prefs = { showHarness: false, keepAwake: true, showSteps: true, approvals: [], feedIntroSeen: false, composerExpand: false }
 const MAX_APPROVALS = 50
 
 let current: Prefs = read()
@@ -46,6 +48,7 @@ function read(): Prefs {
       approvals: Array.isArray(parsed.approvals) ? parsed.approvals.slice(0, MAX_APPROVALS) : [],
       // a `stage` place written before 0.1.40 (the picture-in-picture) is read no more and dropped on the next write
       feedIntroSeen: parsed.feedIntroSeen === true,
+      composerExpand: parsed.composerExpand === true,
     }
   } catch {
     return DEFAULTS

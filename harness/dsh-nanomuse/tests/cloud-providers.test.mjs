@@ -7,12 +7,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { Service } from '@deepseek-ai/cordis'
-import NanomuseCloud, { API_PREFIX, LLM_ROW, PROVIDER_ID, STOCK_DEFAULT_MODEL, TOKEN_REF } from '../lib/cloud.js'
+import NanomuseCloud, { API_PREFIX, LLM_ROW, PROVIDER_ID, STOCK_DEFAULT_MODEL, TOKEN_REF, rederivedRow } from '../lib/cloud.js'
 import { CHATGPT_KEY_REF, CHATGPT_PROVIDER, waysOn } from '../lib/providers.js'
 
 // no bundled runtime here: the ChatGPT row says so instead of spawning anything
@@ -177,6 +178,13 @@ test('GET /providers: the catalogue grouped by region — Bailian first in mainl
     const enGroups = waysOn(en.body.catalogue, en.body.region)
     assert.deepEqual(enGroups.first.map((p) => p.id), ['openrouter', 'openai'])
     assert.ok(!enGroups.rest.some((p) => p.id === 'bailian'))
+    // a vendor that only signs up and bills outside the person's region is not hidden: the
+    // phone appends it to its list, and the desktop shows it under "Elsewhere" (#OpenCode)
+    assert.ok(enGroups.elsewhere.some((p) => p.id === 'bailian'), 'a mainland-only vendor is offered from elsewhere too')
+    assert.ok(!enGroups.elsewhere.some((p) => p.id === 'opencode-zen'), 'a global vendor is not "elsewhere" for a global person')
+    assert.ok(cnGroups.elsewhere.some((p) => p.id === 'opencode-zen'), 'OpenCode Zen is reachable from the mainland')
+    assert.ok(cnGroups.elsewhere.some((p) => p.id === 'opencode-go'), 'OpenCode Go is reachable from the mainland')
+    assert.ok(!cnGroups.rest.some((p) => p.id === 'opencode-zen'))
     // the view's shape, as the browser half reads it
     for (const key of ['region', 'catalogue', 'configured', 'capabilities', 'cloud', 'chatgpt', 'hands', 'chat']) assert.ok(key in en.body, key)
     assert.deepEqual(Object.keys(en.body.chatgpt).sort(), ['label', 'login', 'proxy', 'runtime', 'signedIn'])
@@ -545,7 +553,9 @@ test('OpenCode Go is written as the adapter’s catalog route (no api, no base U
     assert.deepEqual(written, {
       displayName: 'OpenCode Go',
       apiKeyEnv: 'NANOMUSE_KEY_OPENCODE_GO',
-      models: [{ id: 'grok-4.7', displayName: 'grok-4.7', input: ['text'] }, { id: 'deepseek-v4.1-flash', displayName: 'deepseek-v4.1-flash', input: ['text'] }],
+      // OpenCode Go now declares `vision`: the ids whose route speaks pictures (grok-4.7 on the
+      // adapter's own Go route) carry `image`, the text-only ones do not
+      models: [{ id: 'grok-4.7', displayName: 'grok-4.7', input: ['text', 'image'] }, { id: 'deepseek-v4.1-flash', displayName: 'deepseek-v4.1-flash', input: ['text'] }],
     })
     assert.equal((await out.state()).providers['opencode-go'].catalogRoute, true)
     // a host restart reads the row back from cloud.json and compares it with the adapter's:
@@ -563,4 +573,34 @@ test('OpenCode Go is written as the adapter’s catalog route (no api, no base U
   } finally {
     await out.done()
   }
+})
+
+test('a row saved before a vendor gained a capability picks it up on the next start', () => {
+  const catalogue = JSON.parse(readFileSync(new URL('../assets/providers.json', import.meta.url), 'utf8')).providers
+  const go = catalogue.find((p) => p.id === 'opencode-go')
+  // the row as it was saved before OpenCode declared vision: chat only, every model text
+  const saved = {
+    id: 'opencode-go',
+    provider: 'opencode-go',
+    label: 'OpenCode Go',
+    protocol: 'openai',
+    baseURL: go.base_url,
+    keyRef: 'NANOMUSE_KEY_OPENCODE_GO',
+    capabilities: ['chat'],
+    models: [
+      { id: 'minimax-m3', name: 'minimax-m3', kind: 'chat', vision: false },
+      { id: 'deepseek-v4.1-flash', name: 'deepseek-v4.1-flash', kind: 'chat', vision: false },
+    ],
+    at: 1,
+  }
+  const next = rederivedRow(saved, go)
+  assert.deepEqual(next.capabilities, ['chat', 'vision'])
+  assert.equal(next.models.find((m) => m.id === 'minimax-m3').vision, true)
+  assert.equal(next.models.find((m) => m.id === 'deepseek-v4.1-flash').vision, false)
+  // a hand-made endpoint keeps what the person said, and so does the ChatGPT sign-in
+  const custom = { ...saved, provider: 'custom' }
+  assert.equal(rederivedRow(custom, catalogue.find((p) => p.id === 'custom')), custom)
+  assert.equal(rederivedRow(saved, undefined), saved)
+  // nothing to do is the same object back, so a start does not rewrite what it does not change
+  assert.equal(rederivedRow(next, go), next)
 })

@@ -194,3 +194,9 @@
           # `nanomuse-connectors`' loopback proxy, which holds the credentials.
           - id: nanomuse-connectors-tools
             name: dsh-nanomuse/connectors-tools
+          # How a reply is shaped in the chat: the two-or-three-bubble cadence
+          # (`<nm:bubble/>`), the sticker catalogue and the rule for sending one,
+          # and the companion's mood with the hidden `<nm:mood/>` tag it answers
+          # with. Volatile on purpose: it carries the live mood and the packs.
+          - id: nanomuse-chat-style
+            name: dsh-nanomuse/chat-style

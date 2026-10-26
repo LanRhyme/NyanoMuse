@@ -134,6 +134,10 @@ export interface WaysOn {
   signIn: ProviderEntry[]
   /** The rest that work where the person is, the ones that can do more first. */
   rest: ProviderEntry[]
+  /** Vendors that only work outside the person's region (a mainland person and a global-only
+   * vendor): sign-up and billing there, reachable from here all the same. The phone appends
+   * these to its list too, so the two ends offer the same set. */
+  elsewhere: ProviderEntry[]
   /** Servers on this computer (no key): Ollama, LM Studio, vLLM. */
   local: ProviderEntry[]
   /** Any OpenAI-compatible endpoint by hand. */
@@ -166,7 +170,10 @@ export function waysOn(catalogue: ProviderEntry[], region: Region, flows: readon
   const rest = here
     .filter((p) => !taken.has(p.id))
     .sort((a, b) => b.capabilities.length - a.capabilities.length || a.name.localeCompare(b.name))
-  return { first, signIn, rest, local, custom }
+  const elsewhere = catalogue
+    .filter((p) => !here.includes(p) && !isLocal(p) && p.id !== 'custom' && p.base_url)
+    .sort((a, b) => b.capabilities.length - a.capabilities.length || a.name.localeCompare(b.name))
+  return { first, signIn, rest, elsewhere, local, custom }
 }
 
 /** The region a client assumes: the relay's word when it has one (`cn` / `intl`), else the UI language as a hint. */

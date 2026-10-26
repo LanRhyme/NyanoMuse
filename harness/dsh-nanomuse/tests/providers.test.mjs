@@ -119,7 +119,9 @@ test('models: the endpoint’s list sorted into chat, image and video by id; sig
   assert.deepEqual(goRow, {
     displayName: 'OpenCode Go',
     apiKeyEnv: 'NANOMUSE_KEY_OPENCODE_GO',
-    models: [{ id: 'deepseek-v4.1-flash', displayName: 'deepseek-v4.1-flash', input: ['text'] }, { id: 'grok-4.7', displayName: 'grok-4.7', input: ['text'] }],
+    // the entry declares `vision` now, and the Go route speaks each model's own shape: an id
+    // whose family takes pictures carries `image`, a text-only one does not
+    models: [{ id: 'deepseek-v4.1-flash', displayName: 'deepseek-v4.1-flash', input: ['text'] }, { id: 'grok-4.7', displayName: 'grok-4.7', input: ['text', 'image'] }],
   })
   // a session header that is no header name is not taken
   assert.equal(parseCatalogue({ providers: [{ id: 'x', protocol: 'openai', capabilities: ['chat'], regions: ['global'], auth: ['key'], session_header: 'Bad Header' }] })[0].session_header, undefined)

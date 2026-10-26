@@ -47,6 +47,18 @@
       "types": "./lib/types/hands-tools.d.ts",
       "default": "./lib/hands-tools.js"
     },
+    "./stickers": {
+      "types": "./lib/types/stickers.d.ts",
+      "default": "./lib/stickers.js"
+    },
+    "./mood": {
+      "types": "./lib/types/mood.d.ts",
+      "default": "./lib/mood.js"
+    },
+    "./chat-style": {
+      "types": "./lib/types/chat-style.d.ts",
+      "default": "./lib/chat-style.js"
+    },
     "./client": {
       "types": "./lib/types/client/index.d.ts",
       "default": "./lib/client.js"

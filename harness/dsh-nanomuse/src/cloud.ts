@@ -44,6 +44,7 @@ import type { SessionCreateRequest } from '@deepseek-ai/dsh-api-session-controll
 import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-user-approval'
 import z from '@deepseek-ai/schemastery'
+import { billingWindow, type BillingWindow } from './billing.ts'
 import { mountGuarded } from './admit.ts'
 import { brief, REMOTE_ACTIONS, run as runAction, type RemoteAction } from './actions.ts'
 import { CODING_ACTIONS, CodingService, codingBrief, GATED_CODING_ACTIONS } from './coding.ts'
@@ -60,7 +61,22 @@ import { OwnClip, isOwnClipMood, type OwnClipMood, type OwnClipView } from './ow
 import { DEFAULT_VIDEO_MODEL, hostOf, KNOWN_DASHSCOPE_MODELS, looksLikeVideoModel, probe as probeVideoModel, speaksDashScope, type VideoEndpoint } from './video.ts'
 import { editImage as ownEditImage, generateImage as ownGenerateImage, imageShapeOf, type ImageEndpoint } from './images.ts'
 import { checkMove, checkScreenshot, displayInfo, isBlack, runtimeInfo, screenHead, type MoveCheck, type RuntimeInfo, type ScreenshotCheck } from './hands-check.ts'
-import { apiOf, baseUrlFor, CAPABILITIES, capabilitiesForAuth, capabilitiesOf, CHATGPT_KEY_REF, CHATGPT_PROVIDER, ChatGptDesk, hasUserinfo, keyRefFor, listModelRows, listModels, loadCatalogue, modelsOf, ownProviderRow, parseModelReasoning, regionOf, typedModelIds, USERINFO_TEXT, type Capability, type ChatGptState, type LoginView, type OwnModel, type OwnProvider, type ProviderEntry, type Region } from './providers.ts'
+import { apiOf, baseUrlFor, CAPABILITIES, capabilitiesForAuth, capabilitiesOf, CHATGPT_KEY_REF, CHATGPT_PROVIDER, ChatGptDesk, hasUserinfo, keyRefFor, listModelRows, listModels, loadCatalogue, modelsOf, ownProviderRow, parseModelReasoning, regionOf, sighted, typedModelIds, USERINFO_TEXT, type Capability, type ChatGptState, type LoginView, type OwnModel, type OwnProvider, type ProviderEntry, type Region } from './providers.ts'
+
+/**
+ * A saved row brought up to what the catalogue says now: a vendor that gained a capability
+ * after the key was saved (OpenCode's vision models, October 2026) would otherwise keep the
+ * row's old `capabilities` and never offer its pictures to the hands. A hand-made endpoint
+ * and the ChatGPT sign-in are left alone (the person, or the plan, says what they cover).
+ */
+export function rederivedRow(row: OwnProvider, entry: ProviderEntry | undefined): OwnProvider {
+  if (!entry || entry.user_capabilities || row.provider === CHATGPT_PROVIDER) return row
+  const capabilities = entry.capabilities
+  const sameCapabilities = capabilities.length === row.capabilities.length && capabilities.every((c) => row.capabilities.includes(c))
+  const models = row.models.map((model) => (model.kind === 'chat' ? { ...model, vision: sighted(entry, model.id) } : model))
+  const sameModels = models.every((model, i) => model.vision === row.models[i]?.vision)
+  return sameCapabilities && sameModels ? row : { ...row, capabilities, models }
+}
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -1728,12 +1744,21 @@ export default class NanomuseCloud extends Service {
     }
     const written = (current.value as { providers?: Record<string, unknown> } | undefined)?.providers ?? {}
     void (async () => {
+      let stateChanged = false
       for (const [id, row] of rows) {
         const entry = this.catalogue.find((p) => p.id === row.provider)
-        const wanted = ownProviderRow(row, entry?.reasoning)
+        // the catalogue's word may have moved since the key was saved: a vendor that gained a
+        // capability (OpenCode's vision models) has to reach the row, or its pictures never show
+        const next = rederivedRow(row, entry)
+        if (next !== row) {
+          this.state = { ...this.state, providers: { ...this.state.providers, [id]: next } }
+          stateChanged = true
+        }
+        const wanted = ownProviderRow(next, entry?.reasoning)
         if (canonical(written[id] ?? null) === canonical(wanted)) continue
         await this.ctx.settings.update(LLM_ROW, { providers: { [id]: wanted } }).catch((error: unknown) => this.ctx.logger.warn('nanomuse: own-key row %s not refreshed: %s', id, message(error)))
       }
+      if (stateChanged) await this.writeState().catch((error: unknown) => this.ctx.logger.warn('nanomuse: own-key rows not written back: %s', message(error)))
     })()
   }
 
@@ -1992,6 +2017,25 @@ export default class NanomuseCloud extends Service {
       handsModel: this.handsModel(),
       profile: this.profile.current(),
       hub: this.hubState(),
+    }
+  }
+
+  /**
+   * What the person has left and what the hour costs: the `model_quota` tool's answer.
+   * The DeepSeek key's balance is read from the vendor; the account's allowance and spend
+   * come from the relay's last status; the billing window is the shared `billing.ts` rule.
+   */
+  async quota(): Promise<{ signedIn: boolean; balance?: string; currency?: string; window: BillingWindow; tokens?: Account['tokens']; spend?: Account['spend']; error?: string }> {
+    const status = await this.status()
+    const balance = await this.deepSeekBalance()
+    return {
+      signedIn: status.signedIn,
+      ...(balance.balance ? { balance: balance.balance } : {}),
+      ...(balance.currency ? { currency: balance.currency } : {}),
+      window: billingWindow(Date.now()),
+      ...(status.account ? { tokens: status.account.tokens } : {}),
+      ...(status.account?.spend ? { spend: status.account.spend } : {}),
+      ...(status.error ? { error: status.error.message } : {}),
     }
   }
 

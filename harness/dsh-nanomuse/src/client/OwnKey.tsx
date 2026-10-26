@@ -345,8 +345,8 @@ function hostOf(url: string): string {
 
 // ---- the groups ----------------------------------------------------------------------------------
 
-export type Group = 'account' | 'first' | 'signIn' | 'rest' | 'local' | 'custom'
-export const ALL_GROUPS: Group[] = ['account', 'first', 'signIn', 'rest', 'local', 'custom']
+export type Group = 'account' | 'first' | 'signIn' | 'rest' | 'elsewhere' | 'local' | 'custom'
+export const ALL_GROUPS: Group[] = ['account', 'first', 'signIn', 'rest', 'elsewhere', 'local', 'custom']
 
 /** The account's row, first while signed in: what nanoMuse Cloud covers right now (the relay's model list). */
 function AccountRow({ t, view }: { t: Translate; view: ProvidersView }): ReactNode {
@@ -389,6 +389,13 @@ export function WaysOnRows({ t, view, groups = ALL_GROUPS, signInRow = true, hea
   if (groups.includes('rest') && g.rest.length) {
     out.push(heading(t('ownKeyRestGroup')))
     for (const p of g.rest) out.push(rowOf(p))
+  }
+  if (groups.includes('elsewhere') && g.elsewhere.length) {
+    // the vendors whose sign-up and billing live outside the person's region: reachable from
+    // here, but a card that works there is needed, and the catalogue says so on each row
+    out.push(heading(t('ownKeyElsewhereGroup')))
+    if (headings) out.push(h('div', { key: 'elsewhere-note', style: { ...muted, marginBottom: 6 } }, t('ownKeyElsewhereNote')))
+    for (const p of g.elsewhere) out.push(rowOf(p))
   }
   if (groups.includes('local') && g.local.length) {
     out.push(heading(t('ownKeyLocalGroup')))
@@ -458,7 +465,7 @@ export function OwnKeyStep({ t, onDone }: { t: Translate; onDone(done: boolean):
   useEffect(() => { onDone(done) }, [done, onDone])
   if (error) return h('div', { style: errorStyle }, error)
   if (!view) return h('div', { style: muted }, t('loading'))
-  const groups: Group[] = more ? ['first', 'signIn', 'rest', 'local', 'custom'] : ['first', 'signIn']
+  const groups: Group[] = more ? ['first', 'signIn', 'rest', 'elsewhere', 'local', 'custom'] : ['first', 'signIn']
   return h('div', { className: 'nm-ob-card nm-ownkey-step', 'data-testid': 'nm-ownkey-step', style: { textAlign: 'left', width: '100%', padding: '4px 14px 12px' } },
     h(WaysOnRows, { t, view, groups, onChanged: reload }),
     more ? null : h('div', { style: { marginTop: 10 } }, h('button', { type: 'button', className: 'nm-ob-link nm-inline', onClick: () => setMore(true) }, t('ownKeyMoreWays'))))

@@ -46,3 +46,31 @@ export function focusComposer(tries = 8): void {
   }
   if (tries > 0) window.setTimeout(() => focusComposer(tries - 1), 150)
 }
+
+/**
+ * Put words where the caret is, keeping the draft: a sticker's tag, a quote's tail. Unlike
+ * `prefillComposer` this appends rather than replaces, and falls back to the end of the
+ * draft when the editor cannot report a selection.
+ */
+export function insertComposer(text: string, tries = 20): void {
+  const editable = composerEditable()
+  if (!editable) {
+    if (tries > 0) window.setTimeout(() => insertComposer(text, tries - 1), 150)
+    return
+  }
+  editable.focus()
+  const selection = window.getSelection()
+  const inside = selection && selection.rangeCount > 0 && editable.contains(selection.anchorNode)
+  if (!inside && selection) {
+    const range = document.createRange()
+    range.selectNodeContents(editable)
+    range.collapse(false)
+    selection.removeAllRanges()
+    selection.addRange(range)
+  }
+  const ok = document.execCommand('insertText', false, text)
+  if (!ok) {
+    editable.textContent = `${editable.textContent ?? ''}${text}`
+    editable.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }))
+  }
+}
