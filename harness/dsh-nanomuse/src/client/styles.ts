@@ -1995,6 +1995,18 @@ html[data-ds-dark-theme] .nm-bubble-seg { border-color: rgb(255 255 255 / 0.06);
   object-fit: contain;
   border-radius: 14px;
 }
+/* A sticker the catalogue names but this computer no longer holds: the name as a quiet chip,
+   which says what was meant instead of leaving a broken picture in the reply. */
+.nm-meme.nm-meme-missing {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--nm-r-pill);
+  background: var(--nm-hover);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--nm-fs-sm);
+}
 
 /* The sticker panel, above the composer. */
 .nm-sticker-anchor { position: relative; display: inline-flex; }

@@ -84,8 +84,14 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   bubbles (`<nm:bubble/>`), drawn as separate cards with the phone's geometry: the first
   keeps its rounded top-left, the rest tuck that corner, and the harness's own body is
   hidden behind a stack built from a clone of it, so code, links and lists survive the
-  split. A sticker sits among them as a bare picture (`<nm:meme id="…"/>`, 80 to 160 px,
-  no frame), and a tag that names nothing stays as text, as on the phone. Long code
+  split. A sticker sits among them as a bare picture (`<nm:meme id="…"/>`, or the phone's
+  `[表情: …]`, 80 to 160 px, no frame), found the way the phone finds it: a number with or
+  without its zeros, an id, a name, part of a name, then a keyword. A tag that names nothing
+  here is cut out of the reply rather than shown as XML (the phone keeps it, since it
+  resolves against whatever that phone holds), and a sticker the catalogue names but this
+  computer no longer holds shows its name as a quiet chip instead of a broken picture. The
+  same two passes run over a turn that came from another device of the account, so a sticker
+  the phone sent draws here too. Long code
   blocks fold to 420 px with a *Show the whole block* button. The composer's tool row
   gains a sticker panel beside the microphone: the packs as chips (*All*, each pack with
   its count, *New group*), a search field, a grid of pictures, and *Add sticker* which

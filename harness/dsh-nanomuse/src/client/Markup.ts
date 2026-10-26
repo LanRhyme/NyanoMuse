@@ -15,9 +15,10 @@
  * coalesced over 100 ms (the pattern `RemoteBubbles.ts` already uses). A turn that is still
  * streaming is never split, only cleaned.
  */
-import { hasBubbleTag, hasMemeTag, hasMoodTag, MOOD_TAG, MEME_TAG } from '../chat-markup.ts'
+import { hasBubbleTag, hasMemeTag, hasMoodTag, MOOD_TAG } from '../chat-markup.ts'
 import type { Translate } from './api.ts'
 import { getStickers, refreshStickers, subscribeStickers } from './stickers.ts'
+import { memeTags, type StickerItemView } from '../sticker-index.ts'
 
 const SWEEP_DELAY_MS = 100
 const BODY = '[class*="_body"]'
@@ -59,37 +60,48 @@ function hideMoodTags(root: HTMLElement): void {
   }
 }
 
-/** A sticker tag becomes its picture; one that names nothing is left alone. */
+/** One sticker as a picture on the left, no frame, 80-160 px as on the phone. */
+function memeNode(sticker: StickerItemView): HTMLElement {
+  const wrap = document.createElement('span')
+  wrap.className = 'nm-meme'
+  const img = document.createElement('img')
+  img.src = sticker.url
+  img.alt = sticker.name || 'sticker'
+  img.title = sticker.name || sticker.packName
+  img.loading = 'lazy'
+  img.decoding = 'async'
+  // A catalogue can name a picture that is no longer on disk. The name is the honest
+  // fallback: a broken-image icon in the middle of a reply is not.
+  img.addEventListener('error', () => {
+    wrap.classList.add('nm-meme-missing')
+    img.remove()
+    wrap.textContent = sticker.name || '表情'
+  })
+  wrap.append(img)
+  return wrap
+}
+
+/** A sticker tag becomes its picture; one that names nothing is left alone, as on the phone. */
 function renderMemes(root: HTMLElement): void {
   const catalogue = getStickers()
   if (catalogue.items.length === 0) return
   for (const node of textNodes(root)) {
     if (!hasMemeTag(node.data) || inCode(node)) continue
     const text = node.data
-    const scan = new RegExp(MEME_TAG.source, 'gi')
-    let match: RegExpExecArray | null
-    let last = 0
+    // The phone's lookup, not an exact match: a number, an id, a name, part of a name, then a
+    // keyword, so a tag written as `002`, as `2` or as `得意` finds the same picture. A tag
+    // that names nothing here (the model can invent a number the pack does not reach) is cut
+    // out rather than left as XML in the middle of a reply; the phone keeps it as text, since
+    // it resolves against whatever the phone holds.
+    const tags = memeTags(catalogue, text)
+    if (tags.length === 0) continue
     const frag = document.createDocumentFragment()
-    let changed = false
-    while ((match = scan.exec(text)) !== null) {
-      const query = (match[1] ?? match[2] ?? '').trim()
-      const sticker = query ? catalogue.items.find((item) => item.id === query || item.seq === query || item.name === query) ?? undefined : undefined
-      if (!sticker) continue
-      changed = true
-      frag.append(document.createTextNode(text.slice(last, match.index)))
-      const wrap = document.createElement('span')
-      wrap.className = 'nm-meme'
-      const img = document.createElement('img')
-      img.src = sticker.url
-      img.alt = sticker.name || 'sticker'
-      img.title = sticker.name || sticker.packName
-      img.loading = 'lazy'
-      img.decoding = 'async'
-      wrap.append(img)
-      frag.append(wrap)
-      last = match.index + match[0].length
+    let last = 0
+    for (const tag of tags) {
+      frag.append(document.createTextNode(text.slice(last, tag.start)))
+      if (tag.sticker) frag.append(memeNode(tag.sticker))
+      last = tag.end
     }
-    if (!changed) continue
     frag.append(document.createTextNode(text.slice(last)))
     node.replaceWith(frag)
   }
@@ -208,6 +220,14 @@ function sweep(t: Translate): void {
       foldCode(stack, t)
     }
     if (kind === 'assistant-step') splitBubbles(item)
+  }
+  // A turn written on another device of the account is our own markup (`RemoteBubbles.ts`),
+  // not the harness's: its bubbles are already split there, but the mood tag and a sticker
+  // in it were never drawn, so a `<nm:meme id="002"/>` from the phone reached the desktop as
+  // text. Every remote bubble goes through the same two passes.
+  for (const bubble of Array.from(document.querySelectorAll<HTMLElement>('.nm-remote-bubble'))) {
+    hideMoodTags(bubble)
+    renderMemes(bubble)
   }
 }
 

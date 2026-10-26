@@ -5,6 +5,8 @@
  * name, part of a name, then the keywords.
  */
 
+import { MEME_TAG } from './chat-markup.ts'
+
 export const STICKERS_PREFIX = '/nanomuse/stickers'
 export const IMG_PREFIX = `${STICKERS_PREFIX}/img`
 
@@ -86,6 +88,42 @@ export function findSticker(catalogue: StickerCatalogue, query: string): Sticker
   const byPart = items.find((item) => item.name.toLowerCase().includes(lower) || lower.includes(item.name.toLowerCase()))
   if (byPart) return byPart
   return items.find((item) => item.keywords.toLowerCase().includes(lower))
+}
+
+/** One meme tag found in a reply, and the sticker it names (none when nothing here answers). */
+export interface MemeTag {
+  /** Index of the tag's first character in the text. */
+  start: number
+  /** Index just past the tag's last character. */
+  end: number
+  /** What the tag named, as written. */
+  query: string
+  sticker: StickerItemView | undefined
+}
+
+/**
+ * Every meme tag in a text, in order, with where it sits so a renderer can splice in the
+ * picture. The lookup is the phone's (`findSticker`): a number, an id, a name, part of a name,
+ * then a keyword, so `<nm:meme id="002"/>`, `<nm:meme id="2"/>`, `<nm:meme name="得意"/>` and
+ * the phone's bracket form all land on the same picture. A tag that names nothing comes back
+ * with no sticker, which is the caller's call: the desktop drops it rather than showing XML
+ * to the person, and the phone, which resolves against a bigger collection, keeps it as text.
+ */
+export function memeTags(catalogue: StickerCatalogue, text: string): MemeTag[] {
+  if (!text || catalogue.items.length === 0) return []
+  const out: MemeTag[] = []
+  const scan = new RegExp(MEME_TAG.source, 'gi')
+  let match: RegExpExecArray | null
+  while ((match = scan.exec(text)) !== null) {
+    const query = (match[1] ?? match[2] ?? '').trim()
+    out.push({ start: match.index, end: match.index + match[0].length, query, sticker: query ? findSticker(catalogue, query) : undefined })
+  }
+  return out
+}
+
+/** The tags that name a sticker this computer has: what a renderer draws. */
+export function memePlacements(catalogue: StickerCatalogue, text: string): (MemeTag & { sticker: StickerItemView })[] {
+  return memeTags(catalogue, text).filter((tag): tag is MemeTag & { sticker: StickerItemView } => tag.sticker !== undefined)
 }
 
 /** The one sticker a pack holds under that id (or filename), for a delete or a rename. */

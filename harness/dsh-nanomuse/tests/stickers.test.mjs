@@ -3,7 +3,7 @@
 // model reads.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { comparePacks, findSticker, flattenPacks, memePrompt, memeUrl } from '../lib/sticker-index.js'
+import { comparePacks, findSticker, flattenPacks, memePlacements, memePrompt, memeTags, memeUrl } from '../lib/sticker-index.js'
 
 const item = (packId, id, name, keywords = '') => ({ id, seq: '', name, filename: `${id}.jpg`, format: 'jpg', packId, packName: packId, keywords, url: memeUrl(packId, `${id}.jpg`) })
 const pack = (id, name, builtin, items) => ({ id, name, description: '', count: items.length, builtin, items })
@@ -32,6 +32,38 @@ test('a query finds a sticker by number, id, name, part of a name, then keywords
   assert.equal(findSticker(catalogue, '好耶')?.id, 'dfy_deyi')
   assert.equal(findSticker(catalogue, 'nope'), undefined)
   assert.equal(findSticker(catalogue, '  '), undefined)
+})
+
+test('a meme tag resolves the way the phone resolves it, and leaves the rest of the text alone', () => {
+  // the number the prompt shows, the same number without its zeros, the id, the name, part of
+  // a name, a keyword, and the phone's bracket form: one sticker, whichever was written
+  const same = ['<nm:meme id="002"/>', '<nm:meme id="2"/>', '<nm:meme id="dfy_ganfan"/>', '<nm:meme name="干饭"/>', '<nm:meme id="干"/>', '<nm:meme id="吃饭"/>', '[表情: 干饭]', '[meme: 饿]']
+  for (const tag of same) {
+    const spots = memePlacements(catalogue, tag)
+    assert.equal(spots.length, 1, tag)
+    assert.equal(spots[0].sticker.id, 'dfy_ganfan', tag)
+    assert.equal(tag.slice(spots[0].start, spots[0].end), tag)
+  }
+  // a tag that names nothing has no sticker, and a renderer decides what to do with it
+  assert.deepEqual(memePlacements(catalogue, '<nm:meme id="999"/>'), [])
+  assert.deepEqual(memePlacements(catalogue, '<nm:meme id=""/>'), [])
+  const unknown = memeTags(catalogue, '喏<nm:meme id="999"/>')
+  assert.equal(unknown.length, 1)
+  assert.equal(unknown[0].sticker, undefined)
+  assert.equal(unknown[0].query, '999')
+  assert.equal(unknown[0].start, 1)
+  // two tags in one paragraph, with the words between them left in place
+  const text = '好耶<nm:meme id="001"/>然后去[表情: 猫猫抱抱]了'
+  const spots = memePlacements(catalogue, text)
+  assert.deepEqual(spots.map((s) => s.sticker.id), ['dfy_deyi', 'a1'])
+  let rest = ''
+  let last = 0
+  for (const spot of spots) { rest += text.slice(last, spot.start); last = spot.end }
+  rest += text.slice(last)
+  assert.equal(rest, '好耶然后去了')
+  // an empty catalogue names nothing, and an empty text has nothing to name
+  assert.deepEqual(memePlacements(flattenPacks([]), '<nm:meme id="001"/>'), [])
+  assert.deepEqual(memePlacements(catalogue, ''), [])
 })
 
 test('the prompt names every pack, numbers its stickers, and keeps the rule short', () => {
