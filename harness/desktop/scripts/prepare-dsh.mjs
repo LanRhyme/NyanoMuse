@@ -38,6 +38,10 @@ const run = (cmd, cmdArgs, options = {}) => {
   return execFileSync(cmd, cmdArgs, { stdio: "inherit", ...options });
 };
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+// The two harness plugins the app carries beside the bundle (see main.ts's BUNDLES): both
+// MIT, both mounted by the `dsh.bundle.patch` layer they ship, so nothing of theirs is copied
+// into this repository. Pinned, like dsh itself.
+const EXTRA_BUNDLES = ["dsh-turn-fold@0.7.0", "dsh-better-sidebar@0.26.1"];
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const shell = process.platform === "win32";
 
@@ -74,7 +78,7 @@ writeFileSync(
 // only check for them — except one, which the step after this one does by hand.
 run(
   npm,
-  ["install", "--omit=dev", "--no-audit", "--no-fund", "--no-package-lock", "--ignore-scripts", `--registry=${REGISTRY}`, `@deepseek-ai/dsh@${dshVersion}`, bundle],
+  ["install", "--omit=dev", "--no-audit", "--no-fund", "--no-package-lock", "--ignore-scripts", `--registry=${REGISTRY}`, `@deepseek-ai/dsh@${dshVersion}`, ...EXTRA_BUNDLES, bundle],
   { cwd: out, shell, env: { ...process.env, npm_config_registry: REGISTRY } },
 );
 // what @deepseek-ai/dsh-subprocess-local's postinstall does: the executable bit the tarball

@@ -294,6 +294,7 @@ export const en = {
   // the chats column
   chSearch: 'Search chats',
   wallpaperOpen: 'Chat background and wallpaper',
+  workbenchOpen: 'Workbench: files, editor, changes',
   wsSwitch: 'Switch workspace',
   wsNone: 'All chats',
   wsNoneHint: 'Not grouped by folder',
@@ -1805,6 +1806,7 @@ export const zh: typeof en = {
   // the chats column
   chSearch: '搜索会话',
   wallpaperOpen: '聊天背景与壁纸',
+  workbenchOpen: '工作台：文件、编辑器、改动',
   wsSwitch: '切换工作区',
   wsNone: '全部会话',
   wsNoneHint: '不按文件夹分组',

@@ -47,17 +47,22 @@ if (!electron || !existsSync(electron)) throw new Error(`no Electron binary at $
 const bin = join(dshDir, "node_modules", "@deepseek-ai", "dsh", "lib", "bin.js");
 if (!existsSync(bin)) throw new Error(`no staged dsh at ${bin} — run scripts/prepare-dsh.mjs`);
 
-// the profile, as src/main.ts writes it
+// the profile, as src/main.ts writes it: the bundle stack, and a link per bundle that is not
+// the harness's own (the Loader resolves a row's package from the profile, not from dsh)
+const BUNDLES = ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@deepseek-ai/dsh-experimental-schedule-bundle", "dsh-nanomuse", "dsh-turn-fold", "dsh-better-sidebar"];
 const home = mkdtempSync(join(tmpdir(), "nanomuse-desktop-smoke-"));
 const profile = join(home, "profiles", "nanomuse");
 mkdirSync(join(profile, "node_modules"), { recursive: true });
 writeFileSync(
   join(profile, "package.json"),
-  `${JSON.stringify({ name: "dsh-profile-nanomuse", private: true, dependencies: { "dsh-nanomuse": "*" }, dsh: { profile: { bundles: ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@deepseek-ai/dsh-experimental-schedule-bundle", "dsh-nanomuse"] } } }, null, 2)}\n`,
+  `${JSON.stringify({ name: "dsh-profile-nanomuse", private: true, dependencies: { "dsh-nanomuse": "*" }, dsh: { profile: { bundles: [...BUNDLES] } } }, null, 2)}\n`,
 );
 writeFileSync(join(profile, "cordis.yml"), "[]\n");
 writeFileSync(join(profile, "cordis.patch.yml"), "[]\n");
-symlinkSync(join(dshDir, "node_modules", "dsh-nanomuse"), join(profile, "node_modules", "dsh-nanomuse"), process.platform === "win32" ? "junction" : "dir");
+for (const name of BUNDLES) {
+  if (name.startsWith("@deepseek-ai/")) continue;
+  symlinkSync(join(dshDir, "node_modules", name), join(profile, "node_modules", name), process.platform === "win32" ? "junction" : "dir");
+}
 
 const env = { ...process.env, ELECTRON_RUN_AS_NODE: "1", DSH_HOME: home, ELECTRON_NO_ATTACH_CONSOLE: "1" };
 const redact = (s) => s.replace(/token=\S+/g, "token=…");
@@ -75,6 +80,15 @@ if (dump.status !== 0 || patched < 3) {
   throw new Error(`--dump-config: exit ${dump.status}, ${patched} rows patched by the bundle`);
 }
 console.log(`dump-config: ${patched} rows patched by dsh-nanomuse`);
+// every bundle the app carries is in the composed tree: a link that did not land, or a
+// package the staging missed, would otherwise boot with that entry inactive and still answer
+for (const name of BUNDLES.filter((b) => !b.startsWith("@deepseek-ai/") && b !== "dsh-nanomuse")) {
+  if (!dump.stdout.includes(`name: ${name}`)) {
+    console.error(dump.stdout.slice(-2000));
+    cleanup();
+    throw new Error(`${name} is in the bundle stack but not in the composed configuration`);
+  }
+}
 
 // 2. the Host
 const port = await new Promise((resolvePort, reject) => {

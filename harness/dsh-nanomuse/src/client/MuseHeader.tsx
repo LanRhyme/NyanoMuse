@@ -12,7 +12,8 @@ import { dismissStar, markStarred, nudgeText, openStar } from './AccountPage.tsx
 import { call, type Translate } from './api.ts'
 import { Avatar, motionStatus, type Mood } from './Avatar.tsx'
 import { describeCall } from './Capsule.tsx'
-import { IconCheck, IconChevronLeft, IconHeart, IconMenu, IconPalette, IconSpinner } from './icons.tsx'
+import { IconCheck, IconChevronLeft, IconHeart, IconMenu, IconPalette, IconPanelRight, IconSpinner } from './icons.tsx'
+import { pressRightPanelChord } from './keys.ts'
 import { useLive } from './live.ts'
 import { BillingChip, MoodPill, useMoodState } from './MoodPanel.tsx'
 import { mainChatId } from './MuseChats.tsx'
@@ -195,6 +196,15 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
               ? h('div', { className: `nm-header-status ${tone}`.trim() }, running || waiting ? h(IconSpinner, { size: 12 }) : null, h('span', { className: 'nm-header-line' }, line))
               : null)),
       h('div', { className: 'nm-header-actions' },
+        // The workbench (dsh-better-sidebar's right rail). Its own button lives in the
+        // harness's session header, under this bar; pressing the harness's chord opens it.
+        h('button', {
+          type: 'button',
+          className: 'nm-header-icon-btn nm-header-workbench',
+          title: t('workbenchOpen'),
+          'aria-label': t('workbenchOpen'),
+          onClick: () => { pressRightPanelChord() },
+        }, h(IconPanelRight, { size: 17 })),
         h('button', {
           type: 'button',
           className: 'nm-header-icon-btn',

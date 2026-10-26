@@ -39,6 +39,7 @@ export const IconBug = (p: IconProps) => icon([h('path', { key: 1, d: 'M9 9h6v5a
 export const IconPuzzle = (p: IconProps) => icon([h('path', { key: 1, d: 'M10 4.5a1.5 1.5 0 1 1 3 0V6h3a1 1 0 0 1 1 1v3h1.5a1.5 1.5 0 1 1 0 3H17v3a1 1 0 0 1-1 1h-3v-1.5a1.5 1.5 0 1 0-3 0V17H7a1 1 0 0 1-1-1v-3H4.5a1.5 1.5 0 1 1 0-3H6V7a1 1 0 0 1 1-1h3z' })], p)
 export const IconPlus = (p: IconProps) => icon([h('path', { key: 1, d: 'M12 5v14M5 12h14' })], p)
 export const IconPanelLeft = (p: IconProps) => icon([h('rect', { key: 1, x: 3.5, y: 4.5, width: 17, height: 15, rx: 2.5 }), h('path', { key: 2, d: 'M9.5 4.5v15' })], p)
+export const IconPanelRight = (p: IconProps) => icon([h('rect', { key: 1, x: 3.5, y: 4.5, width: 17, height: 15, rx: 2.5 }), h('path', { key: 2, d: 'M14.5 4.5v15' })], p)
 export const IconStop = (p: IconProps) => icon([h('rect', { key: 1, x: 7, y: 7, width: 10, height: 10, rx: 2, fill: 'currentColor', stroke: 'none' })], p)
 export const IconChevronLeft = (p: IconProps) => icon([h('path', { key: 1, d: 'm14.5 6-6 6 6 6' })], p)
 export const IconChevronRight = (p: IconProps) => icon([h('path', { key: 1, d: 'm9.5 6 6 6-6 6' })], p)

@@ -425,8 +425,12 @@ html[data-nm-muse] [data-composer-card] ~ [class*="_dock"] { display: none !impo
 @keyframes nm-mic-pulse { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
 /* Muse keeps the chat bare: no tool-step disclosure, no usage, no fork, no context rows */
 html[data-nm-muse] [data-chat-flow-kind="context"] { display: none !important; }
-/* the "done in 6 s" accordion goes; what the agent said along the way stays a bubble, as Muse shows it (the harness folds it under the accordion with hidden=until-found) */
-html[data-nm-muse] [data-chat-flow-kind="turn-process"] { display: none !important; }
+/* The turn bar over a turn stays: it is the one line that says what the agent did and what
+   it cost, and with dsh-turn-fold mounted it carries the duration, the first token, the
+   tokens, tok/s and the cache hit. Its members keep the harness's own disclosure, so the
+   chat still reads as replies; opening the bar (or "Show the agent's steps") reveals the
+   steps underneath. */
+html[data-nm-muse] [data-chat-flow-kind="turn-process"] { margin: 2px 0; }
 html[data-nm-muse] [data-turn-process-member]:not([data-chat-flow-kind="assistant-step"]):not([data-chat-flow-kind="tool-call"]) { display: none !important; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"][hidden] { display: block !important; content-visibility: visible !important; }
 /* the rooms' trigger rows and the agent's tool rows stay out of the chat (the Activity tab has them); approvals, presented files and open questions stay */
@@ -491,7 +495,10 @@ html[data-nm-muse] [data-chat-flow-kind="turn-tail"] [class*="_actions"][data-cl
 html[data-nm-muse] [data-slot="conversation.session.header"] [class*="_titleCluster"] { display: none; }
 html[data-nm-muse][data-nm-side] [data-slot="conversation.session.header"] [class*="_titleCluster"] { display: flex; }
 html[data-nm-muse][data-nm-side] [data-slot="conversation.session.header"] [class*="_crumb"] { font-size: 13px; font-weight: 500; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2); border-radius: 999px; padding: 4px 12px; }
-html[data-nm-muse] [data-slot="conversation.session.header"] [class*="_headerActions"] { display: none; }
+/* The session header's actions stay: the right rail's expand button is one of them (and
+   dsh-better-sidebar puts its workbench behind it). The title cluster and the tabs are ours
+   to hide, since the bar above the chat already carries the name. */
+html[data-nm-muse] [data-slot="conversation.session.header"] [class*="_headerActions"] { display: flex; }
 html[data-nm-muse] [data-slot="conversation.session.header"] [class*="_titleRow"] { justify-content: flex-end; }
 html[data-nm-muse][data-nm-side] [data-slot="conversation.session.header"] [class*="_titleRow"] { justify-content: space-between; }
 html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs] { display: none; }
@@ -503,11 +510,11 @@ html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-
 html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs]:has([role="tab"][aria-selected="true"]:not(:first-child)) [role="tab"][aria-selected="true"] { background: var(--nm-base); color: var(--dsw-alias-label-primary); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 html[data-nm-muse] [data-slot="conversation.session.header.utilities"] > *:not(:has(.nm-invite)) { display: none; }
 html[data-nm-muse] [data-turn-process-inline] { display: none !important; }
-html[data-nm-muse] [data-slot="conversation.session.header.corner"] [data-sidebar-right-expand] { display: none; }
-/* The harness's right rail keeps its track when it is collapsed, and Muse mode draws nothing
-   in it: 85 px of wallpaper on the right of the window, which pushed the thread and the
-   composer off centre. Collapsed, it takes no room. */
-html[data-nm-muse] [class*="_frame"][data-rightbar-collapsed] [data-sidebar-right-panel] { display: none; }
+/* The right rail is the workbench's: dsh-better-sidebar mounts the file tree, the editor,
+   the changes and the tasks there, so its track and its expand button stay. The harness's
+   own expand button lives in the session header, under this bar, so the bar carries one of
+   its own that presses the harness's chord; it is drawn only when a right rail exists. */
+html[data-nm-muse]:not(:has([data-sidebar-right-panel])) .nm-header-workbench { display: none; }
 /* the navigation seat of the bar: flat, 28px, the way the phone draws its menu icon; it only
    shows the tint when hovered or focused */
 .nm-header-back { flex: none; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }

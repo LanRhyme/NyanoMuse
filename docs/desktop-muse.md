@@ -157,6 +157,32 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   card behind every reply; the picture shows at the edges and between turns. The bar and
   the composer are panes too, while Settings and the other pages keep their solid surfaces.
 
+## Two plugins of the harness, carried with the app
+
+The app boots the harness with two MIT plugins of its own ecosystem beside the bundle, each
+mounted by the patch it ships (`harness/desktop/src/main.ts`, `BUNDLES`; staged by
+`scripts/prepare-dsh.mjs`). They draw their own surfaces: the stylesheet gives them their
+room and leaves their look alone.
+
+- **dsh-turn-fold** puts a bar over every turn with what the harness already measured: the
+  duration, the first token, the tokens, tok/s, the cache hit and the turn's number, and
+  while a turn runs the bar walks from zero. Its members keep the harness's own disclosure,
+  so the chat still reads as replies and opening the bar shows the steps underneath. The
+  poker skin, the running animation and the field switches are the plugin's own, in its
+  section of the harness's settings.
+- **dsh-better-sidebar** is the right rail's workbench: a lazily loaded file tree coloured
+  by Git state, an editable editor with Markdown, Mermaid and HTML preview, a changes view
+  with diffs, the subagent topology and the background jobs, side threads that inherit the
+  conversation, and a bottom panel with terminals of its own. It keeps its layout per
+  conversation. The right rail is opened from the panel button at the right of the bar
+  (which presses the harness's `sidebar.right.toggle` chord, Ctrl or Cmd + Alt + B), since
+  the harness's own expand button sits in the session header, under our bar; its bottom
+  workbench has its own toggle beside it. It also serves `ctx.betterSidebar`, so other
+  plugins can add their own tabs and viewers there.
+
+Both are third-party work under their own MIT licences, not part of nanoMuse: the app
+carries them as they are published, pinned by version.
+
 ## The first run
 
 The phone's pages (`FirstRunSetup` on Android), full-window, in

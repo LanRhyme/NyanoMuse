@@ -41,6 +41,15 @@ export function openShortcutsReference(): boolean {
   return press({ code: 'Slash', key: '/', primary: true })
 }
 
+/**
+ * The harness's right rail (`sidebar.right.toggle`): the workbench dsh-better-sidebar mounts
+ * the file tree, the editor, the changes and the tasks in. Its own button sits in the session
+ * header, which the Muse bar covers, so the bar's button presses this chord instead.
+ */
+export function pressRightPanelChord(): boolean {
+  return press({ code: 'KeyB', key: 'b', primary: true, alt: true })
+}
+
 /** The harness's Settings command (`settings.open`); bound on the web only for macOS and Windows. */
 export function pressSettingsChord(): boolean {
   return press({ code: 'Comma', key: ',', primary: true, alt: true })

@@ -41,8 +41,13 @@ import { windowsNetworkCost } from "./windows-network-cost";
 
 const PROFILE = "nanomuse";
 // The composition: the harness's base and Web app, its Schedule (the goals' automations and
-// the agent's reminders — an optional bundle of the harness, on by default here), then ours.
-const BUNDLES = ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@deepseek-ai/dsh-experimental-schedule-bundle", "dsh-nanomuse"];
+// the agent's reminders — an optional bundle of the harness, on by default here), ours, and
+// two MIT plugins of the harness that the app carries beside it, each mounted by the bundle
+// patch it ships: dsh-turn-fold (the turn bar with the duration, tokens and cache the
+// harness already measures) and dsh-better-sidebar (the workbench: file tree, editor,
+// changes, tasks and side threads in the right rail). Both are the harness's plugins, not
+// ours: they draw their own surfaces, and the plugin's stylesheet leaves them their room.
+const BUNDLES = ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@deepseek-ai/dsh-experimental-schedule-bundle", "dsh-nanomuse", "dsh-turn-fold", "dsh-better-sidebar"];
 const BUNDLE = "dsh-nanomuse";
 const RELEASES_PAGE = "https://github.com/nano-muse/nanoMuse/releases/latest";
 const ISSUES_PAGE = "https://github.com/nano-muse/nanoMuse/issues";
@@ -196,9 +201,10 @@ function bundledRuntime(): string | undefined {
 /**
  * The profile the Host boots: `~/.nanomuse/desktop/profiles/nanomuse`. Three small files the
  * harness reads (the manifest with the bundle list, the empty root, the person's own patch
- * layer, which dsh writes settings into) and one link: `node_modules/dsh-nanomuse` → the copy
- * under resources, which is how the Loader finds a bundle that is not among the harness's own
- * packages. The link is refreshed every start, so moving the app or updating it is enough.
+ * layer, which dsh writes settings into) and one link per bundle that is not the harness's
+ * own: `node_modules/<name>` → the copy under resources, which is how the Loader finds a
+ * package that does not resolve from the harness's own install. The links are refreshed
+ * every start, so moving the app or updating it is enough.
  */
 function ensureProfile(dshDir: string): string {
   const dir = join(harnessHome(), "profiles", PROFILE);
@@ -238,9 +244,15 @@ function ensureProfile(dshDir: string): string {
       "# Your patch layer for this dsh profile, applied after every bundle layer:\n# a top-level YAML array of loader patch entries. nanoMuse Desktop and dsh\n# write settings here; you may edit it too.\n[]\n",
     );
   }
-  const link = join(dir, "node_modules", BUNDLE);
-  const target = join(dshDir, "node_modules", BUNDLE);
-  if (relink(link, target)) log(`profile: ${BUNDLE} → ${target}`);
+  // every bundle that is not the harness's own lives beside dsh under resources and is
+  // reached through the profile: the Loader resolves a row's package from the profile, not
+  // from the harness's install
+  for (const name of BUNDLES) {
+    if (name.startsWith("@deepseek-ai/")) continue;
+    const link = join(dir, "node_modules", name);
+    const target = join(dshDir, "node_modules", name);
+    if (relink(link, target)) log(`profile: ${name} → ${target}`);
+  }
   return dir;
 }
 
