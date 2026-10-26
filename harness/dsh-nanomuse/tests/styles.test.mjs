@@ -200,7 +200,10 @@ test('in the Muse look the header is the phone\'s bar, and the thread starts und
   const header = 'html[data-nm-muse] header[data-window-drag]:has(.nm-header)'
   const bar = rule(header)
   assert.match(bar, /position:\s*absolute/)
+  // the bar is the top of the header; a session with tabs takes a row under it for them
   assert.match(bar, /height:\s*var\(--nm-header-h\)/)
+  assert.match(rule(`${header}:has([data-conversation-tabs] [role="tab"])`), /height:\s*calc\(var\(--nm-header-h\) \+ var\(--nm-tabs-h\)\)/)
+  assert.match(rule('.nm-header'), /height:\s*var\(--nm-header-h\)/)
   // the bar ends in a hairline (the thread gets a top edge; the phone had none, and the
   // thread used to bleed into the bar's fade), and its scrim clears before the thread starts
   assert.match(bar, /border-bottom:\s*1px solid color-mix\(in srgb, var\(--nm-divider\) 60%, transparent\)/)

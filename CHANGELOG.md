@@ -53,6 +53,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Desktop
 
+- **The session's own tab row sits under the bar, and the collapsed sidebar has a way back.** A conversation that has tabs (a local trace, the context view) shows the harness's tab row under the bar, drawn as text with a rule under the open one; a synced conversation with none keeps the bar's height. Collapsing the sidebar now leaves an expand button at the top of the rail, where before the only way back was a row inside the corner menu.
+
 - **The sidebar is one column, as the harness draws its own.** The icon rail is now only the collapsed form of the sidebar (and the strip a room keeps): expanded, the column carries a brand row with the agent's face and its name, the collapse button, the workspace switcher, the search, the new-chat row and the list, with each chat's age at the row's end. The rooms moved to a strip at the foot, beside Search, Settings and the corner menu.
 
 - **The desktop app carries two plugins of the harness: the turn bar and the workbench sidebar.** `dsh-turn-fold` puts a bar over every turn with the duration, the first token, the tokens, tok/s and the cache hit the harness already measures, and keeps the harness's own disclosure underneath, so the chat still reads as replies; `dsh-better-sidebar` mounts the right rail's workbench (file tree coloured by Git state, editable editor with Markdown, Mermaid and HTML preview, changes with diffs, subagent topology and background jobs, side threads, a bottom panel of terminals), per conversation. Both are MIT and are carried as published, pinned by version; the Muse stylesheet no longer hides the turn bar or the right rail, which it had done while nothing drew in them.

@@ -61,6 +61,7 @@ html[data-nanomuse] {
   --nm-accent: #c8743a;
   --nm-rail: 66px;
   --nm-header-h: 60px;
+  --nm-tabs-h: 34px;
   --nm-header-top: 0px;
   --nm-radius: var(--dsw-radius-lg);
   --nm-font: var(--dsw-font-family);
@@ -350,13 +351,17 @@ header[data-window-drag]:has(.nm-header) { position: relative; min-height: var(-
 html[data-nm-muse] header[data-window-drag]:has(.nm-header) { position: absolute; top: var(--nm-header-top, 0px); left: 0; right: 0; z-index: 6; height: var(--nm-header-h); box-sizing: border-box; border-bottom: 1px solid color-mix(in srgb, var(--nm-divider) 60%, transparent); pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--nm-canvas) 88%, transparent) 0%, color-mix(in srgb, var(--nm-canvas) 62%, transparent) 70%, transparent 100%); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 html[data-nm-muse] header[data-window-drag]:has(.nm-header) :is(button, a, input, [role="tab"], [role="dialog"], [role="menu"], .nm-header, .nm-header-drag) { pointer-events: auto; }
 html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] { background: var(--nm-canvas); --dsw-alias-bg-base: var(--nm-canvas); }
+/* A session with tabs (a local trace, a context view) gets the harness's own tab row under
+   the bar; one without keeps the bar's height, so a synced chat has no empty row. */
+html[data-nm-muse] header[data-window-drag]:has(.nm-header):has([data-conversation-tabs] [role="tab"]) { height: calc(var(--nm-header-h) + var(--nm-tabs-h)); }
 html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content] > [data-conversation-scroll] { padding-top: calc(var(--nm-header-top, 0px) + var(--nm-header-h) + 8px); }
+html[data-nm-muse] [data-slot="conversation.header"]:has([data-conversation-tabs] [role="tab"]) ~ [data-conversation-content] > [data-conversation-scroll] { padding-top: calc(var(--nm-header-top, 0px) + var(--nm-header-h) + var(--nm-tabs-h) + 8px); }
 /* The bar itself: a row, not a stack. Auto margins on nothing, so the window's drag-region map
    and the click targets agree (a transformed, pointer-events:none box over a drag region left the
    face unclickable on macOS in an earlier shape). */
 /* Three columns, the middle one centred: the phone's bar keeps the face, the name and the
    capsule in the middle whatever the ends carry. */
-.nm-header { position: absolute; inset: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 0 12px; box-sizing: border-box; z-index: 2; pointer-events: auto; }
+.nm-header { position: absolute; inset: 0 0 auto 0; height: var(--nm-header-h); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 0 12px; box-sizing: border-box; z-index: 2; pointer-events: auto; }
 .nm-header-group { grid-column: 2; justify-self: start; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .nm-header-back { grid-column: 1; }
 .nm-header-face { position: relative; width: 32px; height: 32px; flex: none; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 300ms; }
@@ -521,13 +526,23 @@ html[data-nm-muse][data-nm-side] [data-slot="conversation.session.header"] [clas
 html[data-nm-muse] [data-slot="conversation.session.header"] [class*="_headerActions"] { display: flex; }
 html[data-nm-muse] [data-slot="conversation.session.header"] [class*="_titleRow"] { justify-content: flex-end; }
 html[data-nm-muse][data-nm-side] [data-slot="conversation.session.header"] [class*="_titleRow"] { justify-content: space-between; }
-html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs] { display: none; }
+html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs] {
+  display: flex; align-items: stretch; gap: 0; position: absolute; top: var(--nm-header-h); left: 0; right: 0; height: var(--nm-tabs-h);
+  padding: 0 12px; box-sizing: border-box; pointer-events: auto;
+  border-bottom: 1px solid color-mix(in srgb, var(--nm-divider) 55%, transparent);
+}
+html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs] [role="tab"] {
+  position: relative; border: 0; background: transparent; height: 100%; padding: 0 2px; margin-right: 20px;
+  font-size: 13px; font-weight: 500; color: var(--dsw-alias-label-secondary); cursor: pointer; white-space: nowrap;
+}
+html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs] [role="tab"]:hover { color: var(--dsw-alias-label-primary); }
+html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs] [role="tab"][aria-selected="true"] { color: var(--dsw-alias-label-primary); }
+html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs] [role="tab"][aria-selected="true"]::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--nm-accent);
+}
 /* …except while another view (the trajectory a tool row's "Inspect" opens) is up: then the
    tabs come back as the way out — a small segmented control, "Chat" first, at the top right
    (the centre is the face and its status line). Esc does the same. */
-html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs]:has([role="tab"][aria-selected="true"]:not(:first-child)) { display: inline-flex; align-self: flex-start; margin: 10px 16px 0 auto; padding: 3px; gap: 2px; border-radius: 999px; background: var(--dsw-alias-bg-layer-2); }
-html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs]:has([role="tab"][aria-selected="true"]:not(:first-child)) [role="tab"] { border: 0; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 500; color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer; }
-html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-tabs]:has([role="tab"][aria-selected="true"]:not(:first-child)) [role="tab"][aria-selected="true"] { background: var(--nm-base); color: var(--dsw-alias-label-primary); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 html[data-nm-muse] [data-slot="conversation.session.header.utilities"] > *:not(:has(.nm-invite)) { display: none; }
 html[data-nm-muse] [data-turn-process-inline] { display: none !important; }
 /* The right rail is the workbench's: dsh-better-sidebar mounts the file tree, the editor,

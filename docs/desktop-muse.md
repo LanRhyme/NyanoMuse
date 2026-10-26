@@ -21,6 +21,10 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
 `sidebar` seat and a stylesheet over the harness's stable DOM hooks (`data-composer-card`,
 `data-chat-flow-kind`, `data-approval-key`…):
 
+- Above the thread, the bar carries the agent's face, the conversation's name and the account
+  chips. A conversation that has tabs (a local trace, the context view) gets the harness's
+  own tab row under the bar, text tabs with a rule under the open one; a synced
+  conversation, which has no local trace, keeps the bar's height and no row.
 - The sidebar is one column, the way the harness draws its own: a brand row (the agent's
   face, its name, the collapse button), the workspace switcher, a search field with the
   column's menu, a quiet *New chat* row, and the list with each chat's age at the row's

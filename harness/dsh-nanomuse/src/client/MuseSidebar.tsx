@@ -238,6 +238,8 @@ export function MuseSidebar(props: MuseSidebarProps): ReactNode {
   }
   const rail = h('nav', { className: 'nm-rail', 'aria-label': t('railLabel') },
     h('div', { className: 'nm-rail-top', 'data-window-drag': true }),
+    // the way back out: with the column gone, this is the control that reopens it
+    h(RailButton, { label: t('menuExpand'), onClick: toggleSidebar }, h(IconPanelLeft, { size: 19 })),
     h('div', { className: 'nm-hidden' }, renderSlot('sidebar.brand.mark', { size: 36 })),
     faceOnRail ? h(RailButton, { label: live.profile.name || t('railProfile'), onClick: openProfile }, h('span', { className: `nm-rail-face${busy ? ' nm-live' : ''}` }, h(Avatar, { size: 28, profile: live.profile, mood: busy ? 'working' : 'idle' }))) : null,
     h(RailButton, { label: t('railChats'), active: active === null, dot: busy, onClick: showChats }, h(IconChat, { size: 21 })),
