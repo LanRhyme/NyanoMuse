@@ -13,7 +13,7 @@ import { call, type Translate } from './api.ts'
 import { Avatar, motionStatus, type Mood } from './Avatar.tsx'
 import { describeCall } from './Capsule.tsx'
 import { IconCheck, IconChevronLeft, IconHeart, IconMenu, IconPalette, IconPanelRight, IconSpinner } from './icons.tsx'
-import { pressRightPanelChord } from './keys.ts'
+import { openRightPanel } from './keys.ts'
 import { useLive } from './live.ts'
 import { BillingChip, MoodPill, useMoodState } from './MoodPanel.tsx'
 import { mainChatId } from './MuseChats.tsx'
@@ -203,7 +203,7 @@ export function MuseHeader({ t, openProfile, useSessionStatus }: MuseHeaderProps
           className: 'nm-header-icon-btn nm-header-workbench',
           title: t('workbenchOpen'),
           'aria-label': t('workbenchOpen'),
-          onClick: () => { pressRightPanelChord() },
+          onClick: () => { openRightPanel() },
         }, h(IconPanelRight, { size: 17 })),
         h('button', {
           type: 'button',

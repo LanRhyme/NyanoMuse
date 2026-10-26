@@ -143,6 +143,22 @@ html[data-nanomuse] body { --dsw-menu-surface-fill: var(--dsw-alias-bg-layer-3);
 .nm-icon-btn:disabled { opacity: 0.45; cursor: default; }
 .nm-icon-btn-sm { width: 24px; height: 24px; border-radius: 7px; }
 
+/* ---- sidebar: one column, the way the harness draws its own ------------ */
+/* The brand row at the head: the agent's face, its name, the collapse button. It is what the
+   harness's own sidebar has there (a mark and a name), and what tells this window apart from
+   any other chat. */
+.nm-brand { flex: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 6px; box-sizing: border-box; }
+.nm-brand-face { border: 0; padding: 0; background: transparent; cursor: pointer; display: inline-flex; border-radius: 50%; flex: none; }
+.nm-brand-avatar { display: inline-flex; border-radius: 50%; overflow: hidden; }
+.nm-brand-avatar.nm-live { box-shadow: 0 0 0 2px color-mix(in srgb, var(--nm-accent) 60%, transparent); }
+.nm-brand-name { flex: 1; min-width: 0; font-size: var(--nm-fs-lg); font-weight: 600; letter-spacing: -0.01em; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-brand-toggle { flex: none; }
+/* the strip at the foot: the rooms and the way into settings, one row of quiet glyphs */
+.nm-col-nav { display: flex; align-items: center; gap: 2px; padding: 5px 6px 6px; border-top: 1px solid var(--nm-divider); }
+.nm-col-nav .nm-rail-btn { width: 34px; height: 34px; border-radius: var(--nm-r-sm); }
+.nm-col-nav-gap { flex: 1; }
+.nm-col-foot-slot { display: contents; }
+
 /* ---- sidebar: icon rail + chats column -------------------------------- */
 .nm-sidebar { display: flex; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary); background: var(--nm-sidebar); }
 .nm-rail { width: var(--nm-rail); flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 12px; box-sizing: border-box; }
@@ -245,7 +261,11 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 .nm-chat-row.nm-selected .nm-chat-open { color: var(--dsw-alias-label-primary); font-weight: 500; }
 .nm-chat-row.nm-selected { background: var(--nm-selected); }
 .nm-chat-row.nm-pinned { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 65%, transparent); }
-.nm-chat-pin-mark { font-size: 11px; opacity: 0.7; flex: none; margin-left: auto; }
+.nm-chat-pin-mark { font-size: 11px; opacity: 0.7; flex: none; }
+/* the age at the row's end, where the harness's own sidebar puts it; hovering swaps it for
+   the row's menu, so the two never fight for the same corner */
+.nm-chat-time { margin-left: auto; padding-left: 6px; flex: none; font-size: var(--nm-fs-xs); color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+.nm-chat-row:hover .nm-chat-time { display: none; }
 .nm-chat-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: var(--nm-fs-md); text-align: left; cursor: pointer; border-radius: var(--nm-r-sm); }
 .nm-chat-open:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: -2px; }
 .nm-chat-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -514,7 +534,9 @@ html[data-nm-muse] [data-turn-process-inline] { display: none !important; }
    the changes and the tasks there, so its track and its expand button stay. The harness's
    own expand button lives in the session header, under this bar, so the bar carries one of
    its own that presses the harness's chord; it is drawn only when a right rail exists. */
-html[data-nm-muse]:not(:has([data-sidebar-right-panel])) .nm-header-workbench { display: none; }
+/* the bar's workbench button is the rail's own expand button, worn here: it is drawn only
+   while that button is on the page, which is exactly while the rail is collapsed */
+html[data-nm-muse]:not(:has([data-sidebar-right-expand])) .nm-header-workbench { display: none; }
 /* the navigation seat of the bar: flat, 28px, the way the phone draws its menu icon; it only
    shows the tint when hovered or focused */
 .nm-header-back { flex: none; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }

@@ -21,11 +21,14 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
 `sidebar` seat and a stylesheet over the harness's stable DOM hooks (`data-composer-card`,
 `data-chat-flow-kind`, `data-approval-key`…):
 
-- The rail, top to bottom: Chats (a dot while the agent works), Search, Feed (a dot
-  for posts you have not seen), Ideas, Goals, Library, Devices; a spacer; the hamburger
-  at the foot (Schedules and the harness's other panels live in its menu). No face on
-  the rail: the face is the pinned header and the profile
-  panel. On macOS the window has no title bar: the traffic lights sit over the rail's
+- The sidebar is one column, the way the harness draws its own: a brand row (the agent's
+  face, its name, the collapse button), the workspace switcher, a search field with the
+  column's menu, a quiet *New chat* row, and the list with each chat's age at the row's
+  end (the hover menu takes its place). The foot is a strip of the rooms (Feed, with a
+  dot for posts you have not seen, Ideas, Goals, Library), then Search, Settings and the
+  hamburger, whose menu carries Schedules and the harness's other panels. Collapsed, the
+  sidebar becomes the icon rail again, and a room keeps that rail while it has the window.
+  On macOS the window has no title bar: the traffic lights sit over the rail's
   empty top, which is a drag handle, and full screen takes the clearance away. Windows
   gets the same frameless window with the system's own caption buttons drawn over the
   top right (`titleBarOverlay`, recoloured with the theme); Linux keeps the window

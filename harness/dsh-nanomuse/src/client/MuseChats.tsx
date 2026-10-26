@@ -124,6 +124,18 @@ export interface MuseChatsProps {
   searchRef?: ((el: HTMLInputElement | null) => void) | undefined
 }
 
+/** How long ago a chat last moved, in the harness sidebar's own figures. */
+export function ago(at: number, t: Translate): string {
+  const mins = Math.floor((Date.now() - at) / 60_000)
+  if (!Number.isFinite(mins) || mins < 1) return t('chAgoNow')
+  if (mins < 60) return t('chAgoMin', { n: mins })
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return t('chAgoHour', { n: hours })
+  const days = Math.floor(hours / 24)
+  if (days < 30) return t('chAgoDay', { n: days })
+  return t('chAgoMonth', { n: Math.floor(days / 30) })
+}
+
 function readMain(): string | undefined {
   try {
     return window.localStorage.getItem(MAIN_KEY) ?? undefined
@@ -236,7 +248,9 @@ function ChatRow({ t, chat, label, pinned, selected, useSessionStatus, actions }
                 ? h('span', { className: 'nm-chat-dot nm-live', title: t('chRunning'), 'aria-label': t('chRunning') })
                 : unread ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null),
           h('span', { className: 'nm-chat-title' }, label),
-          pinned ? h('span', { className: 'nm-chat-pin-mark', title: t('chPin'), 'aria-label': t('chPin') }, '📌') : null),
+          pinned ? h('span', { className: 'nm-chat-pin-mark', title: t('chPin'), 'aria-label': t('chPin') }, '📌') : null,
+          // the age at the row's end, where the harness puts it; the hover menu takes its place
+          h('span', { className: 'nm-chat-time' }, ago(chat.updatedAt, t))),
     editing ? null : h('button', { type: 'button', className: 'nm-chat-more', 'aria-label': t('chMore'), 'aria-haspopup': 'menu', 'aria-expanded': menuAnchor !== null, ref: (el: HTMLButtonElement | null): void => { more.current = el }, onClick: () => setMenuAnchor((current) => (current ? null : more.current)) }, h(IconMore, { size: 16 })),
     menuAnchor ? h(RowMenu, { anchor: menuAnchor, items, onClose: () => setMenuAnchor(null) }) : null)
 }
@@ -356,7 +370,8 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, use
       title: t('chMainChat'),
     },
       h('span', { className: 'nm-chat-state' }, selected === mainId ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null),
-      h('span', { className: 'nm-chat-title' }, t('chMainChat'))))
+      h('span', { className: 'nm-chat-title' }, t('chMainChat')),
+      state.byId[mainId] ? h('span', { className: 'nm-chat-time' }, ago(state.byId[mainId]!.updatedAt, t)) : null))
   }
   if (folder) {
     const mine = chats.filter((chat) => folderIds.has(chat.id))

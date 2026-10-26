@@ -275,9 +275,31 @@ export function MuseSidebar(props: MuseSidebarProps): ReactNode {
     else delete document.documentElement.dataset['nmRoom']
     return () => { delete document.documentElement.dataset['nmRoom'] }
   }, [roomMode])
+  // The rail is the collapsed form of the sidebar (and the strip a room keeps). Expanded,
+  // the column is the whole sidebar, the way the harness draws its own: a brand row, the
+  // new-chat button, the search, the chats, and a strip of rooms at the foot.
+  const railVisible = collapsed || roomMode
+  const brand = h('div', { className: 'nm-brand' },
+    h('button', { type: 'button', className: 'nm-brand-face', 'aria-label': live.profile.name || t('railProfile'), title: t('railProfile'), onClick: openProfile },
+      h('span', { className: `nm-brand-avatar${busy ? ' nm-live' : ''}` }, h(Avatar, { size: 24, profile: live.profile, mood: busy ? 'working' : 'idle' }))),
+    h('span', { className: 'nm-brand-name' }, live.profile.name || t('brand')),
+    h('button', { type: 'button', className: 'nm-icon-btn nm-brand-toggle', title: t('menuCollapse'), 'aria-label': t('menuCollapse'), onClick: toggleSidebar }, h(IconPanelLeft, { size: 17 })))
+  // The foot of the column: the rooms (the phone's own tab bar, which is where they live in
+  // this app), then settings and the corner menu. Chats and Search are the column itself and
+  // the field above it, so they are not repeated here.
+  const navStrip = h('nav', { className: 'nm-col-nav', 'aria-label': t('railLabel') },
+    h(RailButton, { label: t('railFeed'), active: active === FEED_PANEL, dot: freshFeed && active !== FEED_PANEL, onClick: () => selectPanel(FEED_PANEL) }, h(IconFeed, { size: 19 })),
+    h(RailButton, { label: t('railIdeas'), active: active === IDEAS_PANEL, onClick: () => selectPanel(IDEAS_PANEL) }, h(IconBulb, { size: 19 })),
+    h(RailButton, { label: t('railGoals'), active: active === GOALS_PANEL, onClick: () => selectPanel(GOALS_PANEL) }, h(IconTarget, { size: 19 })),
+    h(RailButton, { label: t('railLibrary'), active: active === LIBRARY_PANEL, onClick: () => selectPanel(LIBRARY_PANEL) }, h(IconShapes, { size: 19 })),
+    h('span', { className: 'nm-col-nav-gap' }),
+    h(RailButton, { label: withKeys(t('railSearch'), searchShortcut?.keys), onClick: search }, h(IconSearch, { size: 19 })),
+    h(RailButton, { label: t('menuSettings'), dot: updateDot, onClick: openSettings }, h(IconSettings, { size: 19 })),
+    h(RailButton, { label: t('railMore'), expanded: menuAnchor !== null, dot: updateDot, onClick: () => setMenuAnchor((current) => (current ? null : menuButton.current)), buttonRef: (el) => { menuButton.current = el } }, h(IconMenu, { size: 19 })))
   const chats = wide && !roomMode
-    ? h('div', { ref: column, className: `nm-col${collapsed ? ' nm-fading' : ''}`, style: { width: Math.max(0, (collapsed ? lastWideWidth.current : width) - RAIL) } },
+    ? h('div', { ref: column, className: `nm-col${collapsed ? ' nm-fading' : ''}`, style: { width: Math.max(0, collapsed ? lastWideWidth.current - RAIL : width) } },
         h('div', { className: 'nm-col-top', 'data-window-drag': true }),
+        brand,
         browser
           ? h('div', { className: 'nm-col-body' },
               h('div', { className: 'nm-col-head' },
@@ -287,11 +309,13 @@ export function MuseSidebar(props: MuseSidebarProps): ReactNode {
               renderSlot('sidebar.workspaces', { wide: true, expandSidebar: () => { if (collapsed) toggleSidebar() } }))
           : h('div', { className: 'nm-col-body' },
               h(MuseChats, { t, useSessions, useSessionStatus, useWorkspaces, useWorkspace, workspaceActions, actions: chatActions, searchRef: (el) => { searchField.current = el } })),
-        h('div', { className: 'nm-col-foot' }, renderSlot('sidebar.footer.action', { wide: true })))
+        h('div', { className: 'nm-col-foot' },
+          navStrip,
+          h('div', { className: 'nm-col-foot-slot' }, renderSlot('sidebar.footer.action', { wide: true }))))
     : null
 
   return h('div', { className: 'nm-sidebar', style: { width: wide && !roomMode ? (collapsed ? lastWideWidth.current : width) : RAIL } },
-    rail,
+    railVisible ? rail : null,
     chats,
     menuAnchor ? h(CornerMenu, { anchor: menuAnchor, items: menuItems, onClose: () => setMenuAnchor(null) }) : null,
     docMenu ? h(CornerMenu, { anchor: docMenu.anchor, items: docItems, onClose: () => setDocMenu(null) }) : null,
