@@ -797,3 +797,28 @@ async def test_a_revoked_or_reset_key_is_bad_key_not_account_deleted():
         c.execute("UPDATE deleted_keys SET deleted_at=?", (dbmod.now() - dbmod.DELETED_KEYS_TTL_S - 1,))
     r = await client.get("/v1/me", headers=auth(second["api_key"]))
     assert r.json()["error"]["code"] == "bad_key"
+
+
+async def test_a_clock_ahead_does_not_push_a_turn_into_the_future():
+    """The relay's clock is the account's reference: a device whose clock runs ahead stores its
+    rows at the relay's now, so they sort where they happened instead of after everything the
+    other devices say until the device catches up."""
+    app, client, sender, up, cloud, settings = make()
+    key = await signed_in(client, sender)
+    cid, mid = uid(), uid()
+    future = 4_000_000_000  # 2096
+    r = await client.post(
+        "/v1/sync/changes",
+        json={"device": "d1", "conversations": [conv(cid, created_at=future)], "messages": [msg(mid, cid, created_at=future)]},
+        headers=auth(key),
+    )
+    assert r.status_code == 200
+    out = (await client.get("/v1/sync/changes", headers=auth(key))).json()
+    now = int(__import__("time").time())
+    assert out["messages"][0]["created_at"] <= now, "a turn cannot be from the future"
+    assert out["conversations"][0]["created_at"] <= now
+    # an older timestamp is left as it is: the device that wrote it knew when it happened
+    mid2 = uid()
+    await client.post("/v1/sync/changes", json={"device": "d1", "messages": [msg(mid2, cid, text="old", created_at=1738000050)]}, headers=auth(key))
+    out = (await client.get("/v1/sync/changes?since=2", headers=auth(key))).json()
+    assert out["messages"][0]["created_at"] == 1738000050

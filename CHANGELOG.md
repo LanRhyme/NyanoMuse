@@ -12,6 +12,8 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ### Cloud
 
+- **A device whose clock runs ahead no longer pushes its turns into the future.** The relay stores a message's `created_at` clamped to its own clock (and a conversation's birth with it), so a phone set ten minutes fast no longer lands its turns after everything the other devices say until it catches up; an older timestamp is kept as it is, since the device that wrote it knew when it happened.
+
 - **A device that moves between networks no longer fights itself over its id.** A phone that leaves Wi-Fi for cellular opens the new socket while the old one is still up, and both carry the same device id, so the relay used to drop one of them at once and the two took the id back from each other. The relay now hands over gently: the old socket hears a `standby` frame queued ahead of everything else waiting, calls to it are refused as `device_busy` so a caller retries instead of giving up, and the socket is closed with `4004` once the notice is out. The relay, the runtime, the desktop, the phone and the iPhone wait a few seconds on `4004` instead of reconnecting at once.
 
 - **The relay keeps what a device deleted, and shows an edit as an edit.** A message deleted on one device used to disappear from the relay at once, so an offline device never learned of it and the row came back on the next pull. The relay now buries a deleted row as a tombstone and gives it a new sequence number, so the other devices fetch the deletion too, and the tombstones are swept after thirty days. A message whose text changed on the device that wrote it is now updated in place with a new sequence number rather than stored as a second copy of itself, and a page of changes carries the sequence number of its last row as the cursor.
@@ -50,6 +52,10 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 - **Each Feed section showed its own load error and retry.** Posts, activity, Next up and calendar requests kept their last successful content when a refresh failed; retrying one section no longer refetched the others.
 
 ### Desktop
+
+- **A chat deleted on another device no longer comes back.** The harness has no delete, so the session stayed in the log and the next push minted a fresh conversation id for its whole history, which every other device then re-created as a new chat. A conversation deleted elsewhere is remembered as retired: its words stay on this computer and it never syncs again.
+
+- **Turning side-chat sync back on brings the history, not just the newest 300 turns.** The switch pulled from zero with the fresh-device tail, which leaves everything older than the newest 300 behind (the device's cursor had already passed the side chats it never saw). It now pages from zero until the relay has nothing left.
 
 - **A saved own-key row picks up a capability the catalogue gained after it was saved.** OpenCode Zen and OpenCode Go now declare `vision` (their `minimax-m3` and `kimi-k3` take an image on the OpenAI shape; the free `nemotron-3.5-super-vl-free` does too), and a row saved before that keeps its old capabilities, so the hands never saw the pictures. The host re-derives each saved row's capabilities and each chat model's sight from the catalogue at start, writes the row back and re-writes the model adapter's entry.
 

@@ -509,12 +509,19 @@ export interface SyncState {
   hidden: string[]
   /** Sessions whose conversation was deleted elsewhere: the browser half archives them (the host has no archive) and reports back. */
   toArchive: string[]
+  /**
+   * Sessions whose conversation was deleted on another device. The harness has no delete, so
+   * the words stay in the log here; they must not go back up, though, or the device would
+   * mint a new conversation id on its next push and the whole deleted chat would reappear on
+   * every other device. A retired session never syncs again.
+   */
+  retired: string[]
   /** 0.1.36 kept the other devices' chats as mirrors; a state that still has them is migrated (`migrate`). */
   mirrors?: Record<string, unknown>
 }
 
 export function emptyState(): SyncState {
-  return { accountId: '', cursor: 0, enabled: true, mainSession: '', sideChats: true, cids: {}, owners: {}, mids: {}, titles: {}, conversations: {}, pulled: {}, hidden: [], toArchive: [] }
+  return { accountId: '', cursor: 0, enabled: true, mainSession: '', sideChats: true, cids: {}, owners: {}, mids: {}, titles: {}, conversations: {}, pulled: {}, hidden: [], toArchive: [], retired: [] }
 }
 
 /**
@@ -534,6 +541,7 @@ export function migrate(state: SyncState | undefined): SyncState {
     next.pulled = {}
     next.hidden = []
     next.toArchive = []
+  next.retired = Array.isArray((next as Partial<SyncState>).retired) ? (next.retired as unknown[]).filter((id): id is string => typeof id === 'string') : []
   }
   if (!state.owners && state.accountId) {
     for (const sessionId of Object.keys(next.cids)) next.owners[sessionId] = state.accountId
@@ -548,7 +556,7 @@ export function migrate(state: SyncState | undefined): SyncState {
  * longer the main chat here.
  */
 export function forAccount(state: SyncState, accountId: string): SyncState {
-  const next: SyncState = { ...state, accountId, cursor: 0, conversations: {}, pulled: {}, hidden: [], toArchive: [] }
+  const next: SyncState = { ...state, accountId, cursor: 0, conversations: {}, pulled: {}, hidden: [], toArchive: [], retired: [] }
   const mainOwner = state.owners[state.mainSession]
   if (mainOwner && mainOwner !== accountId) next.mainSession = ''
   return next
@@ -939,6 +947,7 @@ export class SyncEngine {
 
   private syncs(sessionId: string): boolean {
     if (this.options.isTaskSession?.(sessionId)) return false
+    if (this.state.retired.includes(sessionId)) return false
     if (!this.owns(sessionId)) return false
     const title = this.state.titles[sessionId] || ''
     if (title.startsWith('动态 · ') || title.startsWith('Feed · ') || title === '动态' || title === 'Feed') return false
@@ -1191,10 +1200,14 @@ export class SyncEngine {
     // what the other devices added to conversations living in sessions here: context for the model, per session
     const notes = new Map<string, RemoteLine[]>()
     const scope = this.state.sideChats ? 'all' : 'main'
+    // The newest 300 for a device that has never pulled (C9: the chat shows before the
+    // history). A device that already has a cursor and starts over — the side-chat switch
+    // going back on — pages from zero instead: its cursor is past the side chats it never
+    // saw, and a tail there would leave everything older than the newest 300 behind.
+    const startingOver = tail && this.state.cursor > 0
     for (let page = 0; page < 50; page++) {
-      // the first pull after sign-in asks for the newest 300 of the scope (C9): the chat shows before the history
       const since = tail ? 0 : this.state.cursor
-      const out = await this.options.relay.changes(token, since, PAGE, scope, since === 0 ? TAIL : 0)
+      const out = await this.options.relay.changes(token, since, PAGE, scope, startingOver ? 0 : since === 0 ? TAIL : 0)
       // The page's conversations first, then its messages, each in seq order: a rename puts
       // a conversation's seq above its messages, and the relay sends every message's
       // conversation along with the page so none of them is an orphan.
@@ -1208,7 +1221,9 @@ export class SyncEngine {
       }
       this.state.cursor = Math.max(this.state.cursor, out.cursor)
       await this.save()
-      if (!out.more || tail) break
+      // a tail page is the whole answer; a backfill keeps asking until the relay says there
+      // is nothing after this page
+      if (!out.more) break
     }
     this.lastError = ''
     for (const [sessionId, lines] of notes) {
@@ -1229,6 +1244,8 @@ export class SyncEngine {
         // the harness has no delete: the session stops syncing under that id, and the chats column archives it
         delete this.state.cids[sessionId]
         delete this.state.titles[sessionId]
+        // and it never mints a new id for those words: the account deleted them
+        if (!this.state.retired.includes(sessionId)) this.state.retired.push(sessionId)
         if (sessionId !== this.state.mainSession && !this.state.toArchive.includes(sessionId)) this.state.toArchive.push(sessionId)
       }
       return

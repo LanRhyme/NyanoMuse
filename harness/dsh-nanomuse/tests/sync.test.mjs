@@ -326,6 +326,16 @@ test('a conversation from elsewhere is a chat here at once; it continues under t
   assert.deepEqual(e.view().toArchive, [sid])
   await e.archived([sid])
   assert.deepEqual(e.view().toArchive, [])
+  // and the words the account deleted do not go back up: the session is retired, so a turn
+  // here (or the next start's backfill) never mints a new conversation id for them
+  assert.ok(e.state.retired.includes(sid))
+  sessions.rows.get(sid).blank = false
+  sessions.lines.set(sid, [...(sessions.lines.get(sid) ?? []), { id: 'u3', role: 'user', text: 'are we still on', at: 1738000090000 }])
+  const before = relay.pushes.length
+  e.messageSent(sid)
+  await tick(80)
+  assert.equal(relay.pushes.length, before, 'a retired chat pushes nothing')
+  assert.equal([...relay.convs.values()].some((c) => c.title === 'Dinner plans'), false)
   // a renamed chat elsewhere renames the session here, without pushing the title back
   relay.add('c2', 'side', 'Old name')
   await e.pull()
@@ -524,13 +534,14 @@ test('C9: side chats toggle — off: only main goes up; on: all chats sync; unif
   e.turnEnded('s-side')
   await tick(30)
   assert.equal(relay.pushes.length, pushes)
-  // on: one pull from zero for the newest side turns, then this device's side chats go up oldest first
+  // on: a backfill from zero (no tail — the device has a cursor past the side chats it never
+  // saw, so a tail would leave the older ones behind), then this device's side chats go up
   relay.gets.length = 0
   const on = await e.setSideChats(true)
   assert.equal(on.sideChats, true)
   assert.equal(saved().sideChats, true)
   await until(() => [...relay.msgs.values()].some((m) => m.text === 'side question'))
-  assert.deepEqual(relay.gets[0], { since: 0, limit: 500, scope: 'all', tail: TAIL })
+  assert.deepEqual(relay.gets[0], { since: 0, limit: 500, scope: 'all', tail: 0 })
   assert.equal(sessions.created, 1)
   const sid = [...sessions.rows.keys()].find((id) => sessions.rows.get(id).title === 'Dinner plans')
   assert.deepEqual(sessions.remote(sid).map((l) => l.text), ['book a table', 'Booked for 7'])

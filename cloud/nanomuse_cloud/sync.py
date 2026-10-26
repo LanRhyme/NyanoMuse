@@ -415,7 +415,7 @@ class SyncStore:
                 deleted = bool(conv.get("deleted"))
                 if not deleted and (title.startswith("动态 · ") or title.startswith("Feed · ") or title in ("动态", "Feed")):
                     continue
-                created_at = _ts(conv.get("created_at"), t)
+                created_at = _ts(conv.get("created_at"), t, ceiling=t)
                 # 0.25: the week's grace is measured against the relay's clock, not the
                 # conversation's birth; before, a chat older than a week could never be
                 # renamed, since its `updated_at` fell back to `created_at` and lost
@@ -542,7 +542,10 @@ class SyncStore:
                         "" if deleted else text,
                         0 if deleted else (1 if truncated else 0),
                         "[]" if deleted else json.dumps(clean_attachments(msg.get("attachments")), ensure_ascii=False),
-                        _ts(msg.get("created_at"), t),
+                        # the relay's clock is the account's reference: a device whose clock
+                        # runs ahead does not push a turn into the future, where it would sort
+                        # after everything the other devices say until it catches up
+                        _ts(msg.get("created_at"), t, ceiling=t),
                         1 if deleted else 0,
                         t if deleted else None,
                     ),
