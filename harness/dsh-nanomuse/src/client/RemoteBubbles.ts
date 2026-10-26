@@ -82,11 +82,11 @@ function bubble(t: Translate, row: RemoteRow): HTMLElement {
       for (let i = 0; i < segments.length; i++) {
         const body = el('div', 'nm-remote-bubble', segments[i])
         if (i === 0) {
-          body.style.borderRadius = '18px 18px 18px 4px'
+          body.style.borderRadius = '18px 18px 18px 6px'
         } else if (i === segments.length - 1) {
-          body.style.borderRadius = '4px 18px 18px 18px'
+          body.style.borderRadius = '6px 18px 18px 18px'
         } else {
-          body.style.borderRadius = '4px 18px 18px 4px'
+          body.style.borderRadius = '6px 18px 18px 6px'
         }
         root.append(body)
       }
@@ -101,9 +101,18 @@ function bubble(t: Translate, row: RemoteRow): HTMLElement {
     root.append(body)
   }
 
-  const from = el('div', 'nm-remote-from', t('chFrom', { device: row.deviceName || row.device || '?' }))
+  const from = el('span', 'nm-remote-from', t('chFrom', { device: row.deviceName || row.device || '?' }))
   if (row.at > 0) from.title = new Date(row.at).toLocaleString()
-  root.append(from)
+  if (row.role === 'assistant') {
+    // The agent's turn opens with its face and its name, and the device it came from sits
+    // beside them: one line, above the words, the way a chat names the speaker. Under the
+    // words it was a second label for the same turn.
+    const head = el('div', 'nm-remote-head')
+    head.append(from)
+    root.insertBefore(head, root.firstChild)
+  } else {
+    root.append(from)
+  }
   return root
 }
 

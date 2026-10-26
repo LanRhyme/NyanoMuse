@@ -14,7 +14,7 @@ import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { closeTopModal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { createElement as h, useEffect, useRef, type ReactNode } from 'react'
 import type { Translate } from './api.ts'
-import { Avatar, BrandName, type Mood } from './Avatar.tsx'
+import { Avatar, BrandName, stillUrl, type Mood } from './Avatar.tsx'
 import { makeAvatarStudio } from './AvatarStudio.tsx'
 import { bridge } from './bridge.ts'
 import { profileBus, settingsBus } from './bus.ts'
@@ -61,7 +61,7 @@ import { SearchModal } from './SearchModal.tsx'
 import { makeChannelsSection, makeComputerSection, makeHelpSection, makeLegalSection, makeStorageSection, makeWalletSection } from './Sections.tsx'
 import { makeMediaSection } from './MediaSection.tsx'
 import { makeModelsSection, MODELS_SECTION } from './ModelsSection.tsx'
-import { ensureStyles, setAccent, setMuseMode } from './styles.ts'
+import { ensureStyles, setAccent, setFace, setMuseMode } from './styles.ts'
 import { initWallpaper } from './wallpaper.ts'
 import { WallpaperModal } from './WallpaperModal.tsx'
 import { useWin, win } from './win.ts'
@@ -244,7 +244,11 @@ export function apply(ctx: ClientContext): void {
       const live = useLive()
       const prefs = usePrefs()
       const mood = useMood(useSessionStatus)
-      useEffect(() => { setAccent(live.profile.color) }, [live.profile.color])
+      // the accent, and the face the thread puts above each reply
+      useEffect(() => {
+        setAccent(live.profile.color)
+        setFace(stillUrl(live.profile, mood), live.profile.name || t('brand'))
+      }, [live.profile, live.profile.color, live.profile.name, mood])
       // The display stays awake while the agent works, when the person wants that.
       useEffect(() => { void bridge()?.keepAwake(prefs.keepAwake && mood === 'working') }, [prefs.keepAwake, mood])
       return h(Avatar, { size, profile: live.profile, mood, title: live.profile.name })

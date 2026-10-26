@@ -567,7 +567,7 @@ export const en = {
   dataPrivacyText: 'The self-hosted relay sees a request only while a model answers it, and keeps nothing of it unless you say so below. With sync on, the text of your chats is kept there so your other devices can show them; files and images stay on this computer.',
   dataSignedOut: 'Sign in and this page decides what the relay keeps.',
   // the composer
-  cpPlaceholder: 'Message',
+  cpPlaceholder: 'Write a message…',
   // app behaviour (the shell's switches) and the bug report
   abTitle: 'App behavior',
   abOpenAtLogin: 'Open at login',
@@ -2077,7 +2077,7 @@ export const zh: typeof en = {
   dataPrivacyText: '自建中继只在模型回答时经手请求，除非你在下面同意，否则不会保留。开着同步时，聊天文字会存在那里，好让你的其他设备也能看到；文件和图片留在这台电脑上。',
   dataSignedOut: '登录后，这里可以决定自建中继保留什么。',
   // the composer
-  cpPlaceholder: '消息',
+  cpPlaceholder: '说点什么…',
   // app behaviour (the shell's switches) and the bug report
   abTitle: '应用行为',
   abOpenAtLogin: '开机启动',

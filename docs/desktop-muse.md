@@ -51,7 +51,10 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   and the list: **Main chat** (one session that stays at the top, the first one or the
   one you chose with *Make main chat*) first, then every other session, pinned first,
   each with a *···* for *Make main chat*, *Pin*, *Rename* (inline), *Archive*. A blank
-  session reads *New chat*; a dot marks a running one, a mark one that waits for you.
+  session reads *New chat*; a dot marks a running one, a mark one that waits for you, in a
+  cell at the row's start so every title begins on the same line. The harness's right rail,
+  which draws nothing here, takes no room while it is collapsed: the thread and the composer
+  sit in the middle of what is left.
   It collapses to the rail alone. The column shows the account that is signed in: a
   synced conversation remembers the account it came from, so another account's
   conversations stay on this computer, hidden from the column and the search until that
@@ -70,9 +73,11 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   are hidden: the chat rows carry rename, pin and archive.
 - The conversation is cut from the harness's own material: the agent's replies are text on
   the canvas, as the harness draws its own, and your messages are pills on the right in
-  the harness's bubble colour, at its radius and padding. Timestamps and the per-message
-  actions appear on hover only; a link inside your pill keeps the pill's text colour,
-  underlined. An empty chat has no greeting and no
+  the harness's bubble colour, at its radius and padding. Each reply opens with the agent's
+  face and its name, and a turn that came from another device of the account says which one
+  beside them, so a thread of plain paragraphs still shows who is speaking and where one
+  turn ends and the next begins. Timestamps and the per-message actions appear on hover
+  only; a link inside your pill keeps the pill's text colour, underlined. An empty chat has no greeting and no
   workspace or preset chips: the composer waits at the bottom and opens the workspace
   picker itself when a workspace is needed.
 - The chat takes the phone's three tags. A reply may arrive as two or three short
@@ -120,10 +125,12 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   the endpoint, the key page and what that vendor covers; the catalogue is the same file the
   phones read, so the two ends offer the same set.
 
-  while a turn runs); the send disc and the harness's scroll-to-latest disc take the
+- The composer is a card of two rows: the words on top, and under them the tools (*+* for a
+  file, the sticker panel, the microphone) with the send disc at the right of that row (a stop
+  square while a turn runs). The send disc and the harness's scroll-to-latest disc take the
   harness's blue, with the glyph inverted on them. It is docked at
   the foot of the window: a short thread pushes it down, a long one scrolls under it with
-  a fade, and the pill keeps a 14 px gap above the edge in both cases. The harness's model picker, permission mode and plan toggle are
+  a fade, and the card keeps a 14 px gap above the edge in both cases. The harness's model picker, permission mode and plan toggle are
   hidden from it (the models live in Settings → Models, dsh's own Models page is under
   Advanced, and the default permission mode in General) and come back with
   *Show DeepSeek Harness controls* under General. The microphone appears when the harness's voice input is switched on in

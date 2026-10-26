@@ -28,6 +28,20 @@ export function setAccent(color: string | undefined): void {
   else root.style.removeProperty('--nm-accent')
 }
 
+/** The still and the name the thread puts above each of the agent's replies; no face, no anchor. */
+export function setFace(url: string | undefined, name: string | undefined): void {
+  const root = document.documentElement
+  if (url && name) {
+    root.style.setProperty('--nm-face', `url("/${url.replace(/^\/+/, '')}")`)
+    root.style.setProperty('--nm-face-name', JSON.stringify(name))
+    root.setAttribute('data-nm-face', '')
+    return
+  }
+  root.style.removeProperty('--nm-face')
+  root.style.removeProperty('--nm-face-name')
+  root.removeAttribute('data-nm-face')
+}
+
 /** Whether the harness's own controls show (`false`: the Muse composer and column). */
 export function setMuseMode(on: boolean, placeholder?: string, steps = false): void {
   const root = document.documentElement
@@ -46,7 +60,7 @@ html[data-nanomuse] {
      because they read the harness's own tokens and those are declared on <body>. */
   --nm-accent: #c8743a;
   --nm-rail: 66px;
-  --nm-header-h: 56px;
+  --nm-header-h: 60px;
   --nm-header-top: 0px;
   --nm-radius: var(--dsw-radius-lg);
   --nm-font: var(--dsw-font-family);
@@ -214,6 +228,8 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 /* The one long conversation: a row like the others, with the house glyph where a state dot goes. */
 .nm-chat-main { display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; padding: 0 8px; box-sizing: border-box; border: 0; border-radius: var(--nm-r-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: var(--nm-fs-md); text-align: left; cursor: pointer; }
 .nm-chat-icon { display: inline-flex; align-items: center; color: var(--dsw-alias-label-secondary); flex: none; }
+/* the state cell, so every title starts on the same line whether its row is running or not */
+.nm-chat-state { width: 10px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
 .nm-chats-search-row { display: flex; align-items: center; gap: 4px; width: 100%; }
 .nm-chats-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 9px; background: var(--nm-field); border: 1px solid var(--nm-field-border); color: var(--dsw-alias-label-tertiary); cursor: text; }
 .nm-chats-search:focus-within { border-color: var(--nm-blue); }
@@ -229,7 +245,7 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 .nm-chat-row.nm-selected .nm-chat-open { color: var(--dsw-alias-label-primary); font-weight: 500; }
 .nm-chat-row.nm-selected { background: var(--nm-selected); }
 .nm-chat-row.nm-pinned { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 65%, transparent); }
-.nm-chat-pin-mark { font-size: 11px; opacity: 0.7; flex: none; margin-right: 2px; }
+.nm-chat-pin-mark { font-size: 11px; opacity: 0.7; flex: none; margin-left: auto; }
 .nm-chat-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: var(--nm-fs-md); text-align: left; cursor: pointer; border-radius: var(--nm-r-sm); }
 .nm-chat-open:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: -2px; }
 .nm-chat-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -246,11 +262,13 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
    It is the loudest line of the column on purpose — which folder a chat starts in
    is the one setting a person changes here — and it is still one 34px row. */
 .nm-ws { flex: none; }
-.nm-ws-btn { display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; padding: 0 8px; box-sizing: border-box; border: 0; border-radius: var(--nm-r-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: var(--nm-fs-lg); font-weight: 600; text-align: left; cursor: pointer; transition: background var(--nm-dur) var(--nm-ease); }
+.nm-ws-btn { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 46px; padding: 5px 8px; box-sizing: border-box; border: 0; border-radius: var(--nm-r-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; text-align: left; cursor: pointer; transition: background var(--nm-dur) var(--nm-ease); }
 .nm-ws-btn:hover, .nm-ws-btn.nm-open { background: var(--nm-hover); }
 .nm-ws-btn:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: -2px; }
 .nm-ws-btn > svg { flex: none; color: var(--dsw-alias-label-secondary); }
-.nm-ws-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-ws-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.nm-ws-title { font-size: var(--nm-fs-md); font-weight: 600; line-height: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-ws-path { font-size: var(--nm-fs-xs); font-weight: 400; line-height: 14px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nm-ws-chevron { opacity: 0.55; }
 .nm-ws-menu { min-width: 248px; max-width: min(380px, calc(100vw - 24px)); }
 .nm-ws-item { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: var(--nm-r-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: var(--nm-fs-md); text-align: left; cursor: pointer; }
@@ -276,7 +294,14 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 .nm-remote-assistant .nm-remote-bubble { padding-left: 0; padding-right: 0; }
 /* the same card for a reply that came from another device */
 html[data-nm-muse] .nm-remote-assistant .nm-remote-bubble { width: 100%; box-sizing: border-box; padding: 0; border-radius: 0; background: transparent; }
-.nm-remote-from { font-size: 11px; color: var(--dsw-alias-label-tertiary); padding: 0 4px; }
+/* The speaker line over a turn from another device: the agent's face, its name, then the
+   device it came from. The face and the name are the two pseudo-elements, so the device
+   label stays the markup's own child and nothing has to be cloned. */
+.nm-remote-head { display: flex; align-items: center; gap: 8px; min-height: 24px; margin: 2px 0 8px; }
+.nm-remote-head::before { content: ''; order: 0; flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--nm-face, none) center / cover no-repeat; }
+.nm-remote-head::after { content: var(--nm-face-name, ''); order: 1; font-size: 12px; font-weight: 600; letter-spacing: 0.01em; color: var(--dsw-alias-label-secondary); }
+.nm-remote-from { order: 2; font-size: 11px; color: var(--dsw-alias-label-tertiary); padding: 0 4px; }
+.nm-remote-assistant .nm-remote-from { padding: 0; }
 /* the other device is working on its last prompt (C9): a quiet line with a slow dot */
 .nm-remote-working { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dsw-alias-label-tertiary); padding: 0 4px; }
 .nm-remote-working::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: nm-breathe-light 4.8s ease-in-out infinite; }
@@ -314,13 +339,13 @@ html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-con
 .nm-header { position: absolute; inset: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 0 12px; box-sizing: border-box; z-index: 2; pointer-events: auto; }
 .nm-header-group { grid-column: 2; justify-self: start; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .nm-header-back { grid-column: 1; }
-.nm-header-face { position: relative; width: 28px; height: 28px; flex: none; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 300ms; }
+.nm-header-face { position: relative; width: 32px; height: 32px; flex: none; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 300ms; }
 .nm-header-face.nm-live { box-shadow: 0 0 0 1.5px var(--nm-accent); }
 .nm-header-face.nm-wait { box-shadow: 0 0 0 1.5px var(--dsw-alias-state-warn-primary, #d98c1f); }
 .nm-header-face:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: 2px; }
 .nm-header-titles { display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; flex: 1 1 auto; }
 .nm-header-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: nowrap; }
-.nm-header-name { font-size: var(--nm-fs-lg); font-weight: 600; line-height: 18px; letter-spacing: -0.01em; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.nm-header-name { font-size: 16px; font-weight: 600; line-height: 19px; letter-spacing: -0.01em; color: var(--dsw-alias-label-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .nm-header-actions { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px; flex: none; }
 .nm-header-status { display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 13px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .nm-header-status.nm-live { color: var(--dsw-alias-label-secondary); }
@@ -344,17 +369,19 @@ html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-con
 .nm-invite-link { font-size: 13px; color: var(--dsw-alias-label-secondary); word-break: break-all; }
 
 /* ---- the Muse conversation: the harness's DOM, Muse's shapes ----------- */
-/* The composer card becomes one pill: + | the text | send. */
+/* The composer is a card of two rows, as the harness's own is: the words on top and the
+   tools under them, the send disc at the right of that row. One row could not hold both
+   without squeezing the field into a slot between buttons. */
 /* No backdrop-filter on the card: Chromium makes a filtered element the containing block for
    its fixed descendants, and the composer hosts the "+" list and the overlay anchor. With a
    filter here those popovers were laid out against the 712 px card instead of the window, so the
    list opened full width over the pill instead of under the "+". The card's own fill carries the
    look; the blur belongs to elements that hold no popovers. */
-html[data-nm-muse] [data-composer-card] { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: flex-end; gap: 2px 4px; padding: 8px 8px 8px 10px !important; border-radius: var(--nm-r-lg) !important; background: var(--nm-field) !important; box-shadow: 0 0 0 1px var(--nm-field-border) !important; transition: box-shadow var(--nm-dur) var(--nm-ease), border-color var(--nm-dur) var(--nm-ease); }
+html[data-nm-muse] [data-composer-card] { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 8px 8px 6px !important; border-radius: var(--nm-r-lg) !important; background: var(--nm-field) !important; box-shadow: 0 0 0 1px var(--nm-field-border) !important; transition: box-shadow var(--nm-dur) var(--nm-ease), border-color var(--nm-dur) var(--nm-ease); }
 html[data-nm-muse] [data-composer-card]:focus-within { box-shadow: 0 0 0 1.5px var(--nm-blue) !important; }
-html[data-nm-muse] [data-composer-card] > [data-input-scroll] { flex: 1 1 120px; min-width: 0; order: 0; margin: 0 !important; }
-html[data-nm-muse] [data-composer-card] > [data-input-scroll] [contenteditable] { min-height: 34px !important; padding: 5px 6px 5px 8px !important; }
-html[data-nm-muse] [data-composer-card] [data-composer-placeholder] { inset: 5px 6px auto 8px !important; color: transparent !important; }
+html[data-nm-muse] [data-composer-card] > [data-input-scroll] { flex: 1 1 100%; min-width: 0; order: -1; margin: 0 !important; }
+html[data-nm-muse] [data-composer-card] > [data-input-scroll] [contenteditable] { min-height: 40px !important; padding: 4px 8px !important; }
+html[data-nm-muse] [data-composer-card] [data-composer-placeholder] { inset: 9px 8px auto 8px !important; color: transparent !important; }
 html[data-nm-muse] [data-composer-card] [data-composer-placeholder]::before { content: var(--nm-placeholder, "Message"); position: absolute; inset: 0 auto auto 0; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
 /* The composer is the phone's dock: it lives at the foot of the window however short the
    thread is. The seat is the last child of the scrolling body, so margin-top: auto pushes it
@@ -373,8 +400,8 @@ html[data-nm-muse] [class*="_composerHero"] > [class*="_root"]:first-child { dis
 /* no workspace/preset chips over an empty chat: the inert composer itself opens the workspace picker when one is needed */
 html[data-nm-muse] [class*="_composerHero"] > [class*="_heroWorkspaceRow"] { display: none; }
 html[data-nm-muse] [data-composer-card] > div:last-child { display: contents; }
-html[data-nm-muse] [data-composer-card] > div:last-child > div:first-child { order: -1; gap: 2px; }
-html[data-nm-muse] [data-composer-card] > div:last-child > div:last-child { order: 1; margin-left: 0 !important; }
+html[data-nm-muse] [data-composer-card] > div:last-child > div:first-child { order: 0; gap: 2px; }
+html[data-nm-muse] [data-composer-card] > div:last-child > div:last-child { order: 0; margin-left: auto !important; }
 html[data-nm-muse] [data-composer-card] > [class*="_rail"] { flex-basis: 100%; order: -2; }
 html[data-nm-muse] [data-composer-card] > [class*="_accessory"] { flex-basis: 100%; order: -3; padding-top: 4px !important; }
 html[data-nm-muse] [data-composer-card] [class*="_modes"] { display: none !important; }
@@ -433,7 +460,21 @@ html[data-nm-muse] .nm-remote-user .nm-remote-bubble { background: var(--nm-user
 html[data-nm-muse] .nm-remote-user .nm-remote-bubble ::selection { background: var(--nm-user-bubble-selection); color: var(--nm-user-bubble-fg); }
 /* The agent's words are the canvas's own, as the harness draws its replies: no card, no
    padding, the column's width, one text size. A reply deliberately cut into bubbles
-   (Markup.ts) is what draws cards, because the split is the point there. */
+   (Markup.ts) is what draws cards, because the split is the point there.
+   Each reply opens with the agent's face and its name, so a thread of plain paragraphs
+   still says who is speaking and where one turn ends and the next begins. The disc comes
+   from --nm-face, set by the browser half when the account has a face; without one the
+   attribute is off and nothing is drawn. */
+html[data-nm-face] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"]::before,
+html[data-nm-face] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > .nm-bubble-stack::before {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: 2px 0 8px;
+  border-radius: 50%;
+  background: var(--nm-face) center / cover no-repeat;
+}
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] { width: 100%; max-width: 100%; box-sizing: border-box; background: transparent; border-radius: 0; padding: 0; font-size: var(--nm-fs-lg); line-height: 1.72; box-shadow: none; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"]:empty { display: none; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] > :first-child { margin-top: 0; }
@@ -463,6 +504,10 @@ html[data-nm-muse] [data-slot="conversation.session.header"] [data-conversation-
 html[data-nm-muse] [data-slot="conversation.session.header.utilities"] > *:not(:has(.nm-invite)) { display: none; }
 html[data-nm-muse] [data-turn-process-inline] { display: none !important; }
 html[data-nm-muse] [data-slot="conversation.session.header.corner"] [data-sidebar-right-expand] { display: none; }
+/* The harness's right rail keeps its track when it is collapsed, and Muse mode draws nothing
+   in it: 85 px of wallpaper on the right of the window, which pushed the thread and the
+   composer off centre. Collapsed, it takes no room. */
+html[data-nm-muse] [class*="_frame"][data-rightbar-collapsed] [data-sidebar-right-panel] { display: none; }
 /* the navigation seat of the bar: flat, 28px, the way the phone draws its menu icon; it only
    shows the tint when hovered or focused */
 .nm-header-back { flex: none; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
@@ -1836,7 +1881,7 @@ html[data-nm-wallpaper] [class*="_root"]:has([data-slot="conversation.header"]) 
 html[data-nm-wallpaper] .nm-sidebar,
 html[data-nm-wallpaper] .nm-chats,
 html[data-nm-wallpaper] .nm-rail {
-  background-color: color-mix(in srgb, var(--nm-sidebar) 86%, transparent) !important;
+  background-color: color-mix(in srgb, var(--nm-sidebar) 90%, transparent) !important;
 }
 /* the bar over a picture: a pane, not a scrim, so the status line keeps its ground */
 html[data-nm-wallpaper] header[data-window-drag]:has(.nm-header) {
@@ -1862,7 +1907,7 @@ html[data-nm-wallpaper] [data-composer-card] {
    its own cards: those are the point of the split. */
 html[data-nm-wallpaper] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content],
 html[data-nm-wallpaper] [data-conversation-content] {
-  background-color: color-mix(in srgb, var(--nm-canvas) 56%, transparent) !important;
+  background-color: color-mix(in srgb, var(--nm-canvas) 62%, transparent) !important;
 }
 
 /* Slim modern Morandi scrollbars */

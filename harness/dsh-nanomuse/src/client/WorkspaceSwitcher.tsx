@@ -152,8 +152,10 @@ export function WorkspaceSwitcher({ t, current, workspaces, browse, add, pick, r
       title: active ? active.path : t('wsSwitch'),
       onClick: () => { if (open) close(); else openMenu() },
     },
-      h(IconFolder, { size: 15 }),
-      h('span', { className: 'nm-ws-name' }, active ? active.title : t('wsNone')),
+      h(IconFolder, { size: 16 }),
+      h('span', { className: 'nm-ws-name' },
+        h('span', { className: 'nm-ws-title' }, active ? active.title : t('wsNone')),
+        h('span', { className: 'nm-ws-path' }, active ? active.path : t('wsNoneHint'))),
       h(IconChevronDown, { size: 14, className: 'nm-ws-chevron' })),
     open && at
       ? h('div', { ref: menu, className: 'nm-menu nm-ws-menu', role: 'menu', style: { left: at.left, top: at.top } },

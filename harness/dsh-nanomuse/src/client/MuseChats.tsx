@@ -228,13 +228,15 @@ function ChatRow({ t, chat, label, pinned, selected, useSessionStatus, actions }
     editing
       ? h('input', { className: 'nm-chat-edit', value: draft, autoFocus: true, 'aria-label': t('chRename'), onChange: (e: FormEvent<HTMLInputElement>) => setDraft(e.currentTarget.value), onBlur: commit, onKeyDown: onKey })
       : h('button', { type: 'button', className: 'nm-chat-open', 'aria-current': selected ? 'page' : undefined, onClick: () => actions.openSession(chat.id), onDoubleClick: begin },
-          pinned ? h('span', { className: 'nm-chat-pin-mark', title: t('chPin') }, '📌 ') : null,
+          // the state leads, in a cell of its own, so every title starts on the same line
+          h('span', { className: 'nm-chat-state' },
+            waiting
+              ? h('span', { className: 'nm-chat-mark nm-wait', title: t('chWaiting'), 'aria-label': t('chWaiting') }, 'ℹ')
+              : running
+                ? h('span', { className: 'nm-chat-dot nm-live', title: t('chRunning'), 'aria-label': t('chRunning') })
+                : unread ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null),
           h('span', { className: 'nm-chat-title' }, label),
-          waiting
-            ? h('span', { className: 'nm-chat-mark nm-wait', title: t('chWaiting'), 'aria-label': t('chWaiting') }, 'ℹ')
-            : running
-              ? h('span', { className: 'nm-chat-dot nm-live', title: t('chRunning'), 'aria-label': t('chRunning') })
-              : unread ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null),
+          pinned ? h('span', { className: 'nm-chat-pin-mark', title: t('chPin'), 'aria-label': t('chPin') }, '📌') : null),
     editing ? null : h('button', { type: 'button', className: 'nm-chat-more', 'aria-label': t('chMore'), 'aria-haspopup': 'menu', 'aria-expanded': menuAnchor !== null, ref: (el: HTMLButtonElement | null): void => { more.current = el }, onClick: () => setMenuAnchor((current) => (current ? null : more.current)) }, h(IconMore, { size: 16 })),
     menuAnchor ? h(RowMenu, { anchor: menuAnchor, items, onClose: () => setMenuAnchor(null) }) : null)
 }
@@ -353,8 +355,8 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, use
       onClick: () => { if (mainId) actions.openSession(mainId) },
       title: t('chMainChat'),
     },
-      h('span', { className: 'nm-chat-title' }, t('chMainChat')),
-      selected === mainId ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null))
+      h('span', { className: 'nm-chat-state' }, selected === mainId ? h('span', { className: 'nm-chat-dot', 'aria-hidden': true }) : null),
+      h('span', { className: 'nm-chat-title' }, t('chMainChat'))))
   }
   if (folder) {
     const mine = chats.filter((chat) => folderIds.has(chat.id))

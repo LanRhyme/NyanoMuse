@@ -27,6 +27,7 @@ const WEB_APP_ONLY = [
   'data-dockkit-strip',
   'data-dockkit-strip-chrome',
   'data-plugin-panel',
+  'data-rightbar-collapsed',
   'data-sidebar-right-expand',
   'data-sidebar-right-panel',
   'data-tool',
