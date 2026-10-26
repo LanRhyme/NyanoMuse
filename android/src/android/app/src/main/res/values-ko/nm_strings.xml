@@ -1282,4 +1282,5 @@
     <string name="nm_chat_archive_dialog_body">현재 채팅을 보관하고 새 대화를 시작할까요? 이전의 모든 메시지와 기억은 안전하게 보존됩니다.</string>
     <string name="nm_chat_archive_dialog_confirm">보관</string>
     <string name="nm_chat_archive_default_title_prefix">메인 채팅 · %1$s</string>
+    <string name="nm_add_provider_more">더 많은 제공업체</string>
 </resources>

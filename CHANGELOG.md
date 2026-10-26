@@ -4,6 +4,12 @@ All notable changes to nanoMuse. The format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+### Android
+
+- **The hands can use OpenCode's picture models.** OpenCode Zen and OpenCode Go declare `vision` now, with `minimax-m3` as the hands default; both take an image on the OpenAI shape (checked against the vendor, as do `kimi-k3` and the free `nemotron-3.5-super-vl-free`), so *Settings → Models → Operating the screen* offers them once the key is saved. The name guess behind an undeclared model learned that the MiniMax M3 series sees while M1 and M2 do not.
+
+- **OpenCode Zen and OpenCode Go are added from *Add a provider*, not only from the allowance card.** The screen now carries the rest of the own-key catalogue under *More providers* (OpenCode Zen and Go, 阿里云百炼, DeepSeek, GLM, SiliconFlow, Volcengine, MiniMax, Groq, Mistral, Standard Compute), each row opening the form with that vendor's public endpoint and key page filled in; the protocols the screen already lists (OpenAI, Anthropic, Gemini, xAI, Kimi, OpenRouter) stay where they are and are left out of the new list.
+
 ### Cloud
 
 - **A device that moves between networks no longer fights itself over its id.** A phone that leaves Wi-Fi for cellular opens the new socket while the old one is still up, and both carry the same device id, so the relay used to drop one of them at once and the two took the id back from each other. The relay now hands over gently: the old socket hears a `standby` frame queued ahead of everything else waiting, calls to it are refused as `device_busy` so a caller retries instead of giving up, and the socket is closed with `4004` once the notice is out. The relay, the runtime, the desktop, the phone and the iPhone wait a few seconds on `4004` instead of reconnecting at once.

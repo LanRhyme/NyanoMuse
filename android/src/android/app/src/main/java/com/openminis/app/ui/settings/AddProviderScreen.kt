@@ -178,6 +178,17 @@ fun AddProviderScreen(
                 selectedCredential = ProviderCredential.apiKey
                 step = AddProviderStep.CONFIGURE
             },
+            // nanoMuse: a catalogue vendor takes the same route as a preset — its template
+            // (name, endpoint, key page) and the key credential, straight to the form.
+            onSelectCatalogueVendor = { id ->
+                val template = io.github.nanomuse.cloud.OwnKeyPresets.template(presetContext, id)
+                if (template != null) {
+                    selectedVoiceTemplate = template
+                    selectedType = template.providerType
+                    selectedCredential = ProviderCredential.apiKey
+                    step = AddProviderStep.CONFIGURE
+                }
+            },
         )
         AddProviderStep.CHOOSE_CREDENTIAL -> ChooseCredentialScreen(
             providerType = selectedType!!,
@@ -262,6 +273,9 @@ private fun ChooseProviderScreen(
     onBack: () -> Unit,
     onSelect: (ProviderType) -> Unit,
     onSelectVoiceTemplate: (com.openminis.app.data.model.VoiceProviderTemplate) -> Unit = {},
+    // nanoMuse: a vendor of the own-key catalogue (OpenCode Zen, Bailian, …) opens the form
+    // pre-filled, the way the allowance card's deep link does; empty keeps the screen as it was.
+    onSelectCatalogueVendor: (String) -> Unit = {},
 ) {
     SettingsScaffold(
         title = stringResource(R.string.provider_list_add_provider),
@@ -342,6 +356,20 @@ private fun ChooseProviderScreen(
                 )
             }
         }
+        // nanoMuse: the rest of the own-key catalogue, so OpenCode Zen and OpenCode Go (and
+        // Bailian, DeepSeek, GLM and the others) are added from here and not only from the
+        // allowance card. The vendors the protocol rows above cover are left out.
+        io.github.nanomuse.ui.settings.CatalogueProviderSection(
+            excluded = setOf(
+                io.github.nanomuse.cloud.ProviderCatalogue.OPENAI,
+                io.github.nanomuse.cloud.ProviderCatalogue.ANTHROPIC,
+                io.github.nanomuse.cloud.ProviderCatalogue.GEMINI,
+                io.github.nanomuse.cloud.ProviderCatalogue.XAI,
+                io.github.nanomuse.cloud.ProviderCatalogue.MOONSHOT,
+                io.github.nanomuse.cloud.ProviderCatalogue.OPENROUTER,
+            ),
+            onPick = { vendor -> onSelectCatalogueVendor(vendor.id) },
+        )
         Spacer(Modifier.height(24.dp))
     }
 }

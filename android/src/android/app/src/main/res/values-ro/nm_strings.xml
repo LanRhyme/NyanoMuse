@@ -1290,4 +1290,5 @@
     <string name="nm_chat_archive_dialog_body">Arhivați acest chat în istoric și începeți o nouă conversație? Toate mesajele și amintirile anterioare sunt păstrate.</string>
     <string name="nm_chat_archive_dialog_confirm">Arhivează</string>
     <string name="nm_chat_archive_default_title_prefix">Chat principal · %1$s</string>
+    <string name="nm_add_provider_more">Mai mulți furnizori</string>
 </resources>

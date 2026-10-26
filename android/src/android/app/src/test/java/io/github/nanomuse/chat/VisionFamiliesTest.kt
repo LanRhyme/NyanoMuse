@@ -22,6 +22,16 @@ class VisionFamiliesTest {
         assertFalse(VisionFamilies.looksLikeItSees("deepseek-r1"))
     }
 
+    @Test fun `the opencode models that take a picture are read as sighted`() {
+        // OpenCode Zen and Go: minimax-m3 and kimi-k3 accept an image on the OpenAI shape
+        // (checked against the vendor), while the earlier MiniMax M-series do not.
+        assertTrue(VisionFamilies.looksLikeItSees("minimax-m3"))
+        assertTrue(VisionFamilies.looksLikeItSees("kimi-k3"))
+        assertTrue(VisionFamilies.looksLikeItSees("nemotron-3.5-super-vl-free"))
+        assertFalse(VisionFamilies.looksLikeItSees("minimax-m2.5"))
+        assertFalse(VisionFamilies.looksLikeItSees("minimax-m2.7"))
+    }
+
     @Test fun `the hands default and the rest of the list still read as before`() {
         assertTrue(VisionFamilies.looksLikeItSees("qwen3.8-27b"))
         assertTrue(VisionFamilies.looksLikeItSees("qwen/qwen3.8-27b"))

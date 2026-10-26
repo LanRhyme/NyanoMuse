@@ -1286,4 +1286,5 @@
     <string name="nm_chat_archive_dialog_body">¿Archivar este chat en el historial e iniciar una nueva conversación? Todos los mensajes y recuerdos anteriores se conservan.</string>
     <string name="nm_chat_archive_dialog_confirm">Archivar</string>
     <string name="nm_chat_archive_default_title_prefix">Chat principal · %1$s</string>
+    <string name="nm_add_provider_more">Más proveedores</string>
 </resources>

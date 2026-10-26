@@ -22,7 +22,7 @@ object VisionFamilies {
         "qwen2.5-", "qwen2-", "qwen1.5", "qwq", "qwen-long", "qwen-math", "qwen-coder", "qwen3-coder", "qwen3-235b", "qwen3-32b", "qwen3-30b", "qwen3-14b", "qwen3-8b", "qwen3-4b",
         "llama-3", "llama3", "mistral-7b", "mixtral", "phi-", "gemma-2", "gemma2", "glm-4-", "glm-4.5-air", "glm-4.6", "glm-4.7",
         "text-", "davinci", "babbage", "kimi-k2-", "kimi-k2.1", "moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k",
-        "minimax-m", "minimax-text", "abab", "hunyuan-lite", "hunyuan-turbo", "ernie-speed", "ernie-lite",
+        "minimax-m1", "minimax-m2", "minimax-text", "abab", "hunyuan-lite", "hunyuan-turbo", "ernie-speed", "ernie-lite",
     )
 
     /** Families that see. Checked after [textOnly], so `qwen2.5-vl` still passes via "-vl". */
@@ -33,7 +33,7 @@ object VisionFamilies {
         "claude-3", "claude-4", "claude-opus", "claude-sonnet", "claude-haiku",
         "gemini", "gemma-3", "gemma3", "grok-2-vision", "grok-3", "grok-4",
         "llama-4", "llama4", "mistral-medium", "mistral-large-2", "mistral-small-3", "magistral",
-        "minimax-h", "minimax-vl", "kimi-k2.5", "kimi-k3", "doubao-seed", "doubao-1.5-vision", "doubao-1.6", "seed-1",
+        "minimax-h", "minimax-vl", "minimax-m3", "kimi-k2.5", "kimi-k3", "doubao-seed", "doubao-1.5-vision", "doubao-1.6", "seed-1",
         "step-1v", "step-1o", "step-3", "hunyuan-vision", "hunyuan-t1", "hunyuan-large-vision", "ernie-4.5",
     )
 

@@ -1259,4 +1259,5 @@
     <string name="nm_chat_archive_dialog_body">将当前主聊天归档至历史列表并开启全新对话？所有聊天记录与记忆都将完整保留。</string>
     <string name="nm_chat_archive_dialog_confirm">归档</string>
     <string name="nm_chat_archive_default_title_prefix">主聊天 · %1$s</string>
+    <string name="nm_add_provider_more">更多厂商</string>
 </resources>

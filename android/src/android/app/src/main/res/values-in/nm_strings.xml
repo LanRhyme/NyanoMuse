@@ -1282,4 +1282,5 @@
     <string name="nm_chat_archive_dialog_body">Arsipkan obrolan ini ke riwayat dan mulai percakapan baru? Semua pesan dan ingatan sebelumnya tetap tersimpan.</string>
     <string name="nm_chat_archive_dialog_confirm">Arsipkan</string>
     <string name="nm_chat_archive_default_title_prefix">Obrolan Utama · %1$s</string>
+    <string name="nm_add_provider_more">Penyedia lainnya</string>
 </resources>

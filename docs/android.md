@@ -71,7 +71,15 @@ update*) and offers the download.
    rule; a provider of your own switched off there while the chat ran on it hands the chat
    to the next source, and when none is left a send says *No model can answer right now.
    Choose one under Settings › Models.* A phone with a key of
-   its own works signed out: the welcome page offers *Use your own API key instead*. Running
+   its own works signed out: the welcome page offers *Use your own API key instead*. The
+   *Add a provider* screen lists the catalogue's other vendors under *More providers* —
+   OpenCode Zen and OpenCode Go, 阿里云百炼, DeepSeek, GLM, SiliconFlow, Volcengine, MiniMax,
+   Groq, Mistral, Standard Compute — each row opening the form with that vendor's endpoint and
+   key page filled in; the protocols the screen already carries (OpenAI, Anthropic, Gemini,
+   xAI, Kimi, OpenRouter) are picked there and left out of the list. OpenCode Zen and Go cover
+   the screen as well as chat (`minimax-m3` is the hands default, and `kimi-k3` and the free
+   `nemotron-3.5-super-vl-free` take pictures too), so *Operating the screen* lists them once
+   the key is saved. Running
    everything yourself with no account at all is the runtime's `cloud.required = false`.
 4. Optional: the two permissions that let the agent use your phone's apps (skippable and
    revocable). *Settings → Hands* keeps its row for the screen model, which opens the same

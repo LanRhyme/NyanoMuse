@@ -1286,4 +1286,5 @@
     <string name="nm_chat_archive_dialog_body">I-archive ang chat na ito sa history at magsimula ng bago? Mananatili ang lahat ng nakaraang mensahe at alaala.</string>
     <string name="nm_chat_archive_dialog_confirm">I-archive</string>
     <string name="nm_chat_archive_default_title_prefix">Pangunahing Chat · %1$s</string>
+    <string name="nm_add_provider_more">Higit pang provider</string>
 </resources>

@@ -1264,4 +1264,5 @@
     <string name="nm_chat_archive_dialog_body">Archive this chat into your history list and start a fresh conversation? All previous messages and memories are preserved.</string>
     <string name="nm_chat_archive_dialog_confirm">Archive</string>
     <string name="nm_chat_archive_default_title_prefix">Main Chat · %1$s</string>
+    <string name="nm_add_provider_more">More providers</string>
 </resources>
