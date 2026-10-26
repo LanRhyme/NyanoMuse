@@ -41,29 +41,24 @@ export function setMuseMode(on: boolean, placeholder?: string, steps = false): v
 
 const CSS = `
 html[data-nanomuse] {
+  /* What is ours: the accent (the colour the person gave the agent) and the one scale the
+     rail, the column, the chat and the composer share. The colours live one block down,
+     because they read the harness's own tokens and those are declared on <body>. */
   --nm-accent: #c8743a;
-  --nm-blue: #6a7f7a;
-  --nm-blue-hover: #5a6e69;
-  --nm-on-accent: #ffffff;
-  --nm-primary: #6a7f7a;
   --nm-rail: 66px;
   --nm-header-h: 56px;
   --nm-header-top: 0px;
-  --nm-radius: 14px;
-  --nm-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  /* One scale for everything this plugin draws: the rail, the column, the chat and
-     the composer share it, so a 34px row is 34px everywhere and a hairline is one
-     colour. Four steps of spacing, four of radius, four of type; nothing below
-     reads a magic number of its own. */
+  --nm-radius: var(--dsw-radius-lg);
+  --nm-font: var(--dsw-font-family);
   --nm-s1: 4px;
   --nm-s2: 8px;
   --nm-s3: 12px;
   --nm-s4: 16px;
   --nm-s5: 24px;
-  --nm-r-sm: 8px;
-  --nm-r-md: 12px;
-  --nm-r-lg: 16px;
-  --nm-r-xl: 20px;
+  --nm-r-sm: var(--dsw-radius-sm);
+  --nm-r-md: var(--dsw-radius-md);
+  --nm-r-lg: var(--dsw-radius-lg);
+  --nm-r-xl: var(--dsw-radius-xl);
   --nm-r-pill: 999px;
   --nm-fs-xs: 11px;
   --nm-fs-sm: 12.5px;
@@ -74,80 +69,42 @@ html[data-nanomuse] {
   --nm-shadow-1: 0 1px 2px rgb(0 0 0 / 0.1);
   --nm-shadow-2: 0 10px 30px rgb(0 0 0 / 0.22);
 }
-/* Light: the phone's Morandi palette (ThemePalette.kt, MorandiLightColorScheme and
-   MorandiLightChatPalette): warm paper #f3f1ec, cards a shade lighter, the sage primary for
-   links and the send disc, your pill the deep sage #4e5e59 with white ink, the agent's a card
-   a step off the canvas. The paper stays under the rail, the columns and the pages. */
+/* The palette is the harness's own. Every surface, ink, border and bubble colour below is
+   a --dsw-* token, so a nanoMuse panel and a harness panel are cut from the same material,
+   in the light and in the dark alike, and a theme change moves both at once. It has to be
+   <body>: a token that reads another token is resolved where it is declared, and the
+   harness declares its palette there, not on :root. */
 html[data-nanomuse] body {
-  --nm-base: #f3f1ec;
-  --nm-canvas: #f3f1ec;
-  --nm-field: #ffffff;
-  --nm-field-border: #d5d2ca;
-  --nm-card: #faf9f6;
-  --nm-selected: #e8e5dd;
-  --nm-hover: #eeebe4;
-  --nm-divider: #d9d6ce;
-  --nm-agent-bubble: #faf9f6;
-  --nm-user-bubble: #4e5e59;
-  --nm-user-bubble-fg: #ffffff;
-  --nm-user-bubble-selection: rgb(255 255 255 / 0.3);
-  --nm-ink: #2c2b29;
-  --nm-ink-fg: #ffffff;
-  --nm-send: var(--nm-primary);
-  --nm-send-idle: #cfccc4;
-  --dsw-alias-bg-base: #f3f1ec;
-  --dsw-alias-bg-layer-1: #faf9f6;
-  --dsw-alias-bg-layer-2: #f0ede6;
-  --dsw-alias-bg-layer-3: #e4e0d8;
-  --dsw-specific-sidebar-fill: #f3f1ec;
-  --dsw-specific-bubble: #faf9f6;
-  --dsw-specific-bubble-highlight: #f0ede6;
-  --dsw-specific-input-major: #ffffff;
-  --dsw-alias-brand-primary: #22302d;
-  /* Menus and the select popovers draw their fill on a layer behind the surface, at 45 percent
-     with a 40 px backdrop blur. Inside the chat that blur resolves against an ancestor that has
-     one of its own, and the pane came out see-through: the thread read straight through the
-     list. The Muse look gives the menu one solid tone instead, as the phone's menu does. */
-  --dsw-menu-surface-fill: #ffffff;
-  --dsw-menu-backdrop-filter: none;
+  --nm-blue: var(--dsw-alias-state-business-primary);
+  --nm-blue-hover: var(--dsw-alias-button-info-hover);
+  --nm-on-accent: var(--dsw-alias-label-primary-foreground);
+  --nm-primary: var(--dsw-alias-state-business-primary);
+  --nm-base: var(--dsw-alias-bg-base);
+  --nm-canvas: var(--dsw-alias-bg-base);
+  /* the column is a shade off the canvas, as the harness's own sidebar is */
+  --nm-sidebar: var(--dsw-specific-sidebar-fill);
+  --nm-field: var(--dsw-specific-input-major);
+  --nm-field-border: var(--dsw-alias-border-l2);
+  --nm-card: var(--dsw-specific-selector);
+  --nm-selected: var(--dsw-specific-sidebar-nav-item-active);
+  --nm-hover: var(--dsw-specific-sidebar-nav-item-hover);
+  --nm-divider: var(--dsw-alias-border-l2);
+  --nm-agent-bubble: var(--dsw-specific-bubble);
+  --nm-bubble-border: var(--dsw-alias-border-l2);
+  --nm-user-bubble: var(--dsw-specific-bubble);
+  --nm-user-bubble-fg: var(--dsw-alias-label-primary);
+  --nm-user-bubble-selection: color-mix(in srgb, var(--dsw-alias-label-primary) 18%, transparent);
+  --nm-ink: var(--dsw-alias-label-primary);
+  --nm-ink-fg: var(--dsw-alias-label-primary-foreground);
+  --nm-send: var(--dsw-alias-state-business-primary);
+  /* the send disc when there is nothing to send: the harness's own dimmed primary */
+  --nm-send-idle: var(--dsw-alias-button-primary-dimmed);
+  font-family: var(--nm-font);
 }
-/* Dark: the phone's Morandi night (MorandiDarkColorScheme): the canvas #1e2124, cards and the
-   composer #292d32, the raised step #34393f, the outline #454b52, the sage accent #9eaba7. Your
-   pill is #384541 with #e4e4e6 ink, the agent's a card. */
-html[data-nanomuse] body[data-ds-dark-theme] {
-  --nm-blue: #9eaba7;
-  --nm-blue-hover: #b3bfbb;
-  --nm-on-accent: #1e2124;
-  --nm-primary: #9eaba7;
-  --nm-base: #1e2124;
-  --nm-canvas: #1e2124;
-  --nm-field: #292d32;
-  --nm-field-border: #454b52;
-  --nm-card: #292d32;
-  --nm-selected: #34393f;
-  --nm-hover: #2e3339;
-  --nm-divider: #3a4046;
-  --nm-agent-bubble: #292d32;
-  --nm-user-bubble: #384541;
-  --nm-user-bubble-fg: #e4e4e6;
-  --nm-user-bubble-selection: rgb(158 171 167 / 0.35);
-  --nm-ink: #e4e4e6;
-  --nm-ink-fg: #1e2124;
-  --nm-send: #e4e4e6;
-  --nm-send-idle: #454b52;
-  --dsw-alias-bg-base: #1e2124;
-  --dsw-alias-bg-layer-1: #23262a;
-  --dsw-alias-bg-layer-2: #292d32;
-  --dsw-alias-bg-layer-3: #34393f;
-  --dsw-specific-sidebar-fill: #1e2124;
-  --dsw-specific-bubble: #292d32;
-  --dsw-specific-bubble-highlight: #34393f;
-  --dsw-specific-input-major: #292d32;
-  --dsw-alias-brand-primary: #e4e4e6;
-  --dsw-menu-surface-fill: #2c3036;
-  --dsw-menu-backdrop-filter: none;
-}
-html[data-nanomuse] body { font-family: var(--nm-font); }
+/* A menu is a surface of its own: the harness fills it on a layer behind the panel at 45
+   percent with a 40 px blur, and inside the chat that blur resolves against an ancestor
+   that has one of its own, so the list read straight through. One solid tone instead. */
+html[data-nanomuse] body { --dsw-menu-surface-fill: var(--dsw-alias-bg-layer-3); --dsw-menu-backdrop-filter: none; }
 
 /* ---- shared controls --------------------------------------------------- */
 .nm-pill { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 22px; border: 0; border-radius: 999px; background: var(--nm-blue); color: var(--nm-on-accent); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 120ms, opacity 120ms; }
@@ -173,8 +130,8 @@ html[data-nanomuse] body { font-family: var(--nm-font); }
 .nm-icon-btn-sm { width: 24px; height: 24px; border-radius: 7px; }
 
 /* ---- sidebar: icon rail + chats column -------------------------------- */
-.nm-sidebar { display: flex; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary); background: var(--nm-base); }
-.nm-rail { width: var(--nm-rail); flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 12px; box-sizing: border-box; border-right: 1px solid color-mix(in srgb, var(--nm-divider) 70%, transparent); }
+.nm-sidebar { display: flex; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary); background: var(--nm-sidebar); }
+.nm-rail { width: var(--nm-rail); flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 12px; box-sizing: border-box; }
 .nm-rail-top { height: 12px; flex: none; }
 html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-rail-top { height: 78px; }
 .nm-rail-face { display: inline-flex; border-radius: 50%; overflow: hidden; }
@@ -233,7 +190,7 @@ html[data-nm-platform='win32']:not([data-nm-fullscreen]) [data-sidebar-right-pan
 .nm-rail-btn:focus-visible { outline: 2px solid var(--nm-accent); outline-offset: -2px; }
 .nm-rail-dot { position: absolute; top: 9px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--nm-accent); box-shadow: 0 0 0 2px var(--nm-base); }
 .nm-rail-spacer { flex: 1; }
-.nm-col { flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--nm-divider); opacity: 1; transition: opacity 150ms; }
+.nm-col { flex: 1; min-width: 0; display: flex; flex-direction: column; opacity: 1; transition: opacity 150ms; }
 .nm-col.nm-fading { opacity: 0; }
 .nm-col-top { height: 10px; flex: none; }
 html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 10px; }
@@ -318,7 +275,7 @@ html[data-nm-platform='darwin']:not([data-nm-fullscreen]) .nm-col-top { height: 
 .nm-remote-user .nm-remote-bubble { background: var(--dsw-specific-bubble, var(--nm-hover)); }
 .nm-remote-assistant .nm-remote-bubble { padding-left: 0; padding-right: 0; }
 /* the same card for a reply that came from another device */
-html[data-nm-muse] .nm-remote-assistant .nm-remote-bubble { width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 20px; background: var(--nm-agent-bubble); }
+html[data-nm-muse] .nm-remote-assistant .nm-remote-bubble { width: 100%; box-sizing: border-box; padding: 0; border-radius: 0; background: transparent; }
 .nm-remote-from { font-size: 11px; color: var(--dsw-alias-label-tertiary); padding: 0 4px; }
 /* the other device is working on its last prompt (C9): a quiet line with a slow dot */
 .nm-remote-working { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dsw-alias-label-tertiary); padding: 0 4px; }
@@ -354,9 +311,9 @@ html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-con
    face unclickable on macOS in an earlier shape). */
 /* Three columns, the middle one centred: the phone's bar keeps the face, the name and the
    capsule in the middle whatever the ends carry. */
-.nm-header { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 0 12px; box-sizing: border-box; z-index: 2; pointer-events: auto; }
-.nm-header-group { grid-column: 2; justify-self: center; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
-.nm-header-back { grid-column: 1; justify-self: start; }
+.nm-header { position: absolute; inset: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 0 12px; box-sizing: border-box; z-index: 2; pointer-events: auto; }
+.nm-header-group { grid-column: 2; justify-self: start; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.nm-header-back { grid-column: 1; }
 .nm-header-face { position: relative; width: 28px; height: 28px; flex: none; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; box-shadow: 0 0 0 1.5px transparent; transition: box-shadow 300ms; }
 .nm-header-face.nm-live { box-shadow: 0 0 0 1.5px var(--nm-accent); }
 .nm-header-face.nm-wait { box-shadow: 0 0 0 1.5px var(--dsw-alias-state-warn-primary, #d98c1f); }
@@ -393,8 +350,8 @@ html[data-nm-muse] [data-slot="conversation.header"]:has(.nm-header) ~ [data-con
    filter here those popovers were laid out against the 712 px card instead of the window, so the
    list opened full width over the pill instead of under the "+". The card's own fill carries the
    look; the blur belongs to elements that hold no popovers. */
-html[data-nm-muse] [data-composer-card] { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: flex-end; gap: 2px 4px; padding: 6px 8px 6px 10px !important; border-radius: var(--nm-r-xl) !important; background: var(--nm-field) !important; box-shadow: 0 0 0 1px var(--nm-field-border), 0 8px 28px rgba(0,0,0,0.18) !important; transition: box-shadow 180ms ease, border-color 180ms ease; }
-html[data-nm-muse] [data-composer-card]:focus-within { box-shadow: 0 0 0 1.5px var(--nm-blue), 0 10px 32px rgba(0,0,0,0.22) !important; }
+html[data-nm-muse] [data-composer-card] { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: flex-end; gap: 2px 4px; padding: 8px 8px 8px 10px !important; border-radius: var(--nm-r-lg) !important; background: var(--nm-field) !important; box-shadow: 0 0 0 1px var(--nm-field-border) !important; transition: box-shadow var(--nm-dur) var(--nm-ease), border-color var(--nm-dur) var(--nm-ease); }
+html[data-nm-muse] [data-composer-card]:focus-within { box-shadow: 0 0 0 1.5px var(--nm-blue) !important; }
 html[data-nm-muse] [data-composer-card] > [data-input-scroll] { flex: 1 1 120px; min-width: 0; order: 0; margin: 0 !important; }
 html[data-nm-muse] [data-composer-card] > [data-input-scroll] [contenteditable] { min-height: 34px !important; padding: 5px 6px 5px 8px !important; }
 html[data-nm-muse] [data-composer-card] [data-composer-placeholder] { inset: 5px 6px auto 8px !important; color: transparent !important; }
@@ -469,14 +426,15 @@ html[data-nm-muse] [data-chat-flow-kind="turn-tail"] [class*="_timeEnd"] { font-
 /* The user's words: the ink pill on the right (black with white text in the light, white with black
    in the dark). The agent's: a quiet grey one a step off the canvas. A link inside your pill keeps the
    pill's text colour, underlined, and a selection on it is a translucent wash of that colour. */
-html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] { background: var(--nm-user-bubble) !important; color: var(--nm-user-bubble-fg) !important; border-radius: 18px 18px 6px 18px !important; padding: 9px 14px !important; font-size: var(--nm-fs-lg) !important; line-height: 1.55 !important; box-shadow: none; }
+html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] { background: var(--nm-user-bubble) !important; color: var(--nm-user-bubble-fg) !important; border-radius: var(--dsw-radius-xl) !important; padding: 10px 16px !important; font-size: var(--nm-fs-lg) !important; line-height: 1.55 !important; box-shadow: none; }
 html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] a { color: inherit; text-decoration: underline; }
 html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"] ::selection { background: var(--nm-user-bubble-selection); color: var(--nm-user-bubble-fg); }
-html[data-nm-muse] .nm-remote-user .nm-remote-bubble { background: var(--nm-user-bubble); color: var(--nm-user-bubble-fg); border-radius: 18px 18px 6px 18px; padding: 9px 14px; font-size: var(--nm-fs-lg); line-height: 1.55; }
+html[data-nm-muse] .nm-remote-user .nm-remote-bubble { background: var(--nm-user-bubble); color: var(--nm-user-bubble-fg); border-radius: var(--dsw-radius-xl); padding: 10px 16px; font-size: var(--nm-fs-lg); line-height: 1.55; }
 html[data-nm-muse] .nm-remote-user .nm-remote-bubble ::selection { background: var(--nm-user-bubble-selection); color: var(--nm-user-bubble-fg); }
-/* The agent's words are a card on the left, the phone's shape: a large-radius pane of the
-   card colour, a step off the canvas, as wide as the column so long replies read as one block. */
-html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] { width: 100%; max-width: 100%; box-sizing: border-box; background: var(--nm-agent-bubble); border-radius: 18px 18px 18px 6px; padding: 12px 16px; font-size: var(--nm-fs-lg); line-height: 1.72; box-shadow: none; }
+/* The agent's words are the canvas's own, as the harness draws its replies: no card, no
+   padding, the column's width, one text size. A reply deliberately cut into bubbles
+   (Markup.ts) is what draws cards, because the split is the point there. */
+html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] { width: 100%; max-width: 100%; box-sizing: border-box; background: transparent; border-radius: 0; padding: 0; font-size: var(--nm-fs-lg); line-height: 1.72; box-shadow: none; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"]:empty { display: none; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] > :first-child { margin-top: 0; }
 html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"] > [class*="_markdown"] > :last-child { margin-bottom: 0; }
@@ -1878,11 +1836,11 @@ html[data-nm-wallpaper] [class*="_root"]:has([data-slot="conversation.header"]) 
 html[data-nm-wallpaper] .nm-sidebar,
 html[data-nm-wallpaper] .nm-chats,
 html[data-nm-wallpaper] .nm-rail {
-  background-color: color-mix(in srgb, var(--nm-canvas) 86%, transparent) !important;
+  background-color: color-mix(in srgb, var(--nm-sidebar) 86%, transparent) !important;
 }
 /* the bar over a picture: a pane, not a scrim, so the status line keeps its ground */
 html[data-nm-wallpaper] header[data-window-drag]:has(.nm-header) {
-  background: color-mix(in srgb, var(--nm-canvas) 88%, transparent) !important;
+  background: color-mix(in srgb, var(--nm-canvas) 94%, transparent) !important;
   border-bottom-color: color-mix(in srgb, var(--dsw-alias-label-primary) 10%, transparent);
 }
 /* your pill: the theme's own user colour at 86 percent, blurred behind, no hard edge */
@@ -1898,15 +1856,13 @@ html[data-nm-wallpaper] [data-composer-card] {
   background: color-mix(in srgb, var(--nm-field) 96%, transparent) !important;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--nm-field-border) 90%, transparent), 0 10px 34px rgba(0, 0, 0, 0.24) !important;
 }
-/* The agent's reply over a picture is still a card, a shade more solid than on the bare
-   canvas: text on a photograph with only a shadow under it was the least readable part of
-   the window, and the thread lost its left edge. The split bubbles and the other devices'
-   turns take the same pane, so a turn looks the same whichever way it arrived. */
-html[data-nm-wallpaper] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"],
-html[data-nm-wallpaper] .nm-bubble-seg,
-html[data-nm-wallpaper] .nm-remote-assistant .nm-remote-bubble {
-  background: color-mix(in srgb, var(--nm-agent-bubble) 92%, transparent) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dsw-alias-label-primary) 8%, transparent);
+/* Over a picture the thread keeps a ground of its own: one scrim of the canvas colour under
+   the whole conversation, so the words read without a card behind every reply and the
+   picture still shows at the edges and between turns. A reply cut into bubbles still draws
+   its own cards: those are the point of the split. */
+html[data-nm-wallpaper] [data-slot="conversation.header"]:has(.nm-header) ~ [data-conversation-content],
+html[data-nm-wallpaper] [data-conversation-content] {
+  background-color: color-mix(in srgb, var(--nm-canvas) 56%, transparent) !important;
 }
 
 /* Slim modern Morandi scrollbars */

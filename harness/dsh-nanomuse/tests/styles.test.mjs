@@ -19,15 +19,24 @@ function rule(selector) {
   return line.slice(prefix.length)
 }
 
+/** The same, for a rule written over several lines. */
+function block(selector) {
+  const at = css.indexOf(`\n${selector} {\n`)
+  assert.ok(at >= 0, `no rule for ${selector}`)
+  return css.slice(at, css.indexOf('\n}', at))
+}
+
 test('the header fills its bar as a row, without a transform', () => {
   const header = rule('.nm-header')
   assert.doesNotMatch(header, /transform\s*:/)
-  // the bar is the phone's row: the block takes the bar's whole box, start to end, and its three
-  // columns keep the face, the name and the capsule centred whatever the ends carry
+  // The block takes the bar's whole box, start to end. The face, the name and the capsules
+  // lead from the left, as the harness's own title row does: the middle column takes the
+  // slack, so a long name shortens instead of pushing the actions off the end.
   assert.match(header, /inset:\s*0/)
   assert.match(header, /display:\s*grid/)
-  assert.match(header, /grid-template-columns:\s*1fr auto 1fr/)
+  assert.match(header, /grid-template-columns:\s*auto minmax\(0, 1fr\) auto/)
   assert.match(rule('.nm-header-group'), /grid-column:\s*2/)
+  assert.match(rule('.nm-header-group'), /justify-self:\s*start/)
   assert.match(rule('.nm-header-actions'), /grid-column:\s*3/)
   // and its controls take their clicks while the bar around them does not
   assert.match(header, /pointer-events:\s*auto/)
@@ -141,41 +150,35 @@ test('under prefers-reduced-motion every breathing light is steady', () => {
   assert.match(steady, /animation: none; opacity: 1;/)
 })
 
-test('in the Muse look the chat is monochrome: ink pills, grey agent pills, the send disc the same ink', () => {
-  // the token blocks span several lines
-  const block = (selector) => {
-    const at = css.indexOf(`\n${selector} {\n`)
-    assert.ok(at >= 0, `no block for ${selector}`)
-    return css.slice(at, css.indexOf('\n}', at))
-  }
-  const light = block('html[data-nanomuse] body')
-  const dark = block('html[data-nanomuse] body[data-ds-dark-theme]')
-  const tokens = (block) => Object.fromEntries([...block.matchAll(/--(nm-[a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]))
-  const l = tokens(light)
-  const d = tokens(dark)
-  // the phone's Morandi palette (ThemePalette.kt): warm paper and the deep sage pill in the
-  // light, the same cards the phone draws in the dark
-  assert.equal(l['nm-user-bubble'], '#4e5e59')
-  assert.equal(l['nm-user-bubble-fg'], '#ffffff')
-  assert.equal(l['nm-agent-bubble'], '#faf9f6')
-  assert.equal(l['nm-canvas'], '#f3f1ec')
-  assert.equal(l['nm-ink'], '#2c2b29')
-  assert.equal(l['nm-ink-fg'], '#ffffff')
-  assert.equal(d['nm-user-bubble'], '#384541')
-  assert.equal(d['nm-user-bubble-fg'], '#e4e4e6')
-  assert.equal(d['nm-ink'], '#e4e4e6')
-  assert.equal(d['nm-ink-fg'], '#1e2124')
-  // the agent's dark tone is the phone's card, one step off the canvas
-  assert.equal(d['nm-agent-bubble'], '#292d32')
-  assert.equal(d['nm-canvas'], d['nm-base'])
-  // the send disc is the sage in the light and the ink in the dark, the glyph inverted on it
-  assert.equal(l['nm-send'], 'var(--nm-primary)')
-  assert.equal(d['nm-send'], '#e4e4e6')
-  // the agent's reply is a card on both paths: the harness's own step and a reply from another
-  // device of the account
-  assert.match(rule('html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"]'), /background:\s*var\(--nm-agent-bubble\)/)
-  assert.match(rule('html[data-nm-muse] .nm-remote-assistant .nm-remote-bubble'), /background:\s*var\(--nm-agent-bubble\)/)
-  // the user's pill carries its own text colour, and so do the remote and coding copies of it
+test('the chrome is cut from the harness\'s own material: one palette, ink on the canvas', () => {
+  // One token block, and every colour in it is a harness token: the light and the dark come
+  // from `--dsw-*`, so a theme change moves our surfaces with the harness's. What is ours is
+  // the accent, the colour the person gave the agent.
+  const at = css.indexOf('\nhtml[data-nanomuse] body {\n')
+  assert.ok(at >= 0, 'the palette block')
+  const palette = css.slice(at, css.indexOf('\n}', at))
+  const tokens = Object.fromEntries([...palette.matchAll(/--(nm-[a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]))
+  const fromHarness = ['nm-base', 'nm-canvas', 'nm-sidebar', 'nm-field', 'nm-field-border', 'nm-card', 'nm-selected', 'nm-hover', 'nm-divider', 'nm-agent-bubble', 'nm-bubble-border', 'nm-user-bubble', 'nm-user-bubble-fg', 'nm-ink', 'nm-ink-fg', 'nm-send', 'nm-send-idle', 'nm-blue', 'nm-blue-hover', 'nm-on-accent', 'nm-primary']
+  for (const name of fromHarness) assert.match(tokens[name] ?? '', /^var\(--dsw-/, name)
+  // declared on <body>, because the harness declares its palette there and a token that
+  // reads another token is resolved where it is declared
+  assert.match(palette, /^\nhtml\[data-nanomuse\] body \{/)
+  assert.doesNotMatch(css, /\nhtml\[data-nanomuse\] \{\n[^}]*--nm-base:/)
+  // the radius and the font are the harness's too, from :root
+  assert.match(css, /--nm-radius: var\(--dsw-radius-lg\)/)
+  assert.match(css, /--nm-font: var\(--dsw-font-family\)/)
+  // and there is no second, hand-written palette to drift from it
+  assert.equal(css.includes('html[data-nanomuse] body[data-ds-dark-theme] {'), false)
+  // the one colour that is ours, kept on <html> so setAccent() can replace it
+  assert.match(css, /--nm-accent: #c8743a;/)
+  assert.equal(tokens['nm-accent'], undefined)
+
+  // The agent's words are the canvas's own, as the harness draws its replies: a card only
+  // when the reply was deliberately cut into bubbles (Markup.ts), or over a wallpaper.
+  assert.match(rule('html[data-nm-muse] [data-chat-flow-kind="assistant-step"] [data-slot="conversation.chat.node"] > [class*="_root"] > [class*="_body"]'), /background:\s*transparent/)
+  assert.match(rule('html[data-nm-muse] .nm-remote-assistant .nm-remote-bubble'), /background:\s*transparent/)
+  assert.match(block('.nm-bubble-seg'), /background:\s*var\(--nm-agent-bubble\)/)
+  // your words are a pill of the harness's bubble colour, the radius the harness gives one
   for (const sel of [
     'html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"]',
     'html[data-nm-muse] .nm-remote-user .nm-remote-bubble',
@@ -185,7 +188,8 @@ test('in the Muse look the chat is monochrome: ink pills, grey agent pills, the 
     assert.match(r, /background:\s*var\(--nm-user-bubble\)/, sel)
     assert.match(r, /color:\s*var\(--nm-user-bubble-fg\)/, sel)
   }
-  // the send disc and the scroll-to-latest disc: the ink, the glyph in the opposite colour
+  assert.match(rule('html[data-nm-muse] [data-chat-flow-kind="user"] [class*="_bubble"]'), /border-radius:\s*var\(--dsw-radius-xl\)/)
+  // the send disc and the scroll-to-latest disc: the accent's ink, the glyph in the opposite colour
   assert.match(rule('html[data-nm-muse] [data-composer-card] [class*="_primary"]'), /color:\s*var\(--nm-ink-fg\)/)
   const toBottom = rule('html[data-nm-muse] [data-conversation-scroll] [class*="_toBottomSlot"] > button[class*="_toBottom"]')
   assert.match(toBottom, /background:\s*var\(--nm-send\)/)

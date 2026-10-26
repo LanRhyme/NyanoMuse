@@ -58,9 +58,9 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   account signs in again, and are never pushed under a different account; a change of
   account starts the pull over from the beginning. Signed out, everything local is shown.
 - Above the conversation, in the harness's `conversation.header.leading` seat, a 56 px bar
-  runs the width of the chat column, the way the phone's top bar does: the face (30 px),
-  the name and the balance capsule sit centred as one row, the way back on the left and
-  the background button at the right. While there is something to say, a second line under
+  runs the width of the chat column: the face (28 px), the name and the capsules lead
+  from the left as one row, the way back beside them and the background button at the
+  right, the way the harness's own title row sits. While there is something to say, a second line under
   the name reads *connected* / *not signed in* / *thinking…* / *Hands · step N · what it is
   doing* / *Reach · step N · on Laptop B: …* / *waiting for you* and tints while the agent
   works and while it waits; idle, the bar is the phone's single line. The thread starts a
@@ -68,11 +68,11 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   hairline, so the thread has a top edge. Clicking the face opens the profile
   panel. The harness's own title row, tabs (*Conversation* / *Trace*) and session actions
   are hidden: the chat rows carry rename, pin and archive.
-- The conversation keeps the phone's shapes: your messages are pills on the right in the
-  Morandi sage (`#4e5e59` with white ink in the light, `#384541` with `#e4e4e6` in the
-  dark), the agent's replies are cards on the left at `#faf9f6` and `#292d32`, a step off
-  the canvas and as wide as the column, and timestamps and the per-message actions appear
-  on hover only; a link inside your pill keeps the pill's text colour, underlined. An empty chat has no greeting and no
+- The conversation is cut from the harness's own material: the agent's replies are text on
+  the canvas, as the harness draws its own, and your messages are pills on the right in
+  the harness's bubble colour, at its radius and padding. Timestamps and the per-message
+  actions appear on hover only; a link inside your pill keeps the pill's text colour,
+  underlined. An empty chat has no greeting and no
   workspace or preset chips: the composer waits at the bottom and opens the workspace
   picker itself when a workspace is needed.
 - The chat takes the phone's three tags. A reply may arrive as two or three short
@@ -120,28 +120,29 @@ decorative, every surface a flat tone one step from its neighbour. It comes from
   the endpoint, the key page and what that vendor covers; the catalogue is the same file the
   phones read, so the two ends offer the same set.
 
-  while a turn runs); the send disc and the harness's scroll-to-latest disc take the sage
-  in the light and the ink in the dark, with the glyph inverted on them. It is docked at
+  while a turn runs); the send disc and the harness's scroll-to-latest disc take the
+  harness's blue, with the glyph inverted on them. It is docked at
   the foot of the window: a short thread pushes it down, a long one scrolls under it with
   a fade, and the pill keeps a 14 px gap above the edge in both cases. The harness's model picker, permission mode and plan toggle are
   hidden from it (the models live in Settings → Models, dsh's own Models page is under
   Advanced, and the default permission mode in General) and come back with
   *Show DeepSeek Harness controls* under General. The microphone appears when the harness's voice input is switched on in
   Plugins (Settings → Dictation says how).
-- Theme: the harness's light and dark palettes are overridden to the phone's Morandi
-  palette (`ThemePalette.kt`): warm paper `#f3f1ec` with cards at `#faf9f6` and the sage
-  `#6a7f7a` for links and the send disc in the light; `#1e2124` with cards and the
-  composer at `#292d32`, the raised step `#34393f` and the sage `#9eaba7` in the dark.
-  The accent follows the face's colour on the account, so a face coloured on the phone
-  colours the desktop's lights and links too. The desktop shell paints the window in the
-  same base colour, so a resize never flashes white in the dark.
+- Theme: the window is drawn from the harness's own palette, not a second one. Every
+  surface, ink, border, bubble and radius the plugin uses is a `--dsw-*` token, so the
+  column, the bar, the chat and the composer are the same material as the harness's menus
+  and pages, and the light and dark palettes move both at once. What is ours is the accent:
+  the colour the face has on the account, used for presence (a live dot, the ring around
+  the face, the mood mark) and nothing louder. The desktop shell paints the window in the
+  harness's base colour, so a resize never flashes white in the dark.
 - Wallpaper: the button at the right of the bar opens *Personal background and
   wallpaper*: the system picture (Noctalia on a Linux desktop) or one of your own, with
   a blur and a dim slider. The choice lives in `~/.nyanomuse/desktop/wallpaper.json` and
   the picture is served over the host's `/nanomuse/cloud/wallpaper/image`. With a picture
-  on, the rail, the chats column and the conversation show it through panes of the theme
-  colour, your pills and the composer included, while Settings and the other pages keep
-  their solid surfaces.
+  on, the rail and the chats column become panes of the sidebar colour and the conversation
+  keeps a scrim of the canvas colour under the thread, so the words still read without a
+  card behind every reply; the picture shows at the edges and between turns. The bar and
+  the composer are panes too, while Settings and the other pages keep their solid surfaces.
 
 ## The first run
 
